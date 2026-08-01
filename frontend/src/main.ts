@@ -3,10 +3,7 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import 'virtual:uno.css'
 import { createRouter, createWebHistory } from 'vue-router'
-import Particles from '@tsparticles/vue3'
-import { loadSlim } from '@tsparticles/slim'
 import { MotionPlugin } from '@vueuse/motion'
-import Vue3Lottie from 'vue3-lottie'
 import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
 import App from './App.vue'
@@ -35,8 +32,6 @@ const router = createRouter({
 createApp(App)
   .use(ElementPlus)
   .use(router)
-  .use(Particles, { init: async engine => { await loadSlim(engine) } })
-  .use(Vue3Lottie)
   .use(MotionPlugin)
   .use(Vue3Toastify, { autoClose: 3000, position: 'top-right', theme: 'dark' } as ToastContainerOptions)
   .mount('#app')
