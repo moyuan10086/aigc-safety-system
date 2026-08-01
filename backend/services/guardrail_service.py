@@ -155,7 +155,19 @@ def _run_rag(text: str) -> tuple[dict[str, float], list[dict[str, Any]], str]:
 
         with _RAG_LOCK:
             result = rag_service.check_content(text[:4_000])
-        matched = [str(v) for v in result.get("matched_keywords", [])[:5]]
+        raw_matches = result.get("matches", [])
+        if raw_matches:
+            matched = [
+                str(item.get("term", ""))
+                for item in raw_matches
+                if item.get("category") in {"political", "sexual", "violence", "illegal"}
+                and len(str(item.get("term", "")).strip()) >= 2
+            ][:5]
+        else:
+            matched = [
+                str(value) for value in result.get("matched_keywords", [])
+                if len(str(value).strip()) >= 3
+            ][:5]
         rules = [str(v) for v in result.get("violated_rules", [])[:3]]
         if not matched and not rules:
             return {}, [], "ok"
