@@ -1,0 +1,6 @@
+[submodule "deepfake-detection"]
+	path = deepfake-detection
+	url = https://github.com/yermandy/deepfake-detection.git
+[submodule "mllm-defake"]
+	path = mllm-defake
+	url = https://github.com/Gennadiyev/mllm-defake.git

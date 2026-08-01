@@ -1,0 +1,39 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "chromadb>=1.5.8",
+    "fastapi>=0.136.0",
+    "garak>=0.14.1",
+    "httpx>=0.28.1",
+    "open-clip-torch>=3.3.0",
+    "openai>=2.32.0",
+    "pillow>=12.2.0",
+    "python-dotenv>=1.2.2",
+    "python-multipart>=0.0.26",
+    "sentence-transformers>=5.4.1",
+    "torch>=2.11.0",
+    "torchvision>=0.26.0",
+    "uvicorn[standard]>=0.44.0",
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
+    "transformers>=5.5.4",
+    "lightning>=2.6.1",
+    "peft>=0.19.1",
+    "wandb>=0.26.0",
+    "matplotlib>=3.10.8",
+    "scikit-learn>=1.7.2",
+    "pyyaml>=6.0.3",
+    "seaborn>=0.13.2",
+    "rich>=15.0.0",
+    "timm>=1.0.26",
+    "fire>=0.7.1",
+    "loguru>=0.7.3",
+    "filetype>=1.2.0",
+    "opencv-python-headless>=4.13.0.92",
+    "paddleocr>=2.10.0",
+    "pymupdf>=1.27.2.3",
+]

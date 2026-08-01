@@ -1,0 +1,31 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "type": "module",
+  "dependencies": {
+    "@tsparticles/slim": "^3.9.1",
+    "@tsparticles/vue3": "^3.0.1",
+    "@vueuse/core": "^14.2.1",
+    "@vueuse/motion": "^3.0.3",
+    "axios": "^1.15.1",
+    "element-plus": "^2.13.7",
+    "marked": "^18.0.2",
+    "vue": "^3.5.32",
+    "vue-router": "^4.6.4",
+    "vue3-lottie": "^3.3.1",
+    "vue3-toastify": "^0.2.9"
+  },
+  "devDependencies": {
+    "@unocss/preset-attributify": "^66.6.8",
+    "@unocss/preset-uno": "^66.6.8",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "typescript": "^6.0.3",
+    "unocss": "^66.6.8",
+    "vite": "^8.0.9"
+  }
+}

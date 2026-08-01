@@ -1,0 +1,18 @@
+[Unit]
+Description=AIGC Safety System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/CH/aigc-safety-system/backend
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HOME=/root/CH/aigc-safety-system/.cache/huggingface
+ExecStart=/root/.local/bin/uv run uvicorn main:app --host 0.0.0.0 --port 8010 --workers 1
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

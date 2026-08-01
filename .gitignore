@@ -1,0 +1,34 @@
+# Secrets
+.env
+*.env.local
+backend/.env
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/.ruff_cache/
+**/*.egg-info/
+**/.git.local-backup/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Model artifacts (downloaded or copied during deployment)
+**/weights/
+**/.cache/
+
+# Runtime data
+backend/uploads/
+backend/reports/
+backend/rag_db/
+backend/rag/
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/

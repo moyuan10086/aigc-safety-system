@@ -1,0 +1,205 @@
+# AIGC 内容安全检测系统
+
+基于多模态大模型与对比学习的 AIGC 内容安全检测研究及其应用
+
+## 系统架构
+
+```
+aigc-safety-system/
+├── backend/              # FastAPI 后端
+│   ├── services/         # 三大检测服务
+│   │   ├── deepfake_service.py    # CLIP Deepfake 检测
+│   │   ├── mllm_service.py        # MLLM 可解释性检测
+│   │   └── rag_service.py         # RAG 内容安全审核
+│   ├── routers/          # API 路由
+│   ├── config.py         # 配置
+│   └── main.py           # 入口
+└── frontend/             # Vue3 前端
+    ├── src/views/
+    │   ├── Detect.vue    # 检测页面
+    │   └── Report.vue    # 报告页面
+    └── dist/             # 构建产物
+```
+
+## 核心功能
+
+### 1. Deepfake 检测（第三章）
+- 基于 CLIP 视觉编码器 + LN-tuning
+- 调用 `deepfake-detection/` 训练好的模型
+- 返回：真实/伪造标签、置信度、得分
+
+### 2. MLLM 可解释性检测（第四章）
+- 通过 OpenAI 兼容接口调用多模态大模型
+- 支持 GPT-4o / Claude Opus 4.6 / Gemini 3.1 Pro
+- 返回：判断结果、证据列表、可疑区域、中文解释
+
+### 3. RAG 内容安全审核（第五章）
+- ChromaDB 向量数据库 + 敏感词库
+- 混合检索：关键词匹配 + 语义相似度
+- 返回：安全状态、命中关键词、违规规则、风险等级
+
+### 4. SSE 流式审计报告（第六章）
+- `/api/detect/full` 接口
+- 实时推送三个模块的检测进度和结果
+- 前端 EventSource 接收流式数据
+
+## 快速开始
+
+### 1. 配置环境
+
+```bash
+# 复制配置文件
+cp backend/.env.example backend/.env
+
+# 编辑 backend/.env，填入 API Key
+MLLM_API_KEY=your_api_key
+MLLM_BASE_URL=https://api.openai.com/v1
+MLLM_MODEL=gpt-4o
+```
+
+### 2. 启动系统
+
+**Windows:**
+```bash
+start.bat
+```
+
+**手动启动:**
+```bash
+# 构建前端
+cd frontend && npm run build && cd ..
+
+# 启动后端
+cd backend && uv run main.py
+```
+
+访问：http://localhost:8010
+
+## 服务器部署
+
+比赛演示服务器采用单进程 FastAPI + systemd，前端静态文件由 FastAPI 同源托管。生产环境不要使用 `main.py` 中的热重载开发入口。
+
+```bash
+# 代码目录
+/root/CH/aigc-safety-system
+
+# 首次部署（先准备 backend/.env、Deepfake 权重和句向量模型）
+bash deploy/bootstrap.sh
+
+# 后续从 GitHub 更新
+bash deploy/update.sh
+
+# 查看状态与日志
+systemctl status aigc-safety.service
+journalctl -u aigc-safety.service -f
+```
+
+服务默认监听 `0.0.0.0:8010`，健康检查为 `GET /api/health`。模型权重、API 密钥、上传文件、报告和向量数据库均被 Git 忽略，不会推送到 GitHub。
+
+## API 文档
+
+### 单独检测接口
+
+**Deepfake 检测**
+```bash
+POST /api/detect/deepfake
+Content-Type: multipart/form-data
+Body: image=<file>
+
+Response: {"score": 0.85, "label": "fake", "confidence": 0.70}
+```
+
+**MLLM 检测**
+```bash
+POST /api/detect/mllm
+Content-Type: multipart/form-data
+Body: image=<file>
+
+Response: {
+  "verdict": "fake",
+  "confidence": 0.9,
+  "evidence": ["不自然的面部边缘", "光照不一致"],
+  "regions": ["眼睛周围", "嘴部"],
+  "explanation": "该图像存在明显的AI生成痕迹..."
+}
+```
+
+**内容安全审核**
+```bash
+POST /api/detect/content
+Content-Type: application/x-www-form-urlencoded
+Body: text=<content>
+
+Response: {
+  "safe": false,
+  "matched_keywords": ["暴力", "血腥"],
+  "violated_rules": ["禁止暴力血腥内容"],
+  "risk_level": "high"
+}
+```
+
+### 全量审计接口（SSE）
+
+```bash
+POST /api/detect/full
+Content-Type: multipart/form-data
+Body: image=<file>&text=<content>
+
+Response: text/event-stream
+event: step
+data: {"step": "deepfake", "status": "running"}
+
+event: deepfake
+data: {"score": 0.85, "label": "fake", "confidence": 0.70}
+
+event: step
+data: {"step": "mllm", "status": "running"}
+
+event: mllm
+data: {"verdict": "fake", "confidence": 0.9, ...}
+
+event: step
+data: {"step": "rag", "status": "running"}
+
+event: rag
+data: {"safe": true, "risk_level": "low"}
+
+event: done
+data: {"status": "completed"}
+```
+
+## 技术栈
+
+**后端:**
+- FastAPI — 异步 Web 框架
+- PyTorch + CLIP — Deepfake 检测
+- OpenAI SDK — MLLM 调用
+- ChromaDB — 向量数据库
+- Sentence-Transformers — 文本嵌入
+
+**前端:**
+- Vue 3 + TypeScript
+- Element Plus — UI 组件库
+- Vite — 构建工具
+- EventSource — SSE 客户端
+
+## 论文对应关系
+
+| 章节 | 模块 | 代码位置 |
+|------|------|----------|
+| 第三章 | CLIP Deepfake 检测 | `services/deepfake_service.py` |
+| 第四章 | MLLM 可解释性检测 | `services/mllm_service.py` |
+| 第五章 | RAG 内容安全审核 | `services/rag_service.py` |
+| 第六章 | 系统集成与工程化 | `main.py` + `routers/detect.py` |
+| 第六章 | Vue3 前端界面 | `frontend/src/` |
+| 第六章 | SSE 流式审计报告 | `routers/detect.py:full_audit()` |
+
+## 依赖项目
+
+- `../deepfake-detection/` — CLIP 模型训练与推理
+- `../mllm-defake/` — MLLM 检测框架（参考）
+- `../数字人前端/backend/Sensitive-lexicon/` — 敏感词库
+
+## 开发者
+
+陈昊 - 广东技术师范大学 - 2026届本科毕业设计
