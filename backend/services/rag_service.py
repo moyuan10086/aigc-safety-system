@@ -43,7 +43,7 @@ def _init():
     _embedder = SentenceTransformer(
         "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         cache_folder=str(Path(__file__).parents[1] / "weights" / "sentence_transformers"),
-        local_files_only=True,
+        local_files_only=False,
     )
 
     # 用 SensitiveLexiconLoader 加载词库

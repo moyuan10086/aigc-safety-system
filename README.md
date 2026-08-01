@@ -83,7 +83,7 @@ cd backend && uv run main.py
 # 代码目录
 /root/CH/aigc-safety-system
 
-# 首次部署（先准备 backend/.env、Deepfake 权重和句向量模型）
+# 首次部署（先准备 backend/.env；脚本会自动下载模型）
 bash deploy/bootstrap.sh
 
 # 后续从 GitHub 更新
