@@ -1,4 +1,4 @@
-aigc.49.51.248.227.sslip.io {
+http://aigc.49.51.248.227.sslip.io {
     encode zstd gzip
     reverse_proxy 127.0.0.1:8010
 
