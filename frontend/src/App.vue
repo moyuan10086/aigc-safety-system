@@ -56,17 +56,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-
-const icon = (body: string) => ({ template: `<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`, props: ['size'] })
-const ImageIcon = icon('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>')
-const ShieldIcon = icon('<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3v8z"/><path d="m9 12 2 2 4-4"/>')
-const RadarIcon = icon('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>')
-const BookIcon = icon('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2z"/>')
-const ChartIcon = icon('<path d="M3 3v18h18"/><path d="m7 16 4-5 3 3 5-7"/>')
-const SettingsIcon = icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4V21h-4v-.09A1.7 1.7 0 0 0 9 19.4l-1.88.34-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15H3v-4h.09A1.7 1.7 0 0 0 4.6 9L4.26 7.1l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6V3h4v.09A1.7 1.7 0 0 0 15 4.6l1.88-.34 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9H21v4h-.09A1.7 1.7 0 0 0 19.4 15z"/>')
-const InfoIcon = icon('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>')
-const MenuIcon = icon('<path d="M4 6h16M4 12h16M4 18h16"/>')
-const MenuOpenIcon = icon('<path d="M4 6h16M4 12h10M4 18h16"/>')
+import {
+  BookOpen as BookIcon,
+  ChartNoAxesCombined as ChartIcon,
+  Image as ImageIcon,
+  Info as InfoIcon,
+  Menu as MenuIcon,
+  PanelLeftClose as MenuOpenIcon,
+  Radar as RadarIcon,
+  Settings as SettingsIcon,
+  ShieldCheck as ShieldIcon,
+} from 'lucide-vue-next'
 
 const navItems = [
   { to: '/detect', icon: ImageIcon, label: '图片与人脸审核' },
