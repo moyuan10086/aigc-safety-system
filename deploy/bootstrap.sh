@@ -11,7 +11,7 @@ npm install --package-lock=false --no-audit --no-fund
 npm run build
 
 cd "$APP_DIR/backend"
-uv sync --frozen --no-dev
+uv sync --frozen --no-dev --index https://download.pytorch.org/whl/cpu --index https://pypi.org/simple
 uv run python -c 'from huggingface_hub import hf_hub_download; hf_hub_download(repo_id="yermandy/deepfake-detection", filename="model.ckpt", local_dir="../deepfake-detection/weights")'
 uv run python -c 'from sentence_transformers import SentenceTransformer; SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", cache_folder="weights/sentence_transformers")'
 

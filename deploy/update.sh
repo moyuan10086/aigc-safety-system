@@ -12,7 +12,7 @@ npm install --package-lock=false --no-audit --no-fund
 npm run build
 
 cd "$APP_DIR/backend"
-uv sync --frozen --no-dev
+uv sync --frozen --no-dev --index https://download.pytorch.org/whl/cpu --index https://pypi.org/simple
 
 systemctl restart aigc-safety.service
 systemctl --no-pager --full status aigc-safety.service
