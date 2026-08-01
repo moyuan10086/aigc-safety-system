@@ -8,7 +8,7 @@ git pull --ff-only
 git submodule update --init --recursive
 
 cd "$APP_DIR/frontend"
-npm ci
+npm install --package-lock=false --no-audit --no-fund
 npm run build
 
 cd "$APP_DIR/backend"
