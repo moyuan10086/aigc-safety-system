@@ -31,4 +31,8 @@ backend/rag/
 Thumbs.db
 .idea/
 .vscode/
+
+# Browser verification artifacts
+.playwright-cli/
+output/playwright/
 .claude/
