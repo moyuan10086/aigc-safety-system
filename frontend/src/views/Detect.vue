@@ -1,6 +1,6 @@
 <template>
   <div class="detect-page">
-    <title>图像检测 - AIGC安全系统</title>
+    <title>图片与人脸审核 - AIGC安全运营台</title>
 
     <!-- 顶部信息网格：仿 NapCat QQInfo + SystemInfo + SystemStatus -->
     <div class="top-grid">
@@ -11,9 +11,9 @@
           <div v-else class="avatar-placeholder">
             <!-- 空状态插画 -->
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="20" fill="#fdf2f8" stroke="#f9a8d4" stroke-width="1.5"/>
-              <circle cx="24" cy="20" r="6" fill="#fce7f3" stroke="#f472b6" stroke-width="1.5"/>
-              <path d="M10 38c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#f472b6" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <circle cx="24" cy="24" r="20" fill="#101820" stroke="#355365" stroke-width="1.5"/>
+              <circle cx="24" cy="20" r="6" fill="#182630" stroke="#2dd4bf" stroke-width="1.5"/>
+              <path d="M10 38c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
             </svg>
           </div>
           <div class="avatar-dot" :class="file ? 'dot-ready' : 'dot-idle'"></div>
@@ -126,13 +126,13 @@
         <div class="upload-inner">
           <!-- 上传区插画 -->
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none" class="upload-illustration">
-            <circle cx="40" cy="40" r="36" fill="#fdf2f8" stroke="#f9a8d4" stroke-width="1.5"/>
-            <circle cx="40" cy="40" r="26" fill="none" stroke="#f472b6" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
-            <rect x="28" y="26" width="24" height="28" rx="3" fill="white" stroke="#f472b6" stroke-width="1.5"/>
-            <line x1="33" y1="33" x2="47" y2="33" stroke="#f9a8d4" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="33" y1="38" x2="47" y2="38" stroke="#f9a8d4" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="33" y1="43" x2="41" y2="43" stroke="#f9a8d4" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M40 52 L40 62 M36 58 L40 62 L44 58" stroke="#f472b6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="40" cy="40" r="36" fill="#101820" stroke="#355365" stroke-width="1.5"/>
+            <circle cx="40" cy="40" r="26" fill="none" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+            <rect x="28" y="26" width="24" height="28" rx="3" fill="#0a1117" stroke="#2dd4bf" stroke-width="1.5"/>
+            <line x1="33" y1="33" x2="47" y2="33" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="33" y1="38" x2="47" y2="38" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="33" y1="43" x2="41" y2="43" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M40 52 L40 62 M36 58 L40 62 L44 58" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <div class="upload-text">拖拽或点击上传图像</div>
           <div class="upload-sub">支持 JPG / PNG / WebP</div>
@@ -173,7 +173,24 @@
     </div>
 
     <!-- 检测结果 -->
-    <div v-if="results.deepfake || results.mllm || results.rag" class="results-grid">
+    <div v-if="results.face || results.deepfake || results.mllm || results.rag" class="results-grid">
+      <div class="card result-card" v-if="results.face">
+        <div class="card-title">人脸与图像质量证据</div>
+        <div class="result-body">
+          <span class="badge" :class="results.face.face_detected ? 'badge-success' : 'badge-warn'">
+            {{ results.face.face_detected ? `检测到 ${results.face.face_count} 张人脸` : '未检测到正脸' }}
+          </span>
+          <div class="face-metrics">
+            <span>清晰度 <b>{{ results.face.sharpness ?? '—' }}</b></span>
+            <span>亮度 <b>{{ results.face.brightness ?? '—' }}</b></span>
+            <span>主脸占比 <b>{{ results.face.largest_face_ratio != null ? (results.face.largest_face_ratio * 100).toFixed(1) + '%' : '—' }}</b></span>
+            <span>质量 <b>{{ results.face.quality === 'good' ? '良好' : '需复核' }}</b></span>
+          </div>
+          <div v-if="results.face.quality_flags?.length" class="tags">
+            <span v-for="flag in results.face.quality_flags" :key="flag" class="tag tag-danger">{{ flag }}</span>
+          </div>
+        </div>
+      </div>
       <div class="card result-card" v-if="results.deepfake"
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400}}">
         <div class="card-title">Deepfake 检测</div>
@@ -358,6 +375,7 @@ const runAudit = async () => {
       if (!event || !data) continue
       const payload = JSON.parse(data)
       if (event === 'step') currentStep.value = payload.step
+      if (event === 'face') { results.face = payload }
       if (event === 'deepfake') { results.deepfake = payload; currentStep.value = '' }
       if (event === 'mllm') { results.mllm = payload; currentStep.value = '' }
       if (event === 'rag') { results.rag = payload; currentStep.value = '' }
@@ -382,136 +400,5 @@ const runAudit = async () => {
 </script>
 
 <style scoped>
-.detect-page { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-
-.scan-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(255,245,249,0.7); backdrop-filter: blur(4px);
-  z-index: 100; display: flex; align-items: center; justify-content: center;
-}
-.scan-box {
-  width: 280px; height: 280px; border: 2px solid #f472b6;
-  border-radius: 16px; position: relative; overflow: hidden;
-  background: rgba(255,255,255,0.9);
-  box-shadow: 0 0 40px rgba(244,114,182,0.3), inset 0 0 40px rgba(244,114,182,0.05);
-}
-.scan-line {
-  position: absolute; left: 0; width: 100%; height: 3px;
-  background: linear-gradient(90deg, transparent, #f472b6, transparent);
-  animation: scan 2s linear infinite;
-  box-shadow: 0 0 12px #f472b6;
-}
-@keyframes scan { 0% { top: 0 } 100% { top: 100% } }
-.scan-text {
-  position: absolute; bottom: 20px; width: 100%;
-  text-align: center; font-size: 13px; color: #f472b6; font-weight: 600;
-  animation: blink 1s ease-in-out infinite;
-}
-@keyframes blink { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
-
-/* Top grid */
-.top-grid { display: grid; grid-template-columns: 260px 1fr 260px; gap: 14px; }
-
-.info-card { display: flex; align-items: center; gap: 14px; }
-.avatar-wrap { position: relative; flex-shrink: 0; }
-.avatar-img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px rgba(244,114,182,0.3); }
-.avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; background: #fdf2f8; display: flex; align-items: center; justify-content: center; color: #f9a8d4; }
-.avatar-dot { position: absolute; right: 2px; bottom: 2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; }
-.dot-ready { background: #22c55e; }
-.dot-idle { background: #cbd5e1; }
-.info-name { font-size: 15px; font-weight: 600; color: #1e293b; }
-.info-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; font-family: monospace; }
-
-.sys-card {}
-.sys-rows { display: flex; flex-direction: column; gap: 10px; }
-.sys-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.sys-dot { width: 6px; height: 6px; border-radius: 50%; background: #f472b6; flex-shrink: 0; }
-.sys-label { color: #64748b; flex: 1; }
-.sys-val { color: #1e293b; font-weight: 500; font-size: 12px; }
-
-.ring-card { display: flex; align-items: center; justify-content: center; }
-.ring-wrap { display: flex; gap: 24px; }
-.ring-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.ring-svg { width: 88px; height: 88px; transform: rotate(-90deg); }
-.ring-bg { fill: none; stroke: #fce7f3; stroke-width: 7; }
-.ring-fill { fill: none; stroke-width: 7; stroke-linecap: round; stroke-dasharray: 239; transition: stroke-dashoffset 0.7s ease; }
-.ring-pink { stroke: #f472b6; }
-.ring-purple { stroke: #a855f7; }
-.ring-center { position: absolute; display: flex; align-items: baseline; gap: 1px; }
-.ring-item { position: relative; }
-.ring-item .ring-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(0deg); }
-.ring-val { font-size: 20px; font-weight: 700; color: #f472b6; line-height: 1; }
-.ring-val-purple { color: #a855f7; }
-.ring-unit { font-size: 11px; font-weight: 600; color: #f472b6; }
-.ring-label { font-size: 11px; color: #94a3b8; }
-
-/* Stats row */
-.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.stat-box { background: rgba(255,255,255,0.8); border: 1px solid #fce7f3; border-radius: 14px; padding: 14px 12px; text-align: center; backdrop-filter: blur(8px); }
-.stat-main { border-color: #f9a8d4; background: rgba(253,242,248,0.8); }
-.stat-num { font-size: 22px; font-weight: 700; color: #1e293b; }
-.stat-label { font-size: 11px; color: #94a3b8; margin-top: 3px; }
-.num-done { color: #22c55e; }
-.num-idle { color: #cbd5e1; }
-.num-running { color: #f59e0b; animation: pulse 1s infinite; }
-@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
-
-/* Action row */
-.action-row { display: flex; gap: 14px; }
-.upload-zone { flex: 1; }
-.upload-zone :deep(.el-upload-dragger) {
-  background: rgba(255,255,255,0.7) !important;
-  border: 2px dashed #fce7f3 !important;
-  border-radius: 14px !important;
-  padding: 24px !important;
-  transition: border-color 0.2s !important;
-}
-.upload-zone :deep(.el-upload-dragger:hover) { border-color: #f9a8d4 !important; }
-.upload-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.upload-icon { color: #f9a8d4; }
-.upload-text { font-size: 14px; color: #64748b; font-weight: 500; }
-.upload-sub { font-size: 12px; color: #cbd5e1; }
-
-.detect-btn {
-  width: 180px; border-radius: 14px; border: none;
-  background: linear-gradient(135deg, #f472b6, #ec4899);
-  color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: opacity 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(244,114,182,0.35);
-}
-.detect-btn:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(244,114,182,0.5); }
-.detect-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-.btn-spin { display: flex; }
-.btn-spin :deep(.spin-anim) { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Results */
-.results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.result-card {}
-.result-body { display: flex; flex-direction: column; gap: 8px; }
-.badge { display: inline-flex; align-items: center; padding: 3px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; width: fit-content; }
-.badge-success { background: #dcfce7; color: #16a34a; }
-.badge-danger { background: #fee2e2; color: #dc2626; }
-.badge-warn { background: #fef3c7; color: #ca8a04; }
-.result-meta { font-size: 12px; color: #64748b; }
-.result-text { font-size: 13px; color: #475569; line-height: 1.6; }
-.tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.tag { padding: 2px 8px; border-radius: 6px; font-size: 11px; background: #fdf2f8; color: #f472b6; border: 1px solid #fce7f3; }
-.tag-danger { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
-
-/* Quote */
-.quote-card { position: relative; text-align: center; padding: 28px 32px; }
-.quote-icon { color: rgba(244,114,182,0.2); margin: 0 auto 12px; display: block; }
-.quote-text { font-size: 17px; color: #1e293b; font-weight: 500; line-height: 1.7; margin-bottom: 12px; font-style: italic; }
-.quote-from { display: flex; flex-direction: column; gap: 2px; }
-.quote-source { color: #f472b6; font-size: 13px; font-weight: 600; }
-.quote-author { color: #94a3b8; font-size: 12px; }
-.quote-refresh {
-  position: absolute; top: 16px; right: 16px;
-  background: none; border: none; cursor: pointer;
-  color: #cbd5e1; padding: 6px; border-radius: 9999px;
-  transition: all 0.18s; display: flex;
-}
-.quote-refresh:hover { background: #fdf2f8; color: #f472b6; }
+.detect-page{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}.top-grid{display:grid;grid-template-columns:260px 1fr 280px;gap:14px}.info-card{display:flex;align-items:center;gap:14px}.avatar-wrap{position:relative;flex-shrink:0}.avatar-img,.avatar-placeholder{width:56px;height:56px;border-radius:6px;object-fit:cover}.avatar-placeholder{display:grid;place-items:center;background:#0b1218}.avatar-dot{position:absolute;right:-3px;bottom:-3px;width:11px;height:11px;border:2px solid var(--surface);border-radius:50%}.dot-ready{background:var(--success)}.dot-idle{background:var(--faint)}.info-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:14px;font-weight:600}.info-sub,.result-meta,.ring-label{color:var(--muted);font-size:11px}.sys-rows{display:flex;flex-direction:column;gap:10px}.sys-row{display:flex;align-items:center;gap:8px;font-size:12px}.sys-dot{width:6px;height:6px;border-radius:50%;background:var(--primary)}.sys-label{flex:1;color:var(--muted)}.sys-val{color:var(--text);font:11px ui-monospace,monospace}.ring-card{display:flex;align-items:center;justify-content:center}.ring-wrap{display:flex;gap:24px}.ring-item{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}.ring-svg{width:82px;height:82px;transform:rotate(-90deg)}.ring-bg{fill:none;stroke:var(--line);stroke-width:7}.ring-fill{fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:239;transition:stroke-dashoffset .7s}.ring-pink{stroke:var(--primary)}.ring-purple{stroke:var(--warning)}.ring-center{position:absolute;top:40px;left:50%;display:flex;align-items:baseline;transform:translate(-50%,-50%)}.ring-val{color:var(--primary);font-size:20px;font-weight:700}.ring-val-purple{color:var(--warning)}.ring-unit{color:var(--primary);font-size:10px}.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.stat-box{padding:12px;text-align:center;background:#0d161d;border:1px solid var(--line);border-radius:6px}.stat-main{border-color:rgba(45,212,191,.32);background:rgba(45,212,191,.06)}.stat-num{color:var(--text);font-size:18px;font-weight:700}.stat-label{margin-top:3px;color:var(--muted);font-size:10px}.num-done{color:var(--success)}.num-idle{color:var(--faint)}.num-running{color:var(--warning)}.action-row{display:flex;gap:14px}.upload-zone{flex:1}.upload-zone :deep(.el-upload-dragger){padding:22px!important;border-radius:7px!important}.upload-inner{display:flex;flex-direction:column;align-items:center;gap:6px}.upload-text{color:var(--text);font-size:13px}.upload-sub{color:var(--faint);font-size:11px}.detect-btn,.send-btn{min-height:39px;padding:0 18px;color:#06110f;background:var(--primary);border:0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.detect-btn{width:190px}.detect-btn:disabled,.send-btn:disabled{opacity:.45}.results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.result-body{display:flex;flex-direction:column;gap:9px}.badge{display:inline-flex;width:max-content;padding:3px 9px;font-size:11px;font-weight:600}.result-text{margin:0;color:var(--muted);font-size:12px;line-height:1.65}.tags{display:flex;flex-wrap:wrap;gap:5px}.tag{padding:3px 7px;color:var(--primary);background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.18);border-radius:4px;font-size:10px}.tag-danger{color:var(--danger);background:rgba(251,113,133,.08);border-color:rgba(251,113,133,.22)}.face-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px}.face-metrics span{display:flex;justify-content:space-between;padding:7px 8px;color:var(--muted);background:#0b1218;border:1px solid var(--line);border-radius:4px;font-size:10px}.face-metrics b{color:var(--text);font-family:ui-monospace,monospace}.scan-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(3,8,11,.78);backdrop-filter:blur(4px)}.scan-box{position:relative;width:270px;height:270px;overflow:hidden;background:#0b1218;border:1px solid var(--primary);border-radius:7px;box-shadow:0 0 40px rgba(45,212,191,.15)}.scan-line{position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--primary),transparent);box-shadow:0 0 12px var(--primary);animation:scan 2s linear infinite}.scan-text{position:absolute;bottom:20px;width:100%;text-align:center;color:var(--primary);font-size:12px}.quote-card{position:relative;padding:18px;text-align:center}.quote-icon{display:none}.quote-text{margin-bottom:8px;color:var(--muted);font-size:13px}.quote-source{color:var(--primary);font-size:11px}.quote-author{color:var(--faint);font-size:10px}.quote-refresh{position:absolute;top:12px;right:12px;color:var(--faint);background:transparent;border:0;cursor:pointer}@keyframes scan{from{top:0}to{top:100%}}@media(max-width:900px){.top-grid{grid-template-columns:1fr 1fr}.ring-card{grid-column:1/-1}.stats-row{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.top-grid,.results-grid{grid-template-columns:1fr}.ring-card{grid-column:auto}.action-row{flex-direction:column}.stats-row{grid-template-columns:repeat(2,1fr)}.detect-btn{width:100%}}
 </style>

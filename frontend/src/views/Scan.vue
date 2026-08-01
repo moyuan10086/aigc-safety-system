@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <div class="card">
-      <div class="card-title">LLM 漏洞扫描 (garak)</div>
+      <div class="card-title">大模型主动安全扫描</div>
       <div class="preset-row">
         <label>扫描预设</label>
         <div class="preset-btns">
@@ -10,7 +10,7 @@
             @click="preset = p.value">{{ p.label }}</button>
         </div>
       </div>
-      <div class="preset-desc">{{ presetDesc }}</div>
+      <div class="preset-desc">{{ presetDesc }}。主动扫描用于上线前评估，与实时护栏分开运行。</div>
       <button class="scan-btn" :disabled="scanning" @click="startScan">
         <span v-if="!scanning">开始扫描</span>
         <span v-else>扫描中...</span>
@@ -101,34 +101,33 @@ async function startScan() {
 </script>
 
 <style scoped>
-.page { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.page { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .preset-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-.preset-row label { font-size: 12px; color: #64748b; font-weight: 500; white-space: nowrap; }
+.preset-row label { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; }
 .preset-btns { display: flex; gap: 8px; }
 .preset-btn {
-  padding: 6px 16px; border-radius: 9999px; border: 1px solid #fce7f3;
-  background: #fff; font-size: 13px; color: #64748b; cursor: pointer;
+  padding: 6px 16px; border-radius: 5px; border: 1px solid var(--line);
+  background: #0b1218; font-size: 13px; color: var(--muted); cursor: pointer;
   transition: all 0.18s;
 }
-.preset-btn.active { background: linear-gradient(135deg,#f472b6,#ec4899); color:#fff; border-color:transparent; }
-.preset-desc { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+.preset-btn.active { background: rgba(45,212,191,.1); color:var(--primary); border-color:var(--primary); }
+.preset-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
 .scan-btn {
-  padding: 9px 28px; border-radius: 9999px; border: none;
-  background: linear-gradient(135deg,#f472b6,#ec4899);
-  color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 9px 28px; border-radius: 6px; border: none;
+  background: var(--primary); color: #06110f; font-size: 13px; font-weight: 700; cursor: pointer;
   transition: opacity 0.2s;
 }
 .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .scan-btn:not(:disabled):hover { opacity: 0.85; }
 .log-card { padding-bottom: 0; }
 .log-box {
-  background: #0f172a; border-radius: 10px; padding: 12px 14px;
+  background: #070c10; border:1px solid var(--line); border-radius: 6px; padding: 12px 14px;
   max-height: 420px; overflow-y: auto; margin-top: 8px;
 }
-.log-line { font-family: monospace; font-size: 12px; color: #94a3b8; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+.log-line { font-family: monospace; font-size: 12px; color: var(--muted); line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
 .result-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
-.result-table th { text-align:left; padding:6px 10px; color:#94a3b8; font-weight:600; font-size:11px; border-bottom:1px solid #fce7f3; }
-.result-table td { padding:8px 10px; border-bottom:1px solid #fce7f3; color:#1e293b; }
-.num-pass { color:#16a34a; font-weight:600; }
-.num-fail { color:#dc2626; font-weight:600; }
+.result-table th { text-align:left; padding:8px 10px; color:var(--muted); font-weight:600; font-size:11px; border-bottom:1px solid var(--line); }
+.result-table td { padding:9px 10px; border-bottom:1px solid var(--line); color:var(--text); }
+.num-pass { color:var(--success); font-weight:600; }
+.num-fail { color:var(--danger); font-weight:600; }
 </style>

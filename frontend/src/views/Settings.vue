@@ -99,25 +99,24 @@ const save = async () => {
 .page { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; }
 .form { display: flex; flex-direction: column; gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field label { font-size: 12px; color: #64748b; font-weight: 500; }
+.field label { font-size: 12px; color: var(--muted); font-weight: 500; }
 .field input {
-  padding: 9px 12px; border-radius: 10px;
-  border: 1px solid #fce7f3; background: #fff;
-  font-size: 13px; color: #1e293b; outline: none;
+  padding: 9px 12px; border-radius: 5px;
+  border: 1px solid var(--line); background: #0b1218;
+  font-size: 13px; color: var(--text); outline: none;
   transition: border-color 0.18s;
 }
-.field input:focus { border-color: #f9a8d4; }
+.field input:focus { border-color: var(--primary); }
 .actions { margin-top: 16px; }
 .save-btn {
-  padding: 9px 24px; border-radius: 9999px; border: none;
-  background: linear-gradient(135deg, #f472b6, #ec4899);
-  color: #fff; font-size: 13px; font-weight: 600;
+  padding: 9px 24px; border-radius: 5px; border: none;
+  background: var(--primary); color: #06110f; font-size: 13px; font-weight: 700;
   cursor: pointer; transition: opacity 0.2s;
 }
 .save-btn:hover { opacity: 0.85; }
 .about-rows { display: flex; flex-direction: column; gap: 0; }
-.about-row { display: flex; align-items: center; gap: 12px; font-size: 13px; padding: 9px 0; border-bottom: 1px solid #fce7f3; }
+.about-row { display: flex; align-items: center; gap: 12px; font-size: 13px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .about-row:last-child { border-bottom: none; }
-.k { color: #64748b; width: 120px; flex-shrink: 0; }
-.v { color: #1e293b; font-weight: 500; }
+.k { color: var(--muted); width: 120px; flex-shrink: 0; }
+.v { color: var(--text); font-weight: 500; }
 </style>

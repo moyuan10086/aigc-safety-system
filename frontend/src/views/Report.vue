@@ -22,8 +22,8 @@
         {{ r.filename || '文本审核' }}
         <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:400">{{ r.created_at?.slice(0,19).replace('T',' ') }}</span>
         <button @click="copyId(r.id)" style="margin-left:8px;font-size:11px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;hover:background:#f1f5f9" title="复制报告ID">📋</button>
-        <a :href="`/api/detect/report/${r.id}/download`" style="margin-left:8px;font-size:12px;color:#f472b6">JSON</a>
-        <a :href="`/api/detect/report/${r.id}/download/md`" style="margin-left:8px;font-size:12px;color:#f472b6">MD</a>
+        <a :href="`/api/detect/report/${r.id}/download`" class="download-link">JSON</a>
+        <a :href="`/api/detect/report/${r.id}/download/md`" class="download-link">MD</a>
       </div>
 
       <!-- 检测结果摘要 -->
@@ -99,20 +99,20 @@ onMounted(async () => {
 
 <style scoped>
 .stat-item { text-align:center; flex:1 }
-.stat-num { font-size:24px; font-weight:700; color:#1e293b }
-.stat-label { font-size:11px; color:#94a3b8; margin-top:2px }
+.stat-num { font-size:24px; font-weight:700; color:var(--text) }
+.stat-label { font-size:11px; color:var(--muted); margin-top:2px }
 .report-grid { display:flex;flex-direction:column;gap:12px;margin-top:8px }
-.badge { display:inline-flex;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600 }
-.badge-success { background:#dcfce7;color:#16a34a }
-.badge-danger { background:#fee2e2;color:#dc2626 }
-.badge-warn { background:#fef9c3;color:#ca8a04 }
-.md-body { font-size:13px;line-height:1.7;color:#334155 }
-.md-body :deep(h1),.md-body :deep(h2),.md-body :deep(h3) { font-weight:700;margin:12px 0 6px;color:#1e293b }
+.badge { display:inline-flex;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600 }
+.badge-success { background:rgba(52,211,153,.1);color:var(--success) }
+.badge-danger { background:rgba(251,113,133,.1);color:var(--danger) }
+.badge-warn { background:rgba(245,158,11,.1);color:var(--warning) }
+.download-link{margin-left:8px;font-size:11px;color:var(--primary);text-decoration:none}.md-body { font-size:13px;line-height:1.7;color:var(--muted) }
+.md-body :deep(h1),.md-body :deep(h2),.md-body :deep(h3) { font-weight:700;margin:12px 0 6px;color:var(--text) }
 .md-body :deep(h2) { font-size:14px }
 .md-body :deep(h3) { font-size:13px }
 .md-body :deep(ul),.md-body :deep(ol) { padding-left:20px;margin:6px 0 }
 .md-body :deep(li) { margin:3px 0 }
-.md-body :deep(strong) { color:#1e293b }
+.md-body :deep(strong) { color:var(--text) }
 .md-body :deep(p) { margin:6px 0 }
-.md-body :deep(code) { background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12px }
+.md-body :deep(code) { background:#071017;padding:1px 5px;border-radius:3px;font-size:12px }
 </style>

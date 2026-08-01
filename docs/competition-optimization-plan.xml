@@ -1,0 +1,140 @@
+<hr/>
+<h1>总实施计划 v2.0（2026-08-02）</h1>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>总目标：</b>把现有跨域 AIGC 伪造检测平台升级为可用于比赛现场演示的深色安全运营台，形成图片与人脸审核、红线知识库、实时大模型安全护栏、主动安全扫描、审计取证五条闭环能力；稳定部署主服务器，并保留国产算力适配与后续模型增强路线。</p>
+</callout>
+<h2>一、需求总清单与边界</h2>
+<table>
+  <thead><tr><th background-color="light-gray">事项</th><th background-color="light-gray">目标</th><th background-color="light-gray">当前决策</th></tr></thead>
+  <tbody>
+    <tr><td>视觉与交互</td><td>深色、安全、运营台风格；适配桌面与手机现场演示</td><td>本轮完成</td></tr>
+    <tr><td>图片审核</td><td>Deepfake、MLLM 可解释分析、文本/红线联动、综合报告</td><td>本轮补强并回归</td></tr>
+    <tr><td>人脸能力</td><td>人脸检测、数量、框位置、清晰度、亮度、主脸占比等证据</td><td>本轮完成检测与质量分析；不虚构身份识别能力</td></tr>
+    <tr><td>红线知识库</td><td>关键词与语义双检，输出类别、风险码、来源、动作、命中证据</td><td>本轮完成可追溯化</td></tr>
+    <tr><td>实时安全护栏</td><td>输入/输出双向检查，Safe / Borderline / Unsafe 三态，支持阻断和人工复核</td><td>本轮完成 CPU 稳定版</td></tr>
+    <tr><td>主动安全扫描</td><td>使用 garak 做上线前漏洞扫描，与实时护栏分离</td><td>保留并优化呈现</td></tr>
+    <tr><td>开源项目</td><td>调研 9 个项目并形成接入优先级，不堆叠重复框架</td><td>本轮形成选型结论</td></tr>
+    <tr><td>主服务器</td><td>49.51.248.227 的 /root/CH/aigc-safety-system 稳定运行</td><td>本轮部署和公网验收</td></tr>
+    <tr><td>域名</td><td>aigc.49.51.248.227.sslip.io 反向代理访问</td><td>本轮配置并实测；证书失败时保留 HTTP/8010 兜底</td></tr>
+    <tr><td>GitHub</td><td>私有仓库持续同步、服务器部署密钥只读</td><td>每阶段通过测试后提交推送</td></tr>
+    <tr><td>飞书</td><td>持续记录计划、实施、测试、部署、开源选型与算力验证</td><td>本文件作为唯一实施账本</td></tr>
+  </tbody>
+</table>
+<h2>二、参考资产</h2>
+<ul>
+  <li>主系统：D:\文件\大学\毕设\04_代码与系统\主系统\aigc-safety-system</li>
+  <li>比赛作品报告：附件2《面向 AIGC 伪造的跨域泛化检测与可解释性防御平台-作品报告.pdf》</li>
+  <li>参考 UI 工程：提交0705_1/AIGC_CrossDomain_Forgery_Detection_XAI_Defense_Platform</li>
+  <li>JoySafety 参考包：joysafty-peking.zip，以及用户提供的两份飞书方案文档</li>
+  <li>本地审核模块：D:\文件\大学\南邮\打包\AI安全审核系统_本地模块交付包_20260701_165707</li>
+</ul>
+<h2>三、目标架构</h2>
+<whiteboard type="mermaid">
+flowchart LR
+  A["用户输入 / 图片"] --> B["实时安全护栏"]
+  B --> C{"三态决策"}
+  C -->|Safe| D["模型或审核流水线"]
+  C -->|Borderline| E["人工复核"]
+  C -->|Unsafe| F["阻断 + 安全替代回答"]
+  D --> G["输出侧护栏"]
+  G --> H["发布 / 报告"]
+  I["红线词库 + ChromaDB"] --> B
+  J["人脸质量 + Deepfake + MLLM"] --> H
+  K["garak / promptfoo"] --> L["上线前主动扫描"]
+</whiteboard>
+<p>实时链路采用“确定性规则 + 红线词库/RAG + 可选语义分类器”的分层设计。外部 GPU/NPU 模型属于增强层，异常时自动降级到 CPU 规则与知识库，不得影响现场演示。</p>
+<h2>四、分阶段执行计划</h2>
+<h3>阶段 0：基线冻结与风险隔离</h3>
+<checkbox done="true">确认生产服务当前可用：49.51.248.227:8010/api/health 返回正常</checkbox>
+<checkbox done="true">确认现有 GitHub 私有仓库与服务器只读部署密钥</checkbox>
+<checkbox done="false">记录现有前端、API、报告与模型行为基线，保护 deepfake-detection 和 mllm-defake 中用户已有改动</checkbox>
+<checkbox done="false">建立本轮回归清单：前端构建、护栏测试、健康检查、SSE、报告下载、公网页面、移动端</checkbox>
+<h3>阶段 1：深色安全运营台</h3>
+<checkbox done="false">统一深色石墨底色，以青绿色为主要操作色，红色表示阻断、琥珀色表示复核、绿色表示放行</checkbox>
+<checkbox done="false">重排导航：图片与人脸审核、实时安全护栏、主动安全扫描、红线知识库、红线策略、审计与取证、系统设置</checkbox>
+<checkbox done="false">补齐桌面与手机响应式导航，消除文本溢出、遮挡和不一致的浅色组件</checkbox>
+<checkbox done="false">使用浏览器截图和像素检查验收关键页面</checkbox>
+<h3>阶段 2：实时大模型安全护栏</h3>
+<checkbox done="false">实现 POST /api/guardrail/check，支持 prompt/response 双向检查</checkbox>
+<checkbox done="false">检测越狱、提示词注入、网络攻击滥用、暴力武器、自伤、色情与未成年人、隐私、仇恨、违法活动</checkbox>
+<checkbox done="false">统一返回 decision、risk_score、risk_level、intent、categories、risk_code、evidence、action、redline_answer、engine</checkbox>
+<checkbox done="false">实现 Safe / Borderline / Unsafe 三态策略和输入/输出证据展示</checkbox>
+<checkbox done="false">完成正常内容、越狱、危险输出、隐私边界、参数错误等离线测试</checkbox>
+<h3>阶段 3：图片、人脸与报告</h3>
+<checkbox done="false">增加独立人脸检测接口和全量审核 SSE face 事件</checkbox>
+<checkbox done="false">输出人脸数量、位置框、图像尺寸、主脸占比、清晰度、亮度、质量标记与检测器名称</checkbox>
+<checkbox done="false">无人脸时跳过 Deepfake 并给出明确原因；检测器不可用时保持可降级</checkbox>
+<checkbox done="false">在 JSON/Markdown 审计报告中保留人脸证据、Deepfake、MLLM 与红线结果</checkbox>
+<checkbox done="false">修复并实测 JSON/Markdown 报告下载</checkbox>
+<h3>阶段 4：红线知识库可追溯化</h3>
+<checkbox done="false">保留 Sensitive-lexicon 关键词审核与 ChromaDB 语义审核</checkbox>
+<checkbox done="false">为命中项增加 category、source、ability、distance/score、risk_code 和 action</checkbox>
+<checkbox done="false">关键词强命中执行阻断；纯语义近邻默认转人工复核，降低误杀</checkbox>
+<checkbox done="false">知识库上传、分类、分块查看、问答与删除功能回归</checkbox>
+<h3>阶段 5：开源项目调研与吸收</h3>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">定位</th><th background-color="light-gray">本系统策略</th></tr></thead>
+  <tbody>
+    <tr><td>Qwen3Guard</td><td>中文/多语输入输出护栏模型，含 Gen 与 Stream</td><td>优先 P1；后续在 GPU 或昇腾上验证，接为可选语义专家</td></tr>
+    <tr><td>promptfoo</td><td>声明式红队与 CI 评测</td><td>优先 P1；接入 GitHub Actions 做版本回归</td></tr>
+    <tr><td>NVIDIA garak</td><td>大模型漏洞扫描器</td><td>已在系统使用；继续作为主动扫描，不放入实时链路</td></tr>
+    <tr><td>Guardrails AI</td><td>输入输出验证器与结构化输出</td><td>P2；借鉴 Validator 接口，按需引入单个验证器</td></tr>
+    <tr><td>NeMo Guardrails</td><td>可编程对话、输入、检索、执行、输出 rails</td><td>P2；借鉴编排和策略 DSL，暂不整体引入以控制复杂度</td></tr>
+    <tr><td>PurpleLlama</td><td>安全评估与防护工具集合</td><td>P2；吸收 PromptGuard/CodeShield 评测思路，先核对具体许可证</td></tr>
+    <tr><td>WildGuard</td><td>提示危害、回答危害、拒答评估模型</td><td>P2；作为学术对比和离线评测候选</td></tr>
+    <tr><td>OpenGuardrails</td><td>新兴的厂商中立安全协议与基准</td><td>P3 观察；项目较新，不进入当前主链路</td></tr>
+    <tr><td>ProtectAI LLM Guard</td><td>输入输出扫描器集合</td><td>仅学习扫描器分类；官方仓库已归档，不作为新核心依赖</td></tr>
+  </tbody>
+</table>
+<p>许可证注意：以实际使用的代码仓库 LICENSE 和模型卡为准。GitHub 元数据中 Qwen3Guard、NeMo、PurpleLlama、WildGuard 的 SPDX 信息不完整，正式复制代码或发布模型前必须再次核验。</p>
+<h3>阶段 6：本地 XGBoost 多专家模块复用</h3>
+<callout emoji="💡" background-color="light-green" border-color="green">
+  <p>已确认交付包包含约 5.17 MB 的本地混合模型、规则/关键词/TF-IDF/朴素贝叶斯/XGBoost 专家投票、pass/fail + alert 路由和完整评测报告。报告给出的全量 3663 条严格准确率 98.77%、运营准确率 99.15%、平均约 54.30ms/条；这些数值先作为该交付包的既有报告结果，接入主系统后必须重新独立复测。</p>
+</callout>
+<checkbox done="false">定义字段映射：pass → Safe，alert/低置信/云端路由 → Borderline，fail → Unsafe</checkbox>
+<checkbox done="false">先做旁路 shadow evaluation，不直接改变当前护栏决策</checkbox>
+<checkbox done="false">使用其错题集和输出侧规则扩充当前回归数据集</checkbox>
+<checkbox done="false">通过主系统独立基准后，再决定是否作为 CPU semantic_classifier 组件启用</checkbox>
+<h3>阶段 7：国产昇腾 NPU 适配验证</h3>
+<checkbox done="true">只读确认 100.121.203.95 可登录，aarch64，npu-smi 25.5.2，16 个 Ascend 910 芯片均为 OK，每芯片显示 64 GB HBM</checkbox>
+<checkbox done="true">只读确认服务器已有 Python、Docker，且部分卡已有 python/VLLMWorker_TP 进程占用</checkbox>
+<checkbox done="false">确认 CANN、torch_npu、MindIE 或 vLLM-Ascend 的实际版本和可用容器，不干扰已有进程</checkbox>
+<checkbox done="false">与服务器使用方确认可用卡号与目录后，选择 Qwen3Guard 或兼容小模型做最小推理验证</checkbox>
+<checkbox done="false">记录模型、精度、单次延迟、吞吐、显存、样例结果和降级策略，形成“国产算力适配验证”报告</checkbox>
+<p>当前结论仅为硬件与运行态只读验证，不宣称已经完成模型推理。未获得空闲卡使用范围确认前不启动新 NPU 任务。</p>
+<h3>阶段 8：部署、域名与公网验收</h3>
+<checkbox done="false">全部本地测试通过后提交并推送 GitHub</checkbox>
+<checkbox done="false">服务器 /root/CH/aigc-safety-system 拉取指定提交，构建前端并重启 aigc-safety.service</checkbox>
+<checkbox done="false">配置 Caddy/Nginx 将 aigc.49.51.248.227.sslip.io 转发到 127.0.0.1:8010，并增加基础安全响应头</checkbox>
+<checkbox done="false">验证健康接口、实时护栏正常/越狱样例、图片页、知识库、主动扫描、报告下载</checkbox>
+<checkbox done="false">使用真实公网浏览器完成桌面 1440×900 与手机 390×844 截图验收</checkbox>
+<checkbox done="false">保留 http://49.51.248.227:8010 作为现场兜底地址</checkbox>
+<h3>阶段 9：文档与交付</h3>
+<checkbox done="false">把每阶段提交 ID、接口样例、测试结果、截图、线上地址、已知限制追加到本文件</checkbox>
+<checkbox done="false">整理比赛演示顺序：越狱阻断 → 边界复核 → 正常放行 → 图片/人脸证据 → 红线知识库 → 主动扫描 → 报告下载</checkbox>
+<checkbox done="false">整理后续路线：XGBoost shadow 接入、Qwen3Guard 语义专家、promptfoo CI、昇腾正式推理</checkbox>
+<h2>五、服务器与环境决策</h2>
+<table>
+  <thead><tr><th background-color="light-gray">环境</th><th background-color="light-gray">用途</th><th background-color="light-gray">状态</th></tr></thead>
+  <tbody>
+    <tr><td>49.51.248.227</td><td>比赛主系统生产部署</td><td>8010 服务已在线，本轮更新并加 sslip.io 入口</td></tr>
+    <tr><td>221.226.79.186（3×4090）</td><td>未来 Qwen3Guard/GPU 语义服务</td><td>按用户最新要求暂缓，不做部署</td></tr>
+    <tr><td>100.121.203.95（16×Ascend 910）</td><td>国产算力适配与最小推理验证</td><td>已完成硬件只读检查，待确认空闲卡后验证</td></tr>
+  </tbody>
+</table>
+<h2>六、统一验收标准</h2>
+<ul>
+  <li>稳定性：主服务器重启后服务自动恢复，健康检查正常，外部语义模型失效时 CPU 护栏仍可用。</li>
+  <li>正确性：正常、边界、危险样例分别得到放行、人工复核、阻断；证据与动作字段完整。</li>
+  <li>可解释性：图片、人脸、Deepfake、MLLM、红线与护栏均能展示来源和关键证据，不夸大能力。</li>
+  <li>可演示性：桌面与手机无明显遮挡、溢出、空白画布；核心流程无需临场修改配置。</li>
+  <li>可追溯性：代码提交、部署版本、报告 ID、测试结果和飞书记录互相对应。</li>
+  <li>安全性：不在前端暴露密钥；部署入口增加安全响应头；外部算力接口启用时必须鉴权并支持降级。</li>
+</ul>
+<h2>七、执行纪律</h2>
+<ol>
+  <li seq="auto">严格按阶段推进；每阶段先实现，再测试，再记录，再进入下一阶段。</li>
+  <li seq="auto">任何新增模型或框架先旁路验证，不能直接替换现场稳定链路。</li>
+  <li seq="auto">外部服务器只做任务范围内操作；已有 GPU/NPU 进程不停止、不抢占。</li>
+  <li seq="auto">所有“已完成”必须有代码、命令结果、接口响应或截图证据，计划项不当作成果。</li>
+</ol>

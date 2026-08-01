@@ -15,10 +15,11 @@ _client = None
 _collection = None
 _embedder = None
 _keywords: list[str] = []
+_keyword_categories: dict[str, str] = {}
 
 
 def _init():
-    global _client, _collection, _embedder, _keywords
+    global _client, _collection, _embedder, _keywords, _keyword_categories
     if _client is not None:
         return
 
@@ -51,8 +52,10 @@ def _init():
         from sensitive_lexicon_loader import SensitiveLexiconLoader
         loader = SensitiveLexiconLoader(lexicon_dir=LEXICON_PATH)
         all_kw = loader.load_all()
-        for words in all_kw.values():
+        for category, words in all_kw.items():
             _keywords.extend(words)
+            for word in words:
+                _keyword_categories.setdefault(word, category)
         print(f"[RAG] 加载敏感词 {len(_keywords)} 条")
     except Exception as e:
         print(f"[RAG] SensitiveLexiconLoader 不可用，回退到直接读取: {e}")
@@ -86,26 +89,56 @@ def _init_kb():
 
 
 def check_content(text: str) -> dict:
-    """Returns: {"safe": bool, "matched_keywords": list, "violated_rules": list, "risk_level": str}"""
+    """Run keyword and semantic redline checks with traceable evidence."""
     global _collection
     _init()
 
-    matched = [kw for kw in _keywords if kw and kw.lower() in text.lower()][:5]
+    matched = [kw for kw in _keywords if kw and kw.lower() in text.lower()][:10]
+    matches = [
+        {
+            "term": keyword,
+            "category": _keyword_categories.get(keyword, "other"),
+            "source": "Sensitive-lexicon",
+            "ability": "keyword_match",
+        }
+        for keyword in matched
+    ]
 
     violated = []
+    semantic_matches = []
     try:
         query_emb = _embedder.encode([text]).tolist()
         results = _collection.query(query_embeddings=query_emb, n_results=3)
         if results["distances"][0][0] < 0.5:
             violated = results["documents"][0]
+            semantic_matches = [
+                {
+                    "rule": rule,
+                    "distance": round(float(distance), 4),
+                    "score": round(max(0.0, 1.0 - float(distance)), 4),
+                    "source": "safety_rules",
+                    "ability": "semantic_match",
+                }
+                for rule, distance in zip(results["documents"][0], results["distances"][0])
+                if distance is not None and float(distance) < 0.5
+            ]
     except Exception:
         _collection.delete(ids=_collection.get()["ids"] or ["_"])
         _init_kb()
 
     risk = "high" if matched else ("medium" if violated else "low")
+    categories = sorted({item["category"] for item in matches})
+    safe = not (matched or violated)
     return {
-        "safe": not (matched or violated),
+        "safe": safe,
         "matched_keywords": matched,
         "violated_rules": violated,
         "risk_level": risk,
+        "decision": "safe" if safe else ("unsafe" if matched else "borderline"),
+        "risk_code": "SAFE_000" if safe else ("REDLINE_KEYWORD_001" if matched else "REDLINE_SEMANTIC_001"),
+        "categories": categories,
+        "matches": matches,
+        "semantic_matches": semantic_matches,
+        "action": "allow" if safe else ("block" if matched else "manual_review"),
+        "source": "Sensitive-lexicon + ChromaDB",
     }

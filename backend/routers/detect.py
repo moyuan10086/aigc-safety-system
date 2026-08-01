@@ -53,22 +53,59 @@ async def check_content(text: str = Form(...)):
     return result
 
 
-def _has_face(path: str) -> bool:
+def _inspect_faces(path: str) -> dict:
+    """Return non-identifying face and image-quality evidence for audit reports."""
     try:
         import cv2
         img = cv2.imread(path)
         if img is None:
-            return False
+            return {"status": "unavailable", "face_detected": False, "face_count": 0, "reason": "image_decode_failed"}
+        height, width = img.shape[:2]
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # 找 haarcascade 文件
         xml = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         if not Path(xml).exists():
-            return True  # 找不到则默认继续检测
+            return {"status": "unavailable", "face_detected": None, "face_count": None, "reason": "face_detector_missing", "image_width": width, "image_height": height}
         cascade = cv2.CascadeClassifier(xml)
-        faces = cascade.detectMultiScale(gray, 1.1, 4)
-        return len(faces) > 0
-    except Exception:
-        return True
+        min_size = max(24, min(width, height) // 12)
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_size, min_size))
+        boxes = [{"x": int(x), "y": int(y), "width": int(w), "height": int(h)} for x, y, w, h in faces]
+        largest_ratio = max((w * h) / (width * height) for _, _, w, h in faces) if len(faces) else 0.0
+        sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        brightness = float(gray.mean())
+        quality_flags = []
+        if min(width, height) < 480:
+            quality_flags.append("low_resolution")
+        if sharpness < 80:
+            quality_flags.append("blurred")
+        if brightness < 45:
+            quality_flags.append("underexposed")
+        elif brightness > 215:
+            quality_flags.append("overexposed")
+        return {
+            "status": "detected" if len(faces) else "not_detected",
+            "face_detected": bool(len(faces)),
+            "face_count": len(faces),
+            "boxes": boxes,
+            "image_width": width,
+            "image_height": height,
+            "largest_face_ratio": round(largest_ratio, 4),
+            "sharpness": round(sharpness, 1),
+            "brightness": round(brightness, 1),
+            "quality": "good" if not quality_flags else "review",
+            "quality_flags": quality_flags,
+            "detector": "OpenCV Haar Cascade",
+        }
+    except Exception as exc:
+        return {"status": "unavailable", "face_detected": None, "face_count": None, "reason": type(exc).__name__}
+
+
+@router.post("/face")
+async def inspect_face(image: UploadFile = File(...)):
+    path = await _save_upload(image)
+    try:
+        return await asyncio.to_thread(_inspect_faces, path)
+    finally:
+        os.unlink(path)
 
 
 @router.post("/full")
@@ -82,7 +119,10 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
         try:
             if image:
                 path = await _save_upload(image)
-                has_face = await asyncio.to_thread(_has_face, path)
+                face = await asyncio.to_thread(_inspect_faces, path)
+                has_face = face.get("face_detected") is not False
+                if "face" in mod_set or "deepfake" in mod_set:
+                    yield _sse("face", face)
 
                 if "deepfake" in mod_set:
                     yield _sse("step", {"step": "deepfake", "status": "running"})
@@ -169,7 +209,11 @@ async def save_report(
         if image:
             path = await _save_upload(image)
             report["filename"] = image.filename
-            report["deepfake"] = await asyncio.to_thread(deepfake_service.detect, path)
+            report["face"] = await asyncio.to_thread(_inspect_faces, path)
+            if report["face"].get("face_detected") is False:
+                report["deepfake"] = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
+            else:
+                report["deepfake"] = await asyncio.to_thread(deepfake_service.detect, path)
             report["mllm"] = await asyncio.to_thread(mllm_service.analyze, path)
         if text:
             report["text"] = text
@@ -219,6 +263,7 @@ async def get_history():
                 "id": r["id"],
                 "created_at": r.get("created_at"),
                 "filename": r.get("filename"),
+                "face_count": r.get("face", {}).get("face_count"),
                 "deepfake_label": r.get("deepfake", {}).get("label"),
                 "deepfake_score": r.get("deepfake", {}).get("score"),
                 "mllm_verdict": r.get("mllm", {}).get("verdict"),
@@ -267,6 +312,10 @@ async def download_report_md(report_id: str):
     from fastapi.responses import Response
     return Response(content=md_content.encode("utf-8"), media_type="text/markdown",
                     headers={"Content-Disposition": f"attachment; filename=report_{report_id}.md"})
+
+
+@router.get("/report/{report_id}/download")
+async def download_report_json(report_id: str):
     p = REPORTS_DIR / f"{report_id}.json"
     if not p.exists():
         from fastapi import HTTPException

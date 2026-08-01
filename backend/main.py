@@ -6,6 +6,7 @@ from routers.detect import router as detect_router
 from routers.system import router as system_router
 from routers.garak_scan import router as garak_router
 from routers.kb import router as kb_router
+from routers.guardrail import router as guardrail_router
 
 app = FastAPI(title="AIGC内容安全检测系统")
 
@@ -20,6 +21,7 @@ app.include_router(detect_router)
 app.include_router(system_router)
 app.include_router(garak_router)
 app.include_router(kb_router)
+app.include_router(guardrail_router)
 
 from fastapi.responses import FileResponse
 

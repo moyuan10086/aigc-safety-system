@@ -1,0 +1,14 @@
+[Unit]
+Description=Caddy reverse proxy for AIGC Safety System
+After=network-online.target aigc-safety.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/docker run --rm --name aigc-safety-caddy --network host -v /root/CH/aigc-safety-system/deploy/Caddyfile:/etc/caddy/Caddyfile:ro -v aigc-safety-caddy-data:/data -v aigc-safety-caddy-config:/config caddy:2.10-alpine
+ExecStop=/usr/bin/docker stop aigc-safety-caddy
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

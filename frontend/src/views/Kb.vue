@@ -29,7 +29,7 @@
       <div v-if="files.length === 0" class="empty">暂无文件</div>
       <div v-for="f in files" :key="f.file_id" class="file-row">
         <span class="file-name" @click="loadChunks(f)">{{ f.filename }}</span>
-        <span style="font-size:11px;color:#94a3b8;padding:1px 8px;background:#f1f5f9;border-radius:9999px">{{ f.category }}</span>
+        <span class="category-tag">{{ f.category }}</span>
         <button class="del-btn" @click="deleteFile(f.file_id)">删除</button>
       </div>
     </div>
@@ -159,27 +159,28 @@ async function sendQuestion() {
 <style scoped>
 .page { max-width: 860px; margin: 0 auto; }
 .upload-area {
-  border: 2px dashed #fce7f3; border-radius: 12px; padding: 32px;
-  text-align: center; cursor: pointer; color: #94a3b8; font-size: 14px;
+  border: 1px dashed var(--line-bright); border-radius: 6px; padding: 32px;
+  text-align: center; cursor: pointer; color: var(--muted); font-size: 13px;
   transition: border-color 0.2s;
 }
-.upload-area:hover { border-color: #f472b6; color: #f472b6; }
-.refresh-btn { margin-left: auto; font-size: 12px; padding: 2px 10px; border-radius: 9999px; border: 1px solid #fce7f3; background: none; cursor: pointer; color: #f472b6; }
-.empty { color: #94a3b8; font-size: 13px; padding: 12px 0; }
-.file-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #fce7f3; gap: 12px; }
-.file-name { flex: 1; font-size: 13px; cursor: pointer; color: #1e293b; }
-.file-name:hover { color: #f472b6; }
-.del-btn { font-size: 12px; padding: 2px 10px; border-radius: 9999px; border: 1px solid #fce7f3; background: none; cursor: pointer; color: #ef4444; }
-.chunk-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid #fce7f3; font-size: 12px; }
-.chunk-idx { color: #f472b6; font-weight: 600; width: 28px; flex-shrink: 0; }
-.chunk-text { color: #475569; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+.upload-area:hover { border-color: var(--primary); color: var(--primary); }
+.refresh-btn { margin-left: auto; font-size: 11px; padding: 4px 9px; border-radius: 4px; border: 1px solid var(--line); background: none; cursor: pointer; color: var(--primary); }
+.empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+.file-row { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+.file-name { flex: 1; font-size: 13px; cursor: pointer; color: var(--text); }
+.file-name:hover { color: var(--primary); }
+.category-tag{font-size:10px;color:var(--cyan);padding:3px 8px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.18);border-radius:4px}
+.del-btn { font-size: 11px; padding: 4px 9px; border-radius: 4px; border: 1px solid rgba(251,113,133,.25); background: none; cursor: pointer; color: var(--danger); }
+.chunk-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.chunk-idx { color: var(--primary); font-weight: 600; width: 28px; flex-shrink: 0; }
+.chunk-text { color: var(--muted); line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
 .chat-box { min-height: 120px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.msg { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-.msg.user { align-self: flex-end; background: #fdf2f8; color: #1e293b; }
-.msg.assistant { align-self: flex-start; background: #f8fafc; color: #1e293b; }
+.msg { max-width: 80%; padding: 8px 12px; border-radius: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.msg.user { align-self: flex-end; background: rgba(45,212,191,.1); color: var(--text); }
+.msg.assistant { align-self: flex-start; background: #0b1218; color: var(--text); border:1px solid var(--line); }
 .input-row { display: flex; gap: 8px; }
-.q-input { flex: 1; padding: 8px 14px; border-radius: 9999px; border: 1px solid #fce7f3; font-size: 13px; outline: none; }
-.q-input:focus { border-color: #f472b6; }
-.send-btn { padding: 8px 20px; border-radius: 9999px; border: none; background: #f472b6; color: #fff; font-size: 13px; cursor: pointer; }
+.q-input { flex: 1; padding: 8px 12px; border-radius: 5px; border: 1px solid var(--line); background:#0b1218; color:var(--text); font-size: 13px; outline: none; }
+.q-input:focus { border-color: var(--primary); }
+.send-btn { padding: 8px 20px; border-radius: 5px; border: none; background: var(--primary); color: #06110f; font-size: 13px; font-weight:700; cursor: pointer; }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
