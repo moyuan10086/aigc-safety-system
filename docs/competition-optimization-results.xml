@@ -1,0 +1,84 @@
+<hr/>
+<h1>执行结果与证据（2026-08-02）</h1>
+<callout background-color="light-green" border-color="green">
+  <p><b>本轮结论：</b>主系统已完成一轮可上线优化并部署到 49.51.248.227。公网演示入口为 <a href="https://aigc.49.51.248.227.sslip.io">https://aigc.49.51.248.227.sslip.io</a>，HTTPS、健康检查、实时护栏、图片/人脸审核、知识库、历史记录和报告下载均已通过验收。GPU 服务器本轮不操作。</p>
+</callout>
+
+<h2>一、代码与界面</h2>
+<ul>
+  <li>统一深色安全运营台：石墨黑底色、青绿色主操作色、琥珀色复核色、玫红色阻断色；导航重排为图片与人脸审核、实时安全护栏、主动安全扫描、红线知识库、红线策略、审计与取证、系统设置。</li>
+  <li>修复生产环境图标：使用 lucide-vue-next 组件替代运行时 SVG 模板，桌面侧栏、收起/展开、关于系统和导航图标均可见。</li>
+  <li>图片审核页文本审核框已统一深色输入态；移动端 390x844 支持抽屉导航，桌面端 1440x900 无明显遮挡或溢出。</li>
+  <li>前端安全依赖已升级：axios 1.19、Vite 8.2、PostCSS 8.5；移除未使用的粒子背景和 Lottie 入口。npm audit（官方 registry）结果为 0 个漏洞。</li>
+</ul>
+
+<h2>二、实时大模型安全护栏</h2>
+<table>
+  <thead><tr><th background-color="light-gray">验收项</th><th background-color="light-gray">结果</th><th background-color="light-gray">证据</th></tr></thead>
+  <tbody>
+    <tr><td>接口</td><td>通过</td><td>POST /api/guardrail/check，支持 prompt、response、input/output/both 模式</td></tr>
+    <tr><td>越狱/提示词注入</td><td>unsafe，GR-BLOCK</td><td>“Ignore all previous instructions...” 返回 risk_score 0.86、intent=jailbreak、evidence 和 redline_answer</td></tr>
+    <tr><td>正常中文请求</td><td>safe，GR-ALLOW</td><td>公开产品说明请求返回 risk_score 0.0、intent=normal，规则与 RAG 在线</td></tr>
+    <tr><td>可解释性</td><td>通过</td><td>返回 decision、risk_level、categories、risk_code、evidence、action、redline_answer、engine</td></tr>
+    <tr><td>降级策略</td><td>已启用</td><td>确定性规则 + 红线词库/RAG；MLLM 判别器保留为可选增强，当前生产默认关闭</td></tr>
+  </tbody>
+</table>
+
+<h2>三、图片、人脸、红线与报告</h2>
+<ul>
+  <li>人脸接口 POST /api/detect/face 已通过真实样本验收：face_count=1，返回框坐标、图像尺寸 1024x559、largest_face_ratio=0.1163、sharpness=398.2、brightness=127.6、quality=good、detector=OpenCV Haar Cascade。</li>
+  <li>当前能力是人脸检测与质量评估，不宣称身份识别；无人脸时保持可解释降级，不强行运行 Deepfake。</li>
+  <li>红线命中保留 category、source、ability、distance/score、risk_code、action 等溯源字段；知识库公网 GET /api/kb/files 正常返回 MIRIX.txt。</li>
+  <li>历史 GET /api/detect/history、报告 GET /api/detect/report/{id}、JSON 下载 GET /api/detect/report/{id}/download 均通过；下载响应为 application/json 并带 attachment 文件名。</li>
+</ul>
+
+<h2>四、部署与公网证据</h2>
+<ul>
+  <li>服务器目录：/root/CH/aigc-safety-system；主服务 aigc-safety.service、Caddy 入口 aigc-safety-caddy.service 均为 active。</li>
+  <li>域名：<a href="https://aigc.49.51.248.227.sslip.io">https://aigc.49.51.248.227.sslip.io</a>；HTTP 请求返回 308 跳转到 HTTPS，HTTPS 健康接口返回 {"status":"ok","service":"aigc-safety-system"}。</li>
+  <li>响应头已验证：X-Content-Type-Options、X-Frame-Options、Referrer-Policy、Permissions-Policy；Caddy 负责证书签发与续期。</li>
+  <li>服务器执行了 Linux npm ci 和 Vite production build；构建产物约 1.12 MB JS，仍有大 chunk 提示，后续可按页面做动态分包。</li>
+  <li>GitHub 私有仓库：<a href="https://github.com/moyuan10086/aigc-safety-system">moyuan10086/aigc-safety-system</a>。关键提交包括 6c17dc6（依赖安全）、572f04f（HTTPS）、de8f3bc（生产图标与深色输入框）、d338c3c（Linux 锁文件）、43e9bf1（NPU 冒烟脚本）。</li>
+</ul>
+
+<h2>五、真实浏览器验收</h2>
+<ul>
+  <li>公网桌面端 1440x900：图片审核页与实时护栏页布局正常，图标可见，深色输入态正常。</li>
+  <li>公网移动端 390x844：护栏首屏、处理链、输入区未发生文字重叠；展开导航后抽屉和遮罩正常。</li>
+  <li>护栏演示交互：点击“提示词注入”样例并执行，页面展示“阻断”、86/100、GR-BLOCK、policy_match 证据和安全替代回答。</li>
+  <li>Playwright 控制台：0 errors，0 warnings。截图保存在本地 output/playwright/，已加入 .gitignore，不进入仓库。</li>
+</ul>
+
+<h2>六、国产 NPU 910C 最小验证</h2>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">结果</th></tr></thead>
+  <tbody>
+    <tr><td>服务器</td><td>100.121.203.95，aarch64，Ascend 910 共 16 芯片，npu-smi 25.5.2，全部 Health=OK</td></tr>
+    <tr><td>现有负载</td><td>8-15 号芯片由 VLLMWorker_TP 使用；0 号有 Python 任务；1-3 号无运行进程，未停止任何既有任务</td></tr>
+    <tr><td>运行时</td><td>缓存官方 quay.io/ascend/vllm-ascend:v0.18.0-a3 容器；torch 2.9.0+cpu，torch_npu 2.9.0.post1+gitee7ba04；CANN 8.5.1 目录可见</td></tr>
+    <tr><td>验证</td><td>在隔离容器中将物理 1 号卡映射为逻辑 npu:0，执行 2048x2048 FP32 矩阵乘，返回 status=ok；测试结束后 1 号卡恢复无运行进程</td></tr>
+    <tr><td>代码</td><td>scripts/npu_smoke_test.py；仅用于运行时/算力冒烟，不代表 Qwen3Guard 已完成 NPU 部署</td></tr>
+  </tbody>
+</table>
+
+<h2>七、开源融合结论</h2>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">结论</th></tr></thead>
+  <tbody>
+    <tr><td>Qwen3Guard</td><td>P1：优先在 GPU 或确认空闲 NPU 上做中文输入/输出语义专家；先核对模型卡许可证与显存</td></tr>
+    <tr><td>promptfoo</td><td>P1：接入 GitHub Actions，做护栏回归与版本门禁</td></tr>
+    <tr><td>garak</td><td>已保留为主动安全扫描链路，不放入实时请求路径</td></tr>
+    <tr><td>Guardrails AI / NeMo Guardrails</td><td>P2：借鉴 Validator/DSL 编排接口，暂不整体替换现有稳定 CPU 护栏</td></tr>
+    <tr><td>PurpleLlama / WildGuard</td><td>P2：用于离线评测、PromptGuard/CodeShield 思路和拒答质量对比</td></tr>
+    <tr><td>OpenGuardrails</td><td>P3：项目较新，持续观察，不进入当前主链路</td></tr>
+    <tr><td>ProtectAI LLM Guard</td><td>仅作扫描器分类参考；仓库已归档，不作为新的核心依赖</td></tr>
+  </tbody>
+</table>
+
+<h2>八、后续路线与当前边界</h2>
+<ol>
+  <li>先对本地交付包中的规则、TF-IDF、朴素贝叶斯和 XGBoost 专家投票做 shadow evaluation，再决定是否作为 CPU semantic_classifier 启用。</li>
+  <li>在 GPU 服务器或明确预约的 NPU 卡上部署 Qwen3Guard 小规格模型，记录精度、延迟、吞吐、显存和降级行为；本轮不操作 221.226.79.186 GPU。</li>
+  <li>补充 promptfoo CI、中文越狱/红线测试集、人工复核闭环和审计日志持久化。</li>
+  <li>继续优化前端动态分包，并将 MLLM 真实模型名称改为从后端配置安全读取；当前生产护栏不依赖外部模型即可运行。</li>
+</ol>
