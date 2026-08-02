@@ -130,4 +130,9 @@ async function startScan() {
 .result-table td { padding:9px 10px; border-bottom:1px solid var(--line); color:var(--text); }
 .num-pass { color:var(--success); font-weight:600; }
 .num-fail { color:var(--danger); font-weight:600; }
+.preset-btn{background:#fff}
+.preset-btn.active{background:rgba(8,126,174,.09)}
+.scan-btn{color:#fff}
+.log-box{background:#142a3c;border-color:#2c4a60}
+.log-line{color:#c4d2dc}
 </style>

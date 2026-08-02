@@ -11,9 +11,9 @@
           <div v-else class="avatar-placeholder">
             <!-- 空状态插画 -->
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="20" fill="#101820" stroke="#355365" stroke-width="1.5"/>
-              <circle cx="24" cy="20" r="6" fill="#182630" stroke="#2dd4bf" stroke-width="1.5"/>
-              <path d="M10 38c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <circle cx="24" cy="24" r="20" fill="#eef4f8" stroke="#b7c6d3" stroke-width="1.5"/>
+              <circle cx="24" cy="20" r="6" fill="#dceaf1" stroke="#087eae" stroke-width="1.5"/>
+              <path d="M10 38c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#087eae" stroke-width="1.5" stroke-linecap="round" fill="none"/>
             </svg>
           </div>
           <div class="avatar-dot" :class="file ? 'dot-ready' : 'dot-idle'"></div>
@@ -126,13 +126,13 @@
         <div class="upload-inner">
           <!-- 上传区插画 -->
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none" class="upload-illustration">
-            <circle cx="40" cy="40" r="36" fill="#101820" stroke="#355365" stroke-width="1.5"/>
-            <circle cx="40" cy="40" r="26" fill="none" stroke="#2dd4bf" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
-            <rect x="28" y="26" width="24" height="28" rx="3" fill="#0a1117" stroke="#2dd4bf" stroke-width="1.5"/>
-            <line x1="33" y1="33" x2="47" y2="33" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="33" y1="38" x2="47" y2="38" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="33" y1="43" x2="41" y2="43" stroke="#355365" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M40 52 L40 62 M36 58 L40 62 L44 58" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="40" cy="40" r="36" fill="#eef4f8" stroke="#b7c6d3" stroke-width="1.5"/>
+            <circle cx="40" cy="40" r="26" fill="none" stroke="#087eae" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+            <rect x="28" y="26" width="24" height="28" rx="3" fill="#ffffff" stroke="#087eae" stroke-width="1.5"/>
+            <line x1="33" y1="33" x2="47" y2="33" stroke="#b7c6d3" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="33" y1="38" x2="47" y2="38" stroke="#b7c6d3" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="33" y1="43" x2="41" y2="43" stroke="#b7c6d3" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M40 52 L40 62 M36 58 L40 62 L44 58" stroke="#087eae" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <div class="upload-text">拖拽或点击上传图像</div>
           <div class="upload-sub">支持 JPG / PNG / WebP</div>
@@ -402,4 +402,13 @@ const runAudit = async () => {
 <style scoped>
 .detect-page{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}.top-grid{display:grid;grid-template-columns:260px 1fr 280px;gap:14px}.info-card{display:flex;align-items:center;gap:14px}.avatar-wrap{position:relative;flex-shrink:0}.avatar-img,.avatar-placeholder{width:56px;height:56px;border-radius:6px;object-fit:cover}.avatar-placeholder{display:grid;place-items:center;background:#0b1218}.avatar-dot{position:absolute;right:-3px;bottom:-3px;width:11px;height:11px;border:2px solid var(--surface);border-radius:50%}.dot-ready{background:var(--success)}.dot-idle{background:var(--faint)}.info-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:14px;font-weight:600}.info-sub,.result-meta,.ring-label{color:var(--muted);font-size:11px}.sys-rows{display:flex;flex-direction:column;gap:10px}.sys-row{display:flex;align-items:center;gap:8px;font-size:12px}.sys-dot{width:6px;height:6px;border-radius:50%;background:var(--primary)}.sys-label{flex:1;color:var(--muted)}.sys-val{color:var(--text);font:11px ui-monospace,monospace}.ring-card{display:flex;align-items:center;justify-content:center}.ring-wrap{display:flex;gap:24px}.ring-item{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}.ring-svg{width:82px;height:82px;transform:rotate(-90deg)}.ring-bg{fill:none;stroke:var(--line);stroke-width:7}.ring-fill{fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:239;transition:stroke-dashoffset .7s}.ring-pink{stroke:var(--primary)}.ring-purple{stroke:var(--warning)}.ring-center{position:absolute;top:40px;left:50%;display:flex;align-items:baseline;transform:translate(-50%,-50%)}.ring-val{color:var(--primary);font-size:20px;font-weight:700}.ring-val-purple{color:var(--warning)}.ring-unit{color:var(--primary);font-size:10px}.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.stat-box{padding:12px;text-align:center;background:#0d161d;border:1px solid var(--line);border-radius:6px}.stat-main{border-color:rgba(45,212,191,.32);background:rgba(45,212,191,.06)}.stat-num{color:var(--text);font-size:18px;font-weight:700}.stat-label{margin-top:3px;color:var(--muted);font-size:10px}.num-done{color:var(--success)}.num-idle{color:var(--faint)}.num-running{color:var(--warning)}.action-row{display:flex;gap:14px}.upload-zone{flex:1}.upload-zone :deep(.el-upload-dragger){padding:22px!important;border-radius:7px!important}.upload-inner{display:flex;flex-direction:column;align-items:center;gap:6px}.upload-text{color:var(--text);font-size:13px}.upload-sub{color:var(--faint);font-size:11px}.detect-btn,.send-btn{min-height:39px;padding:0 18px;color:#06110f;background:var(--primary);border:0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.detect-btn{width:190px}.detect-btn:disabled,.send-btn:disabled{opacity:.45}.results-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.result-body{display:flex;flex-direction:column;gap:9px}.badge{display:inline-flex;width:max-content;padding:3px 9px;font-size:11px;font-weight:600}.result-text{margin:0;color:var(--muted);font-size:12px;line-height:1.65}.tags{display:flex;flex-wrap:wrap;gap:5px}.tag{padding:3px 7px;color:var(--primary);background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.18);border-radius:4px;font-size:10px}.tag-danger{color:var(--danger);background:rgba(251,113,133,.08);border-color:rgba(251,113,133,.22)}.face-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px}.face-metrics span{display:flex;justify-content:space-between;padding:7px 8px;color:var(--muted);background:#0b1218;border:1px solid var(--line);border-radius:4px;font-size:10px}.face-metrics b{color:var(--text);font-family:ui-monospace,monospace}.scan-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(3,8,11,.78);backdrop-filter:blur(4px)}.scan-box{position:relative;width:270px;height:270px;overflow:hidden;background:#0b1218;border:1px solid var(--primary);border-radius:7px;box-shadow:0 0 40px rgba(45,212,191,.15)}.scan-line{position:absolute;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--primary),transparent);box-shadow:0 0 12px var(--primary);animation:scan 2s linear infinite}.scan-text{position:absolute;bottom:20px;width:100%;text-align:center;color:var(--primary);font-size:12px}.quote-card{position:relative;padding:18px;text-align:center}.quote-icon{display:none}.quote-text{margin-bottom:8px;color:var(--muted);font-size:13px}.quote-source{color:var(--primary);font-size:11px}.quote-author{color:var(--faint);font-size:10px}.quote-refresh{position:absolute;top:12px;right:12px;color:var(--faint);background:transparent;border:0;cursor:pointer}@keyframes scan{from{top:0}to{top:100%}}@media(max-width:900px){.top-grid{grid-template-columns:1fr 1fr}.ring-card{grid-column:1/-1}.stats-row{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.top-grid,.results-grid{grid-template-columns:1fr}.ring-card{grid-column:auto}.action-row{flex-direction:column}.stats-row{grid-template-columns:repeat(2,1fr)}.detect-btn{width:100%}}
 .audit-textarea{flex:1;min-width:0;padding:10px 12px;color:var(--text);background:#0b1218;border:1px solid var(--line-bright);border-radius:6px;font-size:13px;line-height:1.55;resize:vertical;outline:none}.audit-textarea::placeholder{color:var(--faint)}.audit-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(45,212,191,.1)}
+.avatar-placeholder,.stat-box,.face-metrics span{background:var(--surface-2)}
+.stat-main{border-color:rgba(8,126,174,.28);background:rgba(8,126,174,.055)}
+.detect-btn,.send-btn{color:#fff}
+.tag{background:rgba(8,126,174,.07);border-color:rgba(8,126,174,.2)}
+.tag-danger{background:rgba(207,63,79,.08);border-color:rgba(207,63,79,.22)}
+.audit-textarea{background:#fff;box-shadow:inset 0 1px 2px rgba(23,40,56,.03)}
+.audit-textarea:focus{box-shadow:0 0 0 3px rgba(8,126,174,.1)}
+.scan-overlay{background:rgba(16,40,60,.48)}
+.scan-box{background:#fff;box-shadow:0 20px 56px rgba(16,40,60,.2)}
 </style>

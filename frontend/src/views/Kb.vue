@@ -183,4 +183,10 @@ async function sendQuestion() {
 .q-input:focus { border-color: var(--primary); }
 .send-btn { padding: 8px 20px; border-radius: 5px; border: none; background: var(--primary); color: #06110f; font-size: 13px; font-weight:700; cursor: pointer; }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.upload-area{background:var(--surface-2)}
+.refresh-btn,.del-btn{background:#fff}
+.category-tag{color:var(--cyan);background:rgba(22,140,168,.08);border-color:rgba(22,140,168,.2)}
+.msg.user{background:rgba(8,126,174,.09)}
+.msg.assistant,.q-input{background:var(--surface-2)}
+.send-btn{color:#fff}
 </style>

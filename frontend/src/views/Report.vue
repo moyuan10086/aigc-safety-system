@@ -114,5 +114,5 @@ onMounted(async () => {
 .md-body :deep(li) { margin:3px 0 }
 .md-body :deep(strong) { color:var(--text) }
 .md-body :deep(p) { margin:6px 0 }
-.md-body :deep(code) { background:#071017;padding:1px 5px;border-radius:3px;font-size:12px }
+.md-body :deep(code) { background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:12px }
 </style>
