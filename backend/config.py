@@ -10,6 +10,30 @@ MLLM_API_KEY = os.getenv("MLLM_API_KEY", "")
 MLLM_BASE_URL = os.getenv("MLLM_BASE_URL", "https://api.openai.com/v1")
 MLLM_MODEL = os.getenv("MLLM_MODEL", "gpt-4o")
 
+# Text generation model. It can point to a dedicated local vLLM service while
+# image analysis continues to use the MLLM settings above.
+CHAT_MODEL_API_KEY = os.getenv("CHAT_MODEL_API_KEY", MLLM_API_KEY)
+CHAT_MODEL_BASE_URL = os.getenv("CHAT_MODEL_BASE_URL", MLLM_BASE_URL)
+CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", MLLM_MODEL)
+CHAT_MODEL_TIMEOUT_SECONDS = float(os.getenv("CHAT_MODEL_TIMEOUT_SECONDS", "60"))
+CHAT_MODEL_MAX_TOKENS = int(os.getenv("CHAT_MODEL_MAX_TOKENS", "700"))
+GUARDRAIL_CHAT_RATE_LIMIT = int(os.getenv("GUARDRAIL_CHAT_RATE_LIMIT", "10"))
+
+# Public demos use server-managed configuration. Runtime writes are disabled by
+# default and require an explicit administrator token when enabled.
+SYSTEM_CONFIG_WRITABLE = os.getenv("SYSTEM_CONFIG_WRITABLE", "false").lower() in {
+    "1", "true", "yes", "on"
+}
+SYSTEM_ADMIN_TOKEN = os.getenv("SYSTEM_ADMIN_TOKEN", "")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,https://aigc.49.51.248.227.sslip.io",
+    ).split(",")
+    if origin.strip()
+]
+
 # Text guardrail feature switches. Rule-based checks are always enabled; local
 # RAG and remote MLLM analysis are optional enrichment layers.
 GUARDRAIL_ENABLE_RAG = os.getenv("GUARDRAIL_ENABLE_RAG", "true").lower() in {

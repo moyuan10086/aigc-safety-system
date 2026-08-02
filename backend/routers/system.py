@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+import secrets
+
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pathlib import Path
@@ -10,10 +12,17 @@ router = APIRouter(prefix="/api/system")
 async def system_info():
     return JSONResponse({
         "mllm_model": config.MLLM_MODEL,
-        "mllm_base_url": config.MLLM_BASE_URL,
-        "deepfake_model_path": config.DEEPFAKE_MODEL_PATH,
-        "chroma_path": config.CHROMA_PATH,
-        "lexicon_path": config.LEXICON_PATH,
+        "chat_model": config.CHAT_MODEL_NAME,
+        "mllm_configured": bool(config.MLLM_API_KEY),
+        "chat_model_configured": bool(
+            config.CHAT_MODEL_API_KEY
+            and config.CHAT_MODEL_BASE_URL
+            and config.CHAT_MODEL_NAME
+        ),
+        "deepfake_configured": bool(config.DEEPFAKE_MODEL_PATH),
+        "rag_configured": bool(config.CHROMA_PATH),
+        "lexicon_configured": bool(config.LEXICON_PATH),
+        "config_writable": config.SYSTEM_CONFIG_WRITABLE,
     })
 
 
@@ -27,7 +36,21 @@ class ConfigUpdate(BaseModel):
 
 
 @router.post("/config")
-async def update_config(body: ConfigUpdate):
+async def update_config(
+    body: ConfigUpdate,
+    x_admin_token: str | None = Header(default=None),
+):
+    if not config.SYSTEM_CONFIG_WRITABLE:
+        raise HTTPException(
+            status_code=403,
+            detail="运行时配置已关闭，请通过服务器环境变量更新",
+        )
+    if not config.SYSTEM_ADMIN_TOKEN:
+        raise HTTPException(status_code=503, detail="服务器未配置管理令牌")
+    if not x_admin_token or not secrets.compare_digest(
+        x_admin_token, config.SYSTEM_ADMIN_TOKEN
+    ):
+        raise HTTPException(status_code=401, detail="管理令牌无效")
     env_path = Path(__file__).parents[1] / ".env"
     lines = []
     mapping = {

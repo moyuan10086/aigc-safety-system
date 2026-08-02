@@ -7,12 +7,13 @@ from routers.system import router as system_router
 from routers.garak_scan import router as garak_router
 from routers.kb import router as kb_router
 from routers.guardrail import router as guardrail_router
+import config
 
-app = FastAPI(title="AIGC内容安全检测系统")
+app = FastAPI(title="AIGC 内容安全审核系统")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
