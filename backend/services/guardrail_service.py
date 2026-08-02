@@ -17,9 +17,22 @@ from config import (
     PROXY_URL,
 )
 
-RULE_VERSION = "2026.08.1"
+RULE_VERSION = "2026.08.2"
 MAX_ANALYSIS_CHARS = 12_000
 _RAG_LOCK = threading.Lock()
+
+# Large public lexicons contain many short, context-free words. Treat them as
+# retrieval noise unless they are explicit high-risk terms.
+_RAG_GENERIC_TERMS = {
+    "安全", "审核", "内容", "信息", "网络", "系统", "模型", "公开",
+    "独立", "可验", "验证", "媒体", "正常", "规则", "说明", "识别",
+}
+_RAG_HIGH_SIGNAL_SHORT_TERMS = {
+    "色情", "自杀", "炸弹", "枪支", "毒品", "赌博", "强奸", "恐怖",
+    "爆炸", "杀人", "贩毒", "洗钱", "诈骗", "勒索",
+}
+_RAG_CATEGORIES = {"political", "sexual", "violence", "illegal"}
+_RAG_SEMANTIC_MIN_SCORE = 0.72
 
 
 @dataclass(frozen=True)
@@ -157,22 +170,26 @@ def _run_rag(text: str) -> tuple[dict[str, float], list[dict[str, Any]], str]:
         with _RAG_LOCK:
             result = rag_service.check_content(text[:4_000])
         raw_matches = result.get("matches", [])
-        if raw_matches:
-            matched = [
-                str(item.get("term", ""))
-                for item in raw_matches
-                if item.get("category") in {"political", "sexual", "violence", "illegal"}
-                and len(str(item.get("term", "")).strip()) >= 2
-            ][:5]
-        else:
-            matched = [
-                str(value) for value in result.get("matched_keywords", [])
-                if len(str(value).strip()) >= 3
-            ][:5]
-        rules = [str(v) for v in result.get("violated_rules", [])[:3]]
+        matched = []
+        for item in raw_matches:
+            term = str(item.get("term", "")).strip()
+            if item.get("category") not in _RAG_CATEGORIES:
+                continue
+            if term in _RAG_GENERIC_TERMS:
+                continue
+            if len(term) >= 3 or term in _RAG_HIGH_SIGNAL_SHORT_TERMS:
+                matched.append(term)
+            if len(matched) >= 5:
+                break
+
+        semantic_matches = [
+            item for item in result.get("semantic_matches", [])
+            if float(item.get("score", 0.0)) >= _RAG_SEMANTIC_MIN_SCORE
+        ][:3]
+        rules = [str(item.get("rule", "")) for item in semantic_matches if item.get("rule")]
         if not matched and not rules:
             return {}, [], "ok"
-        score = 0.66 if matched else 0.46
+        score = 0.66 if matched else 0.52
         evidence = [{
             "source": "knowledge_base",
             "category": "policy_violation",

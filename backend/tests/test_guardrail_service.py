@@ -56,10 +56,12 @@ class GuardrailServiceTests(unittest.TestCase):
     def test_generic_lexicon_terms_do_not_raise_guardrail_risk(self):
         rag_result = {
             "matches": [
+                {"term": "独立", "category": "political"},
+                {"term": "可验", "category": "political"},
                 {"term": "网络", "category": "other"},
-                {"term": "比", "category": "other"},
             ],
             "violated_rules": [],
+            "semantic_matches": [],
         }
         fake_rag = SimpleNamespace(check_content=lambda _text: rag_result)
         with patch.object(guardrail_service, "GUARDRAIL_ENABLE_RAG", True), patch.object(
@@ -69,6 +71,37 @@ class GuardrailServiceTests(unittest.TestCase):
         ):
             result = guardrail_service.check(prompt="请总结如何识别网络谣言。")
         self.assertEqual(result["verdict"], "safe")
+
+    def test_weak_semantic_rag_match_does_not_raise_risk(self):
+        rag_result = {
+            "matches": [],
+            "semantic_matches": [
+                {"rule": "禁止政治敏感话题和违法犯罪内容", "score": 0.61},
+            ],
+        }
+        fake_rag = SimpleNamespace(check_content=lambda _text: rag_result)
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_RAG", True), patch.object(
+            guardrail_service, "GUARDRAIL_ENABLE_MLLM", False
+        ), patch.dict(sys.modules, {"services.rag_service": fake_rag}), patch(
+            "services.rag_service", fake_rag, create=True
+        ):
+            result = guardrail_service.check(prompt="请总结如何识别网络谣言。")
+        self.assertEqual(result["verdict"], "safe")
+
+    def test_high_signal_short_rag_term_requires_review(self):
+        rag_result = {
+            "matches": [{"term": "炸弹", "category": "violence"}],
+            "semantic_matches": [],
+        }
+        fake_rag = SimpleNamespace(check_content=lambda _text: rag_result)
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_RAG", True), patch.object(
+            guardrail_service, "GUARDRAIL_ENABLE_MLLM", False
+        ), patch.dict(sys.modules, {"services.rag_service": fake_rag}), patch(
+            "services.rag_service", fake_rag, create=True
+        ):
+            result = guardrail_service.check(prompt="炸弹相关报道")
+        self.assertEqual(result["verdict"], "borderline")
+        self.assertIn("policy_violation", result["categories"])
 
 
 if __name__ == "__main__":
