@@ -42,6 +42,19 @@ GUARDRAIL_ENABLE_RAG = os.getenv("GUARDRAIL_ENABLE_RAG", "true").lower() in {
 GUARDRAIL_ENABLE_MLLM = os.getenv("GUARDRAIL_ENABLE_MLLM", "false").lower() in {
     "1", "true", "yes", "on"
 }
+GUARDRAIL_ENABLE_QWEN_CLASSIFIER = os.getenv(
+    "GUARDRAIL_ENABLE_QWEN_CLASSIFIER", "false"
+).lower() in {"1", "true", "yes", "on"}
+GUARDRAIL_QWEN_API_KEY = os.getenv("GUARDRAIL_QWEN_API_KEY", "")
+GUARDRAIL_QWEN_BASE_URL = os.getenv(
+    "GUARDRAIL_QWEN_BASE_URL", "http://127.0.0.1:18200/v1"
+)
+GUARDRAIL_QWEN_MODEL = os.getenv(
+    "GUARDRAIL_QWEN_MODEL", "qwen3guard-gen-0.6b"
+)
+GUARDRAIL_QWEN_TIMEOUT_SECONDS = float(
+    os.getenv("GUARDRAIL_QWEN_TIMEOUT_SECONDS", "15")
+)
 
 # Deepfake detection model path
 DEEPFAKE_MODEL_PATH = os.getenv("DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt")

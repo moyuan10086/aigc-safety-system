@@ -36,6 +36,13 @@ def model_status() -> dict[str, Any]:
         "model": config.CHAT_MODEL_NAME,
         "gateway": "openai_compatible",
         "max_tokens": config.CHAT_MODEL_MAX_TOKENS,
+        "classifier_configured": bool(
+            config.GUARDRAIL_ENABLE_QWEN_CLASSIFIER
+            and config.GUARDRAIL_QWEN_API_KEY
+            and config.GUARDRAIL_QWEN_BASE_URL
+            and config.GUARDRAIL_QWEN_MODEL
+        ),
+        "classifier_model": config.GUARDRAIL_QWEN_MODEL,
     }
 
 

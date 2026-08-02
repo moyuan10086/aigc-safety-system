@@ -11,6 +11,11 @@ from typing import Any, Iterable
 from config import (
     GUARDRAIL_ENABLE_MLLM,
     GUARDRAIL_ENABLE_RAG,
+    GUARDRAIL_ENABLE_QWEN_CLASSIFIER,
+    GUARDRAIL_QWEN_API_KEY,
+    GUARDRAIL_QWEN_BASE_URL,
+    GUARDRAIL_QWEN_MODEL,
+    GUARDRAIL_QWEN_TIMEOUT_SECONDS,
     MLLM_API_KEY,
     MLLM_BASE_URL,
     MLLM_MODEL,
@@ -113,8 +118,94 @@ CATEGORY_ACTIONS = {
     "personal_data": "脱敏个人信息并验证处理授权",
     "hate_harassment": "阻断仇恨或骚扰内容，改写为中性、安全表达",
     "illegal_activity": "拒绝违法操作指导，仅提供合法合规信息",
+    "copyright_violation": "避免未经授权复制或传播受保护内容，转为摘要或合规引用",
     "policy_violation": "依据红线知识库转交人工复核",
 }
+
+_QWEN_CATEGORY_MAP = {
+    "Violent": "weapons_violence",
+    "Non-violent Illegal Acts": "illegal_activity",
+    "Sexual Content or Sexual Acts": "sexual_content",
+    "PII": "personal_data",
+    "Suicide & Self-Harm": "self_harm",
+    "Unethical Acts": "hate_harassment",
+    "Politically Sensitive Topics": "policy_violation",
+    "Copyright Violation": "copyright_violation",
+    "Jailbreak": "jailbreak",
+}
+_QWEN_CATEGORY_PATTERN = re.compile(
+    "|".join(re.escape(value) for value in _QWEN_CATEGORY_MAP),
+    flags=re.IGNORECASE,
+)
+
+
+def _run_qwen_classifier(
+    prompt: str, response: str
+) -> tuple[dict[str, float], list[dict[str, Any]], str]:
+    if not GUARDRAIL_ENABLE_QWEN_CLASSIFIER or not GUARDRAIL_QWEN_API_KEY:
+        return {}, [], "disabled"
+    try:
+        import httpx
+        from openai import OpenAI
+
+        messages: list[dict[str, str]] = []
+        if prompt.strip():
+            messages.append({"role": "user", "content": prompt[:4_000]})
+        if response.strip():
+            messages.append({"role": "assistant", "content": response[:4_000]})
+        if not messages:
+            return {}, [], "disabled"
+
+        http_client = httpx.Client(timeout=GUARDRAIL_QWEN_TIMEOUT_SECONDS)
+        with http_client:
+            client = OpenAI(
+                api_key=GUARDRAIL_QWEN_API_KEY,
+                base_url=GUARDRAIL_QWEN_BASE_URL,
+                http_client=http_client,
+            )
+            completion = client.chat.completions.create(
+                model=GUARDRAIL_QWEN_MODEL,
+                messages=messages,
+                temperature=0,
+                max_tokens=128,
+            )
+        raw = str(completion.choices[0].message.content or "")
+        label_match = re.search(
+            r"Safety\s*:\s*(Safe|Unsafe|Controversial)", raw, re.IGNORECASE
+        )
+        if not label_match:
+            return {}, [], "unavailable"
+        label = label_match.group(1).lower()
+        category_text = raw.split("Categories:", 1)[1] if "Categories:" in raw else ""
+        raw_categories = [
+            match.group(0) for match in _QWEN_CATEGORY_PATTERN.finditer(category_text)
+        ]
+        categories = []
+        for category in raw_categories:
+            mapped = next(
+                value
+                for key, value in _QWEN_CATEGORY_MAP.items()
+                if key.lower() == category.lower()
+            )
+            if mapped not in categories:
+                categories.append(mapped)
+        if label == "safe" or not categories:
+            return {}, [], "ok"
+
+        score = 0.92 if label == "unsafe" else 0.56
+        scores = {category: score for category in categories}
+        evidence = [
+            {
+                "source": "qwen3guard",
+                "category": category,
+                "rule_id": "QWEN3GUARD-0.6B",
+                "excerpt": f"Safety: {label.title()}; Categories: {', '.join(raw_categories)}",
+            }
+            for category in categories
+        ]
+        return scores, evidence, "ok"
+    except Exception:
+        return {}, [], "unavailable"
 
 
 def _selected_fields(prompt: str, response: str, mode: str) -> list[tuple[str, str]]:
@@ -269,6 +360,10 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
     _merge_scores(scores, mllm_scores)
     evidence.extend(mllm_evidence)
 
+    qwen_scores, qwen_evidence, qwen_status = _run_qwen_classifier(prompt, response)
+    _merge_scores(scores, qwen_scores)
+    evidence.extend(qwen_evidence)
+
     highest = max(scores.values(), default=0.0)
     strict = (mode or "").strip().lower() == "strict"
     unsafe_threshold = 0.70 if strict else 0.75
@@ -326,6 +421,11 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         "engine": {
             "name": "hybrid_guardrail",
             "version": RULE_VERSION,
-            "components": {"rules": "ok", "rag": rag_status, "mllm": mllm_status},
+            "components": {
+                "rules": "ok",
+                "rag": rag_status,
+                "mllm": mllm_status,
+                "qwen3guard": qwen_status,
+            },
         },
     }
