@@ -38,6 +38,7 @@ RULES: tuple[Rule, ...] = (
         r"\b(?:DAN|do anything now)\b",
         r"\b(?:bypass|disable|evade)\s+(?:the\s+)?(?:safety|guardrail|moderation|policy)",
         r"(?:忽略|无视|绕过|覆盖).{0,12}(?:之前|以上|系统|安全|审核|规则|指令)",
+        r"(?:忽略|无视|绕过|跳过).{0,8}(?:所有|任何)?(?:之前|先前|上面|原有)?(?:的)?(?:安全|审核|系统)?(?:规则|指令|限制)",
         r"(?:进入|开启).{0,8}(?:开发者|无限制|越狱)模式",
     ), ("prompt",)),
     Rule("GR-PI-001", "prompt_injection", 0.78, (
