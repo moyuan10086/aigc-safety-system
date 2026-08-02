@@ -1,0 +1,56 @@
+<h1>SingGuard-NSFA Agent 安全护栏评估（2026-08-02）</h1>
+<callout emoji="🛡️" background-color="light-blue" border-color="blue">
+  <p><b>结论：有用，建议 P1 接入，但定位为 Agent 专项护栏，不替代现有 Qwen3Guard、中文红线知识库和图片/人脸审核。</b>它最适合补强工具调用、危险操作、敏感信息窃取与泄露、恶意代码和资源滥用等 Agent 风险。当前先做旁路评测，通过后再作为可选专家进入实时链路。</p>
+</callout>
+
+<h2>一、官方项目核对</h2>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">核对结果</th></tr></thead>
+  <tbody>
+    <tr><td>来源</td><td>inclusionAI/SingGuard-NSFA，蚂蚁集团 AI Security Lab；项目主页、GitHub、Hugging Face 与 ModelScope 均可访问</td></tr>
+    <tr><td>许可证</td><td>GitHub LICENSE 为 Apache License 2.0，可用于二次开发；模型权重仍应以各模型卡条款为准</td></tr>
+    <tr><td>模型规格</td><td>0.8B、2B、4B、9B，基于 Qwen3.5 Base；包含生成式推理和实时分类头两种模式</td></tr>
+    <tr><td>风险分类</td><td>7 个一级域、28 个二级风险、185 个风险变体；覆盖查询侧与响应侧单轮文本</td></tr>
+    <tr><td>官方指标</td><td>项目报告称多语言基准 F1 大于 94%，A100 分类模式约 45–57 ms；这些属于官方结果，尚未在本项目 4090/NPU 环境复测</td></tr>
+  </tbody>
+</table>
+
+<h2>二、对现有系统的增量价值</h2>
+<ul>
+  <li><b>强补充：</b>Prompt Injection/Jailbreak、恶意代码与网络攻击、敏感信息窃取、危险工具调用、资源滥用、危险动作生成、密钥与隐私泄露。</li>
+  <li><b>与 Qwen3Guard 互补：</b>Qwen3Guard 继续负责通用内容安全与中文多语分类；SingGuard 专注 Agent 操作风险。两者使用最大风险合并或专家投票，不互相替换。</li>
+  <li><b>适配比赛亮点：</b>可以形成“输入预检 → Agent 计划/工具参数检查 → 模型输出复检 → 工具执行前审批 → 审计留痕”的闭环，比只审核聊天文本更贴近自主 Agent 安全。</li>
+  <li><b>可解释性：</b>生成式模式可用于离线审计与人工复核；实时分类头可用于低延迟拦截。</li>
+</ul>
+
+<h2>三、不应夸大的边界</h2>
+<ul>
+  <li>当前公开能力以单轮文本为主，不能据此宣称已经覆盖多轮轨迹攻击、跨 Agent 投毒或完整 Agent 行为因果分析。</li>
+  <li>不覆盖图片、音视频和 Deepfake 等多模态威胁，现有图片/人脸审核链路必须保留。</li>
+  <li>默认风险分类不是完整的中文内容合规体系，涉政、色情、暴力、未成年人等仍由 Qwen3Guard、红线规则/RAG 和人工复核负责。</li>
+  <li>GitHub 主要提供论文、说明和模型入口，不是可直接替换现有服务的完整网关；实时分类头还需要加载 backbone 与 nsfa_heads 并实现 PyTorch 服务逻辑。</li>
+</ul>
+
+<h2>四、推荐接入架构</h2>
+<ol>
+  <li seq="auto"><b>阶段 A：生成式模式旁路。</b>先部署 SingGuard-NSFA-0.8B，通过 OpenAI 兼容服务或本地 Transformers 调用，使用 untrusted_input / untrusted_output 边界包装；只记录 verdict、风险域、证据和延迟，不改变现网决策。</li>
+  <li seq="auto"><b>阶段 B：专项基准。</b>构造安全、中文越狱、工具滥用、密钥提取、恶意代码、危险删除、资源耗尽、输出泄密等样例，与当前规则、Qwen3Guard 和 SingGuard 做召回率、误报率、P95 延迟对比。</li>
+  <li seq="auto"><b>阶段 C：可选专家接入。</b>评测通过后增加 singguard 组件开关；仅在 Agent 场景启用，结果并入现有 engine.components 和 evidence，服务异常时自动降级。</li>
+  <li seq="auto"><b>阶段 D：工具执行前审批。</b>将工具名、参数、资源范围和用户意图序列化为不可信文本送检；高风险操作进入人工确认，不允许模型自行放行。</li>
+  <li seq="auto"><b>阶段 E：实时分类头。</b>生成式服务稳定后再评估 nsfa_heads，目标是降低延迟；未经本机复测，不引用 A100 45–57 ms 作为系统实测数据。</li>
+</ol>
+
+<h2>五、当前决策与下一步</h2>
+<table>
+  <thead><tr><th background-color="light-gray">事项</th><th background-color="light-gray">决策</th></tr></thead>
+  <tbody>
+    <tr><td>是否引入</td><td>P1，值得引入；作为 Agent 专项护栏可明显增加比赛差异化</td></tr>
+    <tr><td>是否替换 Qwen3Guard</td><td>否；Qwen3Guard 保留为通用内容安全专家</td></tr>
+    <tr><td>是否立即进入生产阻断</td><td>否；先 shadow evaluation，避免新模型误报影响现场演示</td></tr>
+    <tr><td>首选模型</td><td>SingGuard-NSFA-0.8B，先验证生成式推理兼容性和中文表现</td></tr>
+    <tr><td>首选环境</td><td>优先在 3×4090 服务器单卡验证；后续再评估 Ascend 910C 适配</td></tr>
+    <tr><td>验收门槛</td><td>接口稳定、异常可降级、危险样例召回提升、正常样例误报可控、P95 延迟可接受、证据字段可审计</td></tr>
+  </tbody>
+</table>
+
+<p>官方链接：<a href="https://github.com/inclusionAI/SingGuard-NSFA">GitHub</a>；<a href="https://zglg.work/">用户提供的参考站点</a>。参考站点用于发现与辅助阅读，技术结论以官方仓库、模型卡和本项目实测为准。</p>
