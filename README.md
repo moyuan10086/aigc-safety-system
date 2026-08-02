@@ -43,6 +43,12 @@ aigc-safety-system/
 - 实时推送三个模块的检测进度和结果
 - 前端 EventSource 接收流式数据
 
+### 5. 大模型与 Agent 双层安全护栏
+- Qwen3Guard：通用内容安全、中文风险与越狱分类
+- SingGuard-NSFA：危险工具调用、资源滥用、敏感信息和 Agent 操作风险
+- 输入预检、真实模型生成、输出复检与高风险隔离
+- 两个模型均为可选专家；不可用时保留规则/RAG 链路并在 `engine.components` 标记降级状态
+
 ## 快速开始
 
 ### 1. 配置环境
@@ -95,6 +101,41 @@ journalctl -u aigc-safety.service -f
 ```
 
 服务默认监听 `0.0.0.0:8010`，健康检查为 `GET /api/health`。模型权重、API 密钥、上传文件、报告和向量数据库均被 Git 忽略，不会推送到 GitHub。
+
+### GPU 护栏服务
+
+SingGuard 使用独立 Transformers 5 环境，避免与要求 `transformers<5` 的 vLLM 环境冲突：
+
+```bash
+python -m venv --system-site-packages /mnt/data/singguard/env
+/mnt/data/singguard/env/bin/pip install -r deploy/gpu/requirements-singguard.txt
+bash deploy/gpu/start_singguard.sh
+```
+
+主系统通过以下环境变量启用两个远程分类专家。密钥只写入服务器的 `backend/.env`，不要提交到 Git：
+
+```bash
+GUARDRAIL_ENABLE_QWEN_CLASSIFIER=true
+GUARDRAIL_QWEN_BASE_URL=http://GPU_HOST:18200/v1
+GUARDRAIL_QWEN_MODEL=qwen3guard-gen-0.6b
+GUARDRAIL_QWEN_API_KEY=server_managed_secret
+
+GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER=true
+GUARDRAIL_SINGGUARD_BASE_URL=http://GPU_HOST:18210/v1
+GUARDRAIL_SINGGUARD_MODEL=singguard-nsfa-0.8b
+GUARDRAIL_SINGGUARD_API_KEY=server_managed_secret
+```
+
+可复现实测命令：
+
+```bash
+python scripts/benchmark_singguard.py \
+  --base-url http://127.0.0.1:18210/v1 \
+  --api-key-file /mnt/data/singguard/api-key \
+  --output docs/evidence/singguard-benchmark-20260802.json
+```
+
+RTX 4090 生成式模式实测为 10 例中 9 例正确，平均 5354.2 ms、P95 7830.5 ms。该结果是小样本工程冒烟测试，不等价于论文基准；完整系统使用规则、RAG、Qwen3Guard 与 SingGuard 并联融合补充单模型漏报。
 
 ## API 文档
 

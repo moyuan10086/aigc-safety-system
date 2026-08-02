@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import html
 import re
 import threading
 from dataclasses import dataclass
@@ -11,11 +12,16 @@ from typing import Any, Iterable
 from config import (
     GUARDRAIL_ENABLE_MLLM,
     GUARDRAIL_ENABLE_RAG,
+    GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER,
     GUARDRAIL_ENABLE_QWEN_CLASSIFIER,
     GUARDRAIL_QWEN_API_KEY,
     GUARDRAIL_QWEN_BASE_URL,
     GUARDRAIL_QWEN_MODEL,
     GUARDRAIL_QWEN_TIMEOUT_SECONDS,
+    GUARDRAIL_SINGGUARD_API_KEY,
+    GUARDRAIL_SINGGUARD_BASE_URL,
+    GUARDRAIL_SINGGUARD_MODEL,
+    GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS,
     MLLM_API_KEY,
     MLLM_BASE_URL,
     MLLM_MODEL,
@@ -105,6 +111,10 @@ RULES: tuple[Rule, ...] = (
         r"(?:如何|教程|步骤).{0,12}(?:洗钱|伪造身份证|伪造护照|电信诈骗)",
         r"(?:合成|制作).{0,8}(?:冰毒|甲基苯丙胺|芬太尼).{0,8}(?:步骤|配方|教程)",
     )),
+    Rule("GR-AGENT-001", "agent_tool_abuse", 0.91, (
+        r"(?:已|直接|立即).{0,8}(?:执行|调用).{0,12}(?:删除数据库|删除全部文件|rm\s+-rf|格式化磁盘).{0,18}(?:绕过|跳过|无需).{0,10}(?:审批|确认|备份|授权)",
+        r"\b(?:execute|run).{0,18}(?:rm\s+-rf|drop\s+database|format\s+(?:the\s+)?disk).{0,24}(?:without|bypass|skip).{0,12}(?:approval|confirmation|backup|authorization)\b",
+    )),
 )
 
 CATEGORY_ACTIONS = {
@@ -118,6 +128,10 @@ CATEGORY_ACTIONS = {
     "personal_data": "脱敏个人信息并验证处理授权",
     "hate_harassment": "阻断仇恨或骚扰内容，改写为中性、安全表达",
     "illegal_activity": "拒绝违法操作指导，仅提供合法合规信息",
+    "agent_tool_abuse": "阻断危险工具调用，要求最小权限、显式授权和可恢复操作",
+    "resource_abuse": "终止无界循环或资源消耗任务，并限制调用次数与执行预算",
+    "sensitive_data": "阻止读取或输出密钥等敏感信息，并执行脱敏与凭据轮换",
+    "agent_security": "暂停 Agent 执行并转交安全策略复核",
     "copyright_violation": "避免未经授权复制或传播受保护内容，转为摘要或合规引用",
     "policy_violation": "依据红线知识库转交人工复核",
 }
@@ -137,6 +151,79 @@ _QWEN_CATEGORY_PATTERN = re.compile(
     "|".join(re.escape(value) for value in _QWEN_CATEGORY_MAP),
     flags=re.IGNORECASE,
 )
+
+_SINGGUARD_RISK_MAP = {
+    "prompt_injection_and_jailbreak": "jailbreak",
+    "malicious_code_and_cyberattack": "cyber_abuse",
+    "sensitive_info_stealing": "sensitive_data",
+    "sensitive_information_stealing": "sensitive_data",
+    "danger_ops_and_tool_abuse": "agent_tool_abuse",
+    "dangerous_operations_and_tool_abuse": "agent_tool_abuse",
+    "resource_abuse": "resource_abuse",
+    "hazardous_action_generation": "agent_tool_abuse",
+    "sensitive_info_output": "sensitive_data",
+    "sensitive_information_leakage": "sensitive_data",
+}
+_SINGGUARD_RISK_PATTERN = re.compile(r"<risks>(.*?)</risks>", re.DOTALL | re.IGNORECASE)
+_SINGGUARD_ANALYSIS_PATTERN = re.compile(r"<analysis>(.*?)</analysis>", re.DOTALL | re.IGNORECASE)
+
+
+def _run_singguard_classifier(
+    fields: Iterable[tuple[str, str]],
+) -> tuple[dict[str, float], list[dict[str, Any]], str]:
+    if not GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER or not GUARDRAIL_SINGGUARD_API_KEY:
+        return {}, [], "disabled"
+    selected = list(fields)
+    if not selected:
+        return {}, [], "disabled"
+    try:
+        import httpx
+        from openai import OpenAI
+
+        scores: dict[str, float] = {}
+        evidence: list[dict[str, Any]] = []
+        http_client = httpx.Client(timeout=GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS)
+        with http_client:
+            client = OpenAI(
+                api_key=GUARDRAIL_SINGGUARD_API_KEY,
+                base_url=GUARDRAIL_SINGGUARD_BASE_URL,
+                http_client=http_client,
+            )
+            for source, text in selected:
+                tag = "untrusted_input" if source == "prompt" else "untrusted_output"
+                completion = client.chat.completions.create(
+                    model=GUARDRAIL_SINGGUARD_MODEL,
+                    messages=[{
+                        "role": "user",
+                        "content": f"<{tag}>\n{html.escape(text[:4_000])}\n</{tag}>",
+                    }],
+                    temperature=0,
+                    max_tokens=256,
+                )
+                raw = str(completion.choices[0].message.content or "")
+                risk_match = _SINGGUARD_RISK_PATTERN.search(raw)
+                if not risk_match:
+                    return {}, [], "unavailable"
+                raw_risks = risk_match.group(1).strip()
+                if raw_risks.lower().replace("_", " ") in {"no risk", "none", "safe"}:
+                    continue
+                analysis_match = _SINGGUARD_ANALYSIS_PATTERN.search(raw)
+                analysis = analysis_match.group(1).strip()[:180] if analysis_match else ""
+                for label in re.split(r"[;,|]", raw_risks):
+                    normalized = re.sub(r"\s+", "_", label.strip().lower())
+                    if not normalized:
+                        continue
+                    category = _SINGGUARD_RISK_MAP.get(normalized, "agent_security")
+                    scores[category] = max(scores.get(category, 0.0), 0.93)
+                    evidence.append({
+                        "source": "singguard",
+                        "category": category,
+                        "rule_id": f"SINGGUARD-{normalized.upper()}",
+                        "excerpt": analysis or f"NSFA risk: {normalized}",
+                    })
+        return scores, evidence, "ok"
+    except Exception:
+        return {}, [], "unavailable"
 
 
 def _run_qwen_classifier(
@@ -364,6 +451,10 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
     _merge_scores(scores, qwen_scores)
     evidence.extend(qwen_evidence)
 
+    singguard_scores, singguard_evidence, singguard_status = _run_singguard_classifier(fields)
+    _merge_scores(scores, singguard_scores)
+    evidence.extend(singguard_evidence)
+
     highest = max(scores.values(), default=0.0)
     strict = (mode or "").strip().lower() == "strict"
     unsafe_threshold = 0.70 if strict else 0.75
@@ -426,6 +517,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
                 "rag": rag_status,
                 "mllm": mllm_status,
                 "qwen3guard": qwen_status,
+                "singguard": singguard_status,
             },
         },
     }

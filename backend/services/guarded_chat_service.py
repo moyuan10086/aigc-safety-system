@@ -43,6 +43,13 @@ def model_status() -> dict[str, Any]:
             and config.GUARDRAIL_QWEN_MODEL
         ),
         "classifier_model": config.GUARDRAIL_QWEN_MODEL,
+        "agent_classifier_configured": bool(
+            config.GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER
+            and config.GUARDRAIL_SINGGUARD_API_KEY
+            and config.GUARDRAIL_SINGGUARD_BASE_URL
+            and config.GUARDRAIL_SINGGUARD_MODEL
+        ),
+        "agent_classifier_model": config.GUARDRAIL_SINGGUARD_MODEL,
     }
 
 

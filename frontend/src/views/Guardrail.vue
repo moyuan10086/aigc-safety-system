@@ -24,6 +24,16 @@
           <div class="model-chip"><Bot :size="14" />{{ modelStatus.model || '等待模型信息' }}</div>
         </div>
 
+        <div class="engine-row" aria-label="护栏引擎状态">
+          <span>护栏引擎</span>
+          <div class="engine-chip" :class="{ active: modelStatus.classifier_configured }">
+            <ShieldCheck :size="13" />内容安全 · {{ modelStatus.classifier_model || 'Qwen3Guard' }}
+          </div>
+          <div class="engine-chip" :class="{ active: modelStatus.agent_classifier_configured }">
+            <ShieldCheck :size="13" />Agent 安全 · {{ modelStatus.agent_classifier_model || 'SingGuard-NSFA' }}
+          </div>
+        </div>
+
         <div class="mode-tabs" role="tablist">
           <button v-for="item in modes" :key="item.value" :class="{ active: mode === item.value }" @click="switchMode(item.value)">
             <component :is="item.icon" :size="16" />{{ item.label }}<small>{{ item.hint }}</small>
@@ -252,4 +262,5 @@ textarea:focus{box-shadow:0 0 0 3px rgba(8,126,174,.1)}
 .risk-meter{background:var(--line)}
 .quarantine,.evidence-item{background:rgba(207,63,79,.06);border-color:rgba(207,63,79,.2)}
 .passed-state,.safe-answer{background:rgba(22,128,94,.055);border-color:rgba(22,128,94,.2)}
+.engine-row{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:13px 0 0;color:var(--faint);font-size:9px}.engine-chip{display:flex;align-items:center;gap:5px;padding:5px 8px;color:var(--faint);background:var(--surface-2);border:1px solid var(--line);border-radius:4px}.engine-chip.active{color:var(--success);background:rgba(22,128,94,.055);border-color:rgba(22,128,94,.2)}
 </style>

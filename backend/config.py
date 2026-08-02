@@ -55,6 +55,19 @@ GUARDRAIL_QWEN_MODEL = os.getenv(
 GUARDRAIL_QWEN_TIMEOUT_SECONDS = float(
     os.getenv("GUARDRAIL_QWEN_TIMEOUT_SECONDS", "15")
 )
+GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER = os.getenv(
+    "GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER", "false"
+).lower() in {"1", "true", "yes", "on"}
+GUARDRAIL_SINGGUARD_API_KEY = os.getenv("GUARDRAIL_SINGGUARD_API_KEY", "")
+GUARDRAIL_SINGGUARD_BASE_URL = os.getenv(
+    "GUARDRAIL_SINGGUARD_BASE_URL", "http://127.0.0.1:18210/v1"
+)
+GUARDRAIL_SINGGUARD_MODEL = os.getenv(
+    "GUARDRAIL_SINGGUARD_MODEL", "singguard-nsfa-0.8b"
+)
+GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS = float(
+    os.getenv("GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS", "20")
+)
 
 # Deepfake detection model path
 DEEPFAKE_MODEL_PATH = os.getenv("DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt")
