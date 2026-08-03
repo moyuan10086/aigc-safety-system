@@ -13,6 +13,9 @@ export interface ShadowEvaluationSummary {
   eligible_samples: number
   pending_reviews: number
   reviewed_count: number
+  reviewer_reviewed_count: number
+  active_claims: number
+  claimed_by_me_count: number
   remaining_count: number
   p95_latency_ms: number
   statuses: Record<string, number>
@@ -37,10 +40,23 @@ export interface ShadowReviewItem {
   priority: 'disagreement' | 'stratified'
   has_evidence: boolean
   evidence_reviewed: boolean
+  claim_state: 'available' | 'mine' | 'other'
+  claim_expires_at?: string
   review_label?: 'safe' | 'borderline' | 'unsafe'
   reason_code?: string
   reviewer?: string
   reviewed_at?: string
+  review_claim_verified: boolean
+}
+
+export interface ReviewResolution {
+  event_id: string
+  review_label: 'safe' | 'borderline' | 'unsafe'
+  reason_code: string
+  reviewer: string
+  reviewed_at: string
+  next_event_id?: string
+  next_claim_expires_at?: string
 }
 
 export interface DashboardOverview {
@@ -125,7 +141,26 @@ export function useDashboard() {
         throw new Error(detail)
       }
       await refresh(true)
-      return body
+      return body as ReviewResolution
+    } finally {
+      reviewingEventId.value = ''
+    }
+  }
+
+  async function claimReview(eventId: string) {
+    if (reviewingEventId.value && reviewingEventId.value !== eventId) return
+    reviewingEventId.value = eventId
+    try {
+      const response = await fetch(`/api/dashboard/review-claims/${eventId}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : '复核样本领取失败'
+        throw new Error(detail)
+      }
+      return body as { event_id: string; expires_at: string; lease_seconds: number }
     } finally {
       reviewingEventId.value = ''
     }
@@ -142,5 +177,5 @@ export function useDashboard() {
     if (timer) clearInterval(timer)
     if (debounceTimer) clearTimeout(debounceTimer)
   })
-  return { data, hours, loading, error, authRequired, reviewingEventId, refresh, resolveShadowReview, openLogin }
+  return { data, hours, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, openLogin }
 }

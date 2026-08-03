@@ -38,6 +38,35 @@ async def dashboard_overview(
     )
 
 
+@router.post("/review-claims/{event_id}")
+async def claim_review_sample(event_id: str, request: Request):
+    user = _operator(request)
+    try:
+        claim = audit_log_service.claim_review_sample(event_id, user["username"])
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="未找到含加密证据的可复核护栏事件") from exc
+    except FileExistsError as exc:
+        raise HTTPException(status_code=409, detail="该样本已经完成人工复核，标签不可覆盖") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail="该样本正在由其他审核员复核，请选择下一条") from exc
+    audit_log_service.record_safe(
+        event_type="guardrail.review_claim",
+        module="guardrail",
+        action="claim_human_review",
+        outcome="success",
+        actor=user["username"],
+        client_ip=request.client.host if request.client else "unknown",
+        summary="审核员领取人工复核样本",
+        resource_id=event_id,
+        metadata={
+            "source_event_id": event_id,
+            "expires_at": claim["expires_at"],
+            "lease_seconds": claim["lease_seconds"],
+        },
+    )
+    return JSONResponse(claim, headers={"Cache-Control": "no-store"})
+
+
 @router.put("/shadow-reviews/{event_id}")
 async def resolve_shadow_review(
     event_id: str,
@@ -51,8 +80,15 @@ async def resolve_shadow_review(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="未找到含加密证据的可复核护栏事件") from exc
+    except FileExistsError as exc:
+        raise HTTPException(status_code=409, detail="该样本已经完成人工复核，标签不可覆盖") from exc
     except PermissionError as exc:
-        raise HTTPException(status_code=409, detail="请先打开取证详情并查看原始证据") from exc
+        detail = (
+            "请先领取该复核样本"
+            if str(exc).startswith("review_claim")
+            else "请先打开取证详情并查看原始证据"
+        )
+        raise HTTPException(status_code=409, detail=detail) from exc
     audit_log_service.record_safe(
         event_type="guardrail.shadow_review",
         module="guardrail",
@@ -69,6 +105,22 @@ async def resolve_shadow_review(
             "reason_code": review["reason_code"],
         },
     )
+    if review["next_event_id"]:
+        audit_log_service.record_safe(
+            event_type="guardrail.review_claim",
+            module="guardrail",
+            action="auto_claim_next_review",
+            outcome="success",
+            actor=user["username"],
+            client_ip=request.client.host if request.client else "unknown",
+            summary="完成标签后自动领取下一条复核样本",
+            resource_id=review["next_event_id"],
+            metadata={
+                "source_event_id": review["next_event_id"],
+                "previous_event_id": event_id,
+                "expires_at": review["next_claim_expires_at"],
+            },
+        )
     return JSONResponse(review, headers={"Cache-Control": "no-store"})
 
 
@@ -82,7 +134,7 @@ async def export_review_labels(request: Request):
         "event_id", "content_hash", "occurred_at", "primary_verdict", "risk_code",
         "risk_score", "categories", "shadow_status", "shadow_decision",
         "is_disagreement", "human_label", "reason_code", "reviewer", "reviewed_at",
-        "evidence_access_verified",
+        "review_claim_verified", "evidence_access_verified",
     ])
     for review in reviews:
         writer.writerow([
@@ -92,7 +144,7 @@ async def export_review_labels(request: Request):
             review.get("shadow_status"), review.get("shadow_decision"),
             review.get("is_disagreement"), review["review_label"],
             review.get("reason_code"), review.get("reviewer"), review.get("reviewed_at"),
-            review.get("evidence_reviewed"),
+            review.get("review_claim_verified"), review.get("evidence_reviewed"),
         ])
     audit_log_service.record_safe(
         event_type="guardrail.review_export",

@@ -58,6 +58,7 @@ def _counts(path: Path) -> dict[str, int]:
             "audit_events",
             "audit_evidence",
             "guardrail_shadow_reviews",
+            "guardrail_review_claims",
             "api_keys",
             "api_usage",
             "tenant_scan_jobs",

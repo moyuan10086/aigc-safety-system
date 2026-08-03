@@ -2,6 +2,7 @@
 
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -132,6 +133,24 @@ class DashboardTests(unittest.TestCase):
             json={"review_label": "safe"},
         )
         self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(blocked.json()["detail"], "请先领取该复核样本")
+        self.assertEqual(
+            self.client.get(f"/api/audit/logs/{disagreement_id}/evidence").status_code,
+            200,
+        )
+        claim = self.client.post(f"/api/dashboard/review-claims/{disagreement_id}")
+        self.assertEqual(claim.status_code, 200)
+        self.assertEqual(claim.json()["lease_seconds"], 900)
+        claimed_overview = self.client.get("/api/dashboard/overview?hours=24").json()
+        self.assertEqual(claimed_overview["shadow_reviews"][0]["claim_state"], "mine")
+        self.assertFalse(claimed_overview["shadow_reviews"][0]["evidence_reviewed"])
+        self.assertEqual(claimed_overview["shadow_evaluation"]["claimed_by_me_count"], 1)
+        stale_evidence = self.client.put(
+            f"/api/dashboard/shadow-reviews/{disagreement_id}",
+            json={"review_label": "safe"},
+        )
+        self.assertEqual(stale_evidence.status_code, 409)
+        self.assertIn("查看原始证据", stale_evidence.json()["detail"])
         evidence_response = self.client.get(f"/api/audit/logs/{disagreement_id}/evidence")
         self.assertEqual(evidence_response.status_code, 200)
         response = self.client.put(
@@ -141,18 +160,29 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         review = response.json()
         self.assertEqual(review["reason_code"], "shadow_false_positive")
+        self.assertIsNone(review["next_event_id"])
         self.assertNotIn("prompt", response.text.lower())
+
+        immutable = self.client.put(
+            f"/api/dashboard/shadow-reviews/{disagreement_id}",
+            json={"review_label": "unsafe"},
+        )
+        self.assertEqual(immutable.status_code, 409)
+        self.assertIn("标签不可覆盖", immutable.json()["detail"])
 
         overview = self.client.get("/api/dashboard/overview?hours=24").json()
         self.assertEqual(overview["shadow_evaluation"]["pending_reviews"], 0)
         self.assertEqual(overview["shadow_evaluation"]["reviewed_count"], 1)
+        self.assertEqual(overview["shadow_evaluation"]["reviewer_reviewed_count"], 1)
         self.assertEqual(overview["shadow_reviews"][0]["review_label"], "safe")
         self.assertTrue(overview["shadow_reviews"][0]["evidence_reviewed"])
         evidence = audit_log_service.get_evidence(disagreement_id)
         self.assertEqual(evidence["prompt"], "结构化复核测试原文")
         access_events = audit_log_service.export_events(event_type="audit.evidence_access")
+        claim_events = audit_log_service.export_events(event_type="guardrail.review_claim")
         review_events = audit_log_service.export_events(event_type="guardrail.shadow_review")
-        self.assertEqual(len(access_events), 1)
+        self.assertEqual(len(access_events), 2)
+        self.assertEqual(len(claim_events), 1)
         self.assertEqual(len(review_events), 1)
         self.assertEqual(review_events[0]["prev_hash"], access_events[0]["record_hash"])
 
@@ -195,6 +225,9 @@ class DashboardTests(unittest.TestCase):
             json={"review_label": "unsafe"},
         )
         self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(self.client.post(f"/api/dashboard/review-claims/{general_id}").status_code, 200)
+        with self.assertRaises(PermissionError):
+            audit_log_service.claim_review_sample(general_id, "another-operator")
         self.assertEqual(self.client.get(f"/api/audit/logs/{general_id}/evidence").status_code, 200)
         with self.assertRaises(PermissionError):
             audit_log_service.resolve_shadow_review(general_id, "unsafe", "another-operator")
@@ -212,6 +245,10 @@ class DashboardTests(unittest.TestCase):
         )
         self.assertEqual(reviewed.status_code, 200)
         self.assertEqual(reviewed.json()["reason_code"], "human_confirmed_unsafe")
+        self.assertEqual(reviewed.json()["next_event_id"], disagreement_id)
+        next_overview = self.client.get("/api/dashboard/overview?hours=24").json()
+        self.assertEqual(next_overview["shadow_reviews"][0]["event_id"], disagreement_id)
+        self.assertEqual(next_overview["shadow_reviews"][0]["claim_state"], "mine")
         rejected = self.client.put(
             f"/api/dashboard/shadow-reviews/{no_evidence_id}",
             json={"review_label": "safe"},
@@ -221,12 +258,53 @@ class DashboardTests(unittest.TestCase):
         exported = self.client.get("/api/dashboard/review-labels.csv")
         self.assertEqual(exported.status_code, 200)
         self.assertIn("human_label", exported.text.splitlines()[0])
+        self.assertIn("review_claim_verified", exported.text.splitlines()[0])
         self.assertIn("evidence_access_verified", exported.text.splitlines()[0])
         self.assertIn(general_id, exported.text)
         self.assertIn(",True\r", exported.text)
         self.assertNotIn("这是不能出现在概览或导出里的原始提示词", exported.text)
         self.assertNotIn("这是不能出现在概览或导出里的危险模型输出", exported.text)
         self.assertTrue(audit_log_service.verify_chain())
+
+    def test_expired_claim_can_be_taken_over_without_exposing_evidence(self):
+        _, disagreement_id = self._seed()
+        started = datetime.now(timezone.utc) - timedelta(seconds=100)
+        first = audit_log_service.claim_review_sample(
+            disagreement_id, "operator", now=started, lease_seconds=60
+        )
+        self.assertEqual(first["reviewer"], "operator")
+        with self.assertRaises(PermissionError):
+            audit_log_service.claim_review_sample(
+                disagreement_id,
+                "another-operator",
+                now=started + timedelta(seconds=30),
+                lease_seconds=60,
+            )
+        takeover = audit_log_service.claim_review_sample(
+            disagreement_id,
+            "another-operator",
+            now=started + timedelta(seconds=61),
+            lease_seconds=60,
+        )
+        self.assertEqual(takeover["reviewer"], "another-operator")
+        audit_log_service.record(
+            event_type="audit.evidence_access",
+            module="audit",
+            action="reveal_raw_evidence",
+            outcome="success",
+            actor="another-operator",
+            resource_id=disagreement_id,
+            summary="未形成领取审计事件的直接服务测试",
+        )
+        with self.assertRaises(PermissionError) as missing_claim_audit:
+            audit_log_service.resolve_shadow_review(
+                disagreement_id, "safe", "another-operator"
+            )
+        self.assertEqual(str(missing_claim_audit.exception), "review_claim_audit_required")
+        overview = audit_log_service.shadow_review_statistics(
+            reviewer="operator", now=datetime.now(timezone.utc)
+        )
+        self.assertEqual(overview["queue"][0]["claim_state"], "other")
 
 
 if __name__ == "__main__":

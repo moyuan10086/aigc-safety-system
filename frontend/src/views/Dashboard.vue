@@ -73,7 +73,7 @@ import ShadowReviewPanel from '../components/dashboard/ShadowReviewPanel.vue'
 import { useDashboard } from '../composables/useDashboard'
 
 const router = useRouter()
-const { data, hours, loading, error, authRequired, reviewingEventId, refresh, resolveShadowReview, openLogin } = useDashboard()
+const { data, hours, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, openLogin } = useDashboard()
 const selectedAuditEvent = ref<AuditEvent | null>(null)
 const ranges = [{ label: '24 小时', value: 24 }, { label: '3 天', value: 72 }, { label: '7 天', value: 168 }]
 const categoryNames: Record<string, string> = { jailbreak: '越狱攻击', prompt_injection: '提示词注入', cyber_abuse: '网络攻击滥用', weapons_violence: '武器暴力', self_harm: '自伤风险', sexual_content: '色情内容', child_safety: '未成年人安全', personal_data: '隐私数据', illegal_activity: '违法活动', agent_security: 'Agent 安全' }
@@ -107,14 +107,22 @@ async function enterBigScreen() {
 }
 async function handleShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe') {
   try {
-    await resolveShadowReview(eventId, reviewLabel)
+    const result = await resolveShadowReview(eventId, reviewLabel)
     toast.success('人工复核标签已写入审计闭环')
+    if (result?.next_event_id) {
+      await inspectAuditEvent(result.next_event_id, false)
+      toast.info('已自动领取并打开下一条复核样本')
+    }
   } catch (caught) {
     toast.error((caught as Error).message)
   }
 }
-async function inspectAuditEvent(eventId: string) {
+async function inspectAuditEvent(eventId: string, shouldClaim = true) {
   try {
+    if (shouldClaim) {
+      await claimReview(eventId)
+      await refresh(true)
+    }
     const response = await fetch(`/api/audit/logs/${eventId}`, { credentials: 'same-origin' })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : '审计事件读取失败')

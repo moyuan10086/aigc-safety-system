@@ -56,6 +56,16 @@ class MaintenanceServiceTests(unittest.TestCase):
             },
         )
         audit_log_service.store_evidence(disagreement_id, prompt="复核样本")
+        audit_log_service.claim_review_sample(disagreement_id, "operator")
+        audit_log_service.record(
+            event_type="guardrail.review_claim",
+            module="guardrail",
+            action="claim_human_review",
+            outcome="success",
+            actor="operator",
+            resource_id=disagreement_id,
+            summary="备份测试审核员领取样本",
+        )
         audit_log_service.record(
             event_type="audit.evidence_access",
             module="audit",
@@ -73,6 +83,7 @@ class MaintenanceServiceTests(unittest.TestCase):
         self.assertTrue(backup["audit_chain_valid"])
         self.assertEqual(backup["counts"]["audit_evidence"], 2)
         self.assertEqual(backup["counts"]["guardrail_shadow_reviews"], 1)
+        self.assertEqual(backup["counts"]["guardrail_review_claims"], 0)
         verified = maintenance_service.verify_backup(backup["archive"])
         self.assertTrue(verified["valid"])
         self.assertTrue((Path(backup["path"]) / "audit.db").is_file())

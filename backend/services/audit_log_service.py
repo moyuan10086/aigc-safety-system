@@ -95,6 +95,15 @@ def _initialize(connection: sqlite3.Connection, key: str) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_shadow_reviews_reviewed_at
                 ON guardrail_shadow_reviews(reviewed_at DESC);
+            CREATE TABLE IF NOT EXISTS guardrail_review_claims (
+                event_id TEXT PRIMARY KEY,
+                reviewer TEXT NOT NULL,
+                claimed_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY(event_id) REFERENCES audit_events(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_review_claims_reviewer
+                ON guardrail_review_claims(reviewer, expires_at DESC);
             """
         )
         connection.commit()
@@ -643,7 +652,12 @@ def _review_reason(primary_verdict: str, shadow_decision: str, review_label: str
     return "reviewer_confirmation"
 
 
-def _review_item(row: sqlite3.Row) -> dict[str, Any] | None:
+def _review_item(
+    row: sqlite3.Row,
+    *,
+    reviewer: str | None = None,
+    now_iso: str | None = None,
+) -> dict[str, Any] | None:
     primary_verdict = _primary_verdict(row["outcome"])
     if primary_verdict is None:
         return None
@@ -656,6 +670,17 @@ def _review_item(row: sqlite3.Row) -> dict[str, Any] | None:
         shadow = {}
     categories = metadata.get("categories")
     is_disagreement = shadow.get("status") == "ok" and shadow.get("agreement") is False
+    row_keys = row.keys()
+    claim_reviewer = row["claim_reviewer"] if "claim_reviewer" in row_keys else None
+    claim_expires_at = row["claim_expires_at"] if "claim_expires_at" in row_keys else None
+    claim_active = bool(claim_reviewer and claim_expires_at and now_iso and claim_expires_at > now_iso)
+    claim_state = (
+        "mine"
+        if claim_active and reviewer and claim_reviewer == reviewer
+        else "other"
+        if claim_active
+        else "available"
+    )
     return {
         "event_id": row["id"],
         "occurred_at": row["occurred_at"],
@@ -674,19 +699,26 @@ def _review_item(row: sqlite3.Row) -> dict[str, Any] | None:
         "priority": "disagreement" if is_disagreement else "stratified",
         "has_evidence": True,
         "evidence_reviewed": bool(row["evidence_reviewed"])
-        if "evidence_reviewed" in row.keys()
+        if "evidence_reviewed" in row_keys
         else False,
+        "claim_state": claim_state,
+        "claim_expires_at": claim_expires_at if claim_active else None,
         "review_label": row["review_label"],
         "reason_code": row["reason_code"],
         "reviewer": row["reviewer"],
         "reviewed_at": row["reviewed_at"],
+        "review_claim_verified": bool(row["claim_verified"])
+        if "claim_verified" in row_keys
+        else False,
     }
 
 
 def _stratified_review_queue(items: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     pending = [item for item in items if not item["review_label"]]
+    selected = [item for item in pending if item["claim_state"] == "mine"][:limit]
+    pending = [item for item in pending if item["claim_state"] == "available"]
     disagreements = [item for item in pending if item["is_disagreement"]]
-    selected = disagreements[:limit]
+    selected.extend(disagreements[: max(0, limit - len(selected))])
     selected_ids = {item["event_id"] for item in selected}
     buckets = {
         label: [
@@ -699,6 +731,14 @@ def _stratified_review_queue(items: list[dict[str, Any]], limit: int) -> list[di
         for label in ("unsafe", "borderline", "safe"):
             if buckets[label] and len(selected) < limit:
                 selected.append(buckets[label].pop(0))
+    if len(selected) < limit:
+        selected_ids = {item["event_id"] for item in selected}
+        selected.extend(
+            item for item in items
+            if not item["review_label"]
+            and item["claim_state"] == "other"
+            and item["event_id"] not in selected_ids
+        )
     if len(selected) < limit:
         selected_ids = {item["event_id"] for item in selected}
         selected.extend(
@@ -720,6 +760,8 @@ def shadow_review_statistics(
     queue_limit = max(1, min(int(queue_limit), 50))
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     start = now - timedelta(hours=hours)
+    now_iso = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    clean_reviewer = _clean_text(reviewer, 128) or ""
     with closing(_connect()) as connection:
         rows = connection.execute(
             """
@@ -745,23 +787,31 @@ def shadow_review_statistics(
                    guardrail_shadow_reviews.reason_code,
                    guardrail_shadow_reviews.reviewer,
                    guardrail_shadow_reviews.reviewed_at,
+                   guardrail_review_claims.reviewer AS claim_reviewer,
+                   guardrail_review_claims.claimed_at AS claim_claimed_at,
+                   guardrail_review_claims.expires_at AS claim_expires_at,
                    EXISTS(
                        SELECT 1 FROM audit_events AS evidence_access
                        WHERE evidence_access.event_type = 'audit.evidence_access'
                          AND evidence_access.resource_id = audit_events.id
                          AND evidence_access.actor = ?
                          AND evidence_access.outcome = 'success'
+                         AND evidence_access.occurred_at > COALESCE(
+                             guardrail_review_claims.claimed_at, ''
+                         )
                    ) AS evidence_reviewed
             FROM audit_events
             INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
             LEFT JOIN guardrail_shadow_reviews
                 ON guardrail_shadow_reviews.event_id = audit_events.id
+            LEFT JOIN guardrail_review_claims
+                ON guardrail_review_claims.event_id = audit_events.id
             WHERE audit_events.event_type = 'guardrail.check'
               AND audit_events.outcome IN ('allowed', 'review', 'blocked', 'denied')
             ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
             LIMIT 2000
             """,
-            (_clean_text(reviewer, 128) or "",),
+            (clean_reviewer,),
         ).fetchall()
 
     observed_events = 0
@@ -803,8 +853,15 @@ def shadow_review_statistics(
         if agreement is False and primary_verdict == "unsafe" and shadow_decision == "pass":
             false_negative_candidates += 1
 
-    review_items = [item for row in review_rows if (item := _review_item(row)) is not None]
+    review_items = [
+        item
+        for row in review_rows
+        if (item := _review_item(row, reviewer=clean_reviewer, now_iso=now_iso)) is not None
+    ]
     reviewed = sum(bool(item["review_label"]) for item in review_items)
+    reviewer_reviewed = sum(item["reviewer"] == clean_reviewer for item in review_items)
+    active_claims = sum(item["claim_state"] in {"mine", "other"} for item in review_items)
+    claimed_by_me = sum(item["claim_state"] == "mine" for item in review_items)
     review_labels: dict[str, int] = {}
     for item in review_items:
         if item["review_label"]:
@@ -828,6 +885,9 @@ def shadow_review_statistics(
         "eligible_samples": len(review_items),
         "pending_reviews": max(0, len(review_items) - reviewed),
         "reviewed_count": reviewed,
+        "reviewer_reviewed_count": reviewer_reviewed,
+        "active_claims": active_claims,
+        "claimed_by_me_count": claimed_by_me,
         "remaining_count": max(0, target_labels - reviewed),
         "p95_latency_ms": round(latency_sorted[p95_index], 3) if latency_sorted else 0.0,
         "statuses": statuses,
@@ -836,16 +896,163 @@ def shadow_review_statistics(
     }
 
 
+def claim_review_sample(
+    event_id: str,
+    reviewer: str,
+    *,
+    now: datetime | None = None,
+    lease_seconds: int = 900,
+) -> dict[str, Any]:
+    """Atomically reserve one pending evidence-backed sample for a reviewer."""
+    clean_reviewer = _clean_text(reviewer, 128) or "operator"
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    lease_seconds = max(60, min(int(lease_seconds), 3600))
+    claimed_at = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    expires_at = (now + timedelta(seconds=lease_seconds)).isoformat(
+        timespec="milliseconds"
+    ).replace("+00:00", "Z")
+    with _LOCK, closing(_connect()) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            """
+            SELECT audit_events.id, guardrail_shadow_reviews.event_id AS reviewed_event_id
+            FROM audit_events
+            INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
+            LEFT JOIN guardrail_shadow_reviews
+                ON guardrail_shadow_reviews.event_id = audit_events.id
+            WHERE audit_events.id = ?
+              AND audit_events.event_type = 'guardrail.check'
+              AND audit_events.outcome IN ('allowed', 'review', 'blocked', 'denied')
+            """,
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            raise LookupError("review_sample_not_found")
+        if row["reviewed_event_id"]:
+            raise FileExistsError("review_already_resolved")
+        existing = connection.execute(
+            "SELECT reviewer, expires_at FROM guardrail_review_claims WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        if (
+            existing is not None
+            and existing["expires_at"] > claimed_at
+            and existing["reviewer"] != clean_reviewer
+        ):
+            raise PermissionError("review_claimed_by_other")
+        connection.execute(
+            "DELETE FROM guardrail_review_claims WHERE reviewer = ? AND event_id <> ?",
+            (clean_reviewer, event_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO guardrail_review_claims (event_id, reviewer, claimed_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(event_id) DO UPDATE SET
+                reviewer = excluded.reviewer,
+                claimed_at = excluded.claimed_at,
+                expires_at = excluded.expires_at
+            """,
+            (event_id, clean_reviewer, claimed_at, expires_at),
+        )
+        connection.commit()
+    return {
+        "event_id": event_id,
+        "reviewer": clean_reviewer,
+        "claimed_at": claimed_at,
+        "expires_at": expires_at,
+        "lease_seconds": lease_seconds,
+    }
+
+
+def _claim_next_review_sample(
+    connection: sqlite3.Connection,
+    reviewer: str,
+    now_iso: str,
+    expires_at: str,
+) -> str | None:
+    rows = connection.execute(
+        """
+        SELECT audit_events.id, audit_events.outcome, audit_events.metadata_json,
+               guardrail_review_claims.reviewer AS claim_reviewer,
+               guardrail_review_claims.expires_at AS claim_expires_at
+        FROM audit_events
+        INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
+        LEFT JOIN guardrail_shadow_reviews
+            ON guardrail_shadow_reviews.event_id = audit_events.id
+        LEFT JOIN guardrail_review_claims
+            ON guardrail_review_claims.event_id = audit_events.id
+        WHERE audit_events.event_type = 'guardrail.check'
+          AND audit_events.outcome IN ('allowed', 'review', 'blocked', 'denied')
+          AND guardrail_shadow_reviews.event_id IS NULL
+          AND NOT EXISTS(
+              SELECT 1 FROM guardrail_review_claims AS active_claim
+              WHERE active_claim.event_id = audit_events.id
+                AND active_claim.expires_at > ?
+                AND active_claim.reviewer <> ?
+          )
+        ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
+        LIMIT 2000
+        """,
+        (now_iso, reviewer),
+    ).fetchall()
+    if not rows:
+        return None
+
+    def priority(row: sqlite3.Row) -> tuple[int, int, int]:
+        own_claim = row["claim_reviewer"] == reviewer and row["claim_expires_at"] > now_iso
+        try:
+            shadow = json.loads(row["metadata_json"] or "{}").get("shadow_evaluation") or {}
+        except (TypeError, json.JSONDecodeError):
+            shadow = {}
+        disagreement = shadow.get("status") == "ok" and shadow.get("agreement") is False
+        verdict_order = {"unsafe": 0, "borderline": 1, "safe": 2}
+        return (
+            0 if own_claim else 1,
+            0 if disagreement else 1,
+            verdict_order.get(_primary_verdict(row["outcome"]) or "", 3),
+        )
+
+    selected = min(rows, key=priority)
+    connection.execute(
+        "DELETE FROM guardrail_review_claims WHERE reviewer = ?",
+        (reviewer,),
+    )
+    connection.execute(
+        """
+        INSERT INTO guardrail_review_claims (event_id, reviewer, claimed_at, expires_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(event_id) DO UPDATE SET
+            reviewer = excluded.reviewer,
+            claimed_at = excluded.claimed_at,
+            expires_at = excluded.expires_at
+        """,
+        (selected["id"], reviewer, now_iso, expires_at),
+    )
+    return str(selected["id"])
+
+
 def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> dict[str, Any]:
     if review_label not in {"safe", "borderline", "unsafe"}:
         raise ValueError("invalid_review_label")
+    clean_reviewer = _clean_text(reviewer, 128) or "operator"
     with _LOCK, closing(_connect()) as connection:
+        connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
             """
             SELECT audit_events.outcome, audit_events.metadata_json,
                    EXISTS(SELECT 1 FROM audit_evidence WHERE audit_evidence.event_id = audit_events.id)
-                       AS has_evidence
-            FROM audit_events WHERE audit_events.id = ? AND audit_events.event_type = 'guardrail.check'
+                       AS has_evidence,
+                   guardrail_shadow_reviews.review_label AS existing_review_label,
+                   guardrail_review_claims.reviewer AS claim_reviewer,
+                   guardrail_review_claims.claimed_at AS claim_claimed_at,
+                   guardrail_review_claims.expires_at AS claim_expires_at
+            FROM audit_events
+            LEFT JOIN guardrail_shadow_reviews
+                ON guardrail_shadow_reviews.event_id = audit_events.id
+            LEFT JOIN guardrail_review_claims
+                ON guardrail_review_claims.event_id = audit_events.id
+            WHERE audit_events.id = ? AND audit_events.event_type = 'guardrail.check'
             """,
             (event_id,),
         ).fetchone()
@@ -859,39 +1066,66 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         shadow_decision = str(shadow.get("decision") or "")
         if primary_verdict is None or not row["has_evidence"]:
             raise LookupError("review_sample_not_found")
+        if row["existing_review_label"]:
+            raise FileExistsError("review_already_resolved")
+        reviewed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace(
+            "+00:00", "Z"
+        )
+        if (
+            row["claim_reviewer"] != clean_reviewer
+            or not row["claim_expires_at"]
+            or row["claim_expires_at"] <= reviewed_at
+        ):
+            raise PermissionError("review_claim_required")
+        claim_audit = connection.execute(
+            """
+            SELECT 1 FROM audit_events
+            WHERE event_type = 'guardrail.review_claim'
+              AND resource_id = ? AND actor = ? AND outcome = 'success'
+              AND occurred_at >= ?
+            LIMIT 1
+            """,
+            (event_id, clean_reviewer, row["claim_claimed_at"]),
+        ).fetchone()
+        if claim_audit is None:
+            raise PermissionError("review_claim_audit_required")
         evidence_access = connection.execute(
             """
             SELECT 1 FROM audit_events
             WHERE event_type = 'audit.evidence_access'
               AND resource_id = ? AND actor = ? AND outcome = 'success'
+              AND occurred_at > ?
             LIMIT 1
             """,
-            (event_id, _clean_text(reviewer, 128) or "operator"),
+            (event_id, clean_reviewer, row["claim_claimed_at"]),
         ).fetchone()
         if evidence_access is None:
             raise PermissionError("evidence_review_required")
         reason_code = _review_reason(primary_verdict, shadow_decision, review_label)
-        reviewed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         connection.execute(
             """
             INSERT INTO guardrail_shadow_reviews
                 (event_id, review_label, reason_code, reviewer, reviewed_at)
             VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(event_id) DO UPDATE SET
-                review_label = excluded.review_label,
-                reason_code = excluded.reason_code,
-                reviewer = excluded.reviewer,
-                reviewed_at = excluded.reviewed_at
             """,
-            (event_id, review_label, reason_code, _clean_text(reviewer, 128) or "operator", reviewed_at),
+            (event_id, review_label, reason_code, clean_reviewer, reviewed_at),
+        )
+        connection.execute("DELETE FROM guardrail_review_claims WHERE event_id = ?", (event_id,))
+        next_expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z")
+        next_event_id = _claim_next_review_sample(
+            connection, clean_reviewer, reviewed_at, next_expires_at
         )
         connection.commit()
     return {
         "event_id": event_id,
         "review_label": review_label,
         "reason_code": reason_code,
-        "reviewer": _clean_text(reviewer, 128) or "operator",
+        "reviewer": clean_reviewer,
         "reviewed_at": reviewed_at,
+        "next_event_id": next_event_id,
+        "next_claim_expires_at": next_expires_at if next_event_id else None,
     }
 
 
@@ -914,6 +1148,13 @@ def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
                          AND evidence_access.actor = guardrail_shadow_reviews.reviewer
                          AND evidence_access.outcome = 'success'
                    ) AS evidence_reviewed
+                   ,EXISTS(
+                       SELECT 1 FROM audit_events AS review_claim
+                       WHERE review_claim.event_type = 'guardrail.review_claim'
+                         AND review_claim.resource_id = audit_events.id
+                         AND review_claim.actor = guardrail_shadow_reviews.reviewer
+                         AND review_claim.outcome = 'success'
+                   ) AS claim_verified
             FROM guardrail_shadow_reviews
             INNER JOIN audit_events ON audit_events.id = guardrail_shadow_reviews.event_id
             INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id

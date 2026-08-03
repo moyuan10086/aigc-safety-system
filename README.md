@@ -222,6 +222,8 @@ GUARDRAIL_XGBOOST_SHADOW_SHA256=<64位模型摘要>
 
 人工复核默认使用盲审模式隐藏主判与影子结果。审核员必须先通过取证详情解密原始证据，形成与事件 ID、审核员身份绑定的 `audit.evidence_access` 审计事件，随后才能提交标签；其他审核员的证据访问记录不能代为解锁。导出的标签元数据包含 `evidence_access_verified`，用于证明标签具备“本人先审证据、后给真值”的审计链依据。
 
+多人复核使用 `POST /api/dashboard/review-claims/{event_id}` 原子领取样本，默认租约为 15 分钟；他人的未过期租约不能抢占。每次新领取后必须重新查看证据，历史 `evidence_access` 不能复用。首次人工标签写入后不可覆盖，完成一条时系统会原子领取并打开下一条可用样本。领取和自动流转均写入 `guardrail.review_claim` 审计事件，CSV 同时导出 `review_claim_verified` 与 `evidence_access_verified`，仍不包含原始提示词或危险输出。
+
 该命令会先生成并校验轮换前备份，再重加密全部证据；没有两把密钥时会拒绝执行。原始提示词和危险模型输出始终保留在加密证据表，列表、用量账本、报告摘要和 CSV 不返回原文。
 
 ### 单独检测接口
