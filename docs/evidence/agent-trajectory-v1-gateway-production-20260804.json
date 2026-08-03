@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-03T23:27:41.835365+00:00",
+  "endpoint": "https://aigc.49.51.248.227.sslip.io/api/v1/guardrail/agent/trajectory/check",
+  "content_policy": "API keys and raw trajectory content are excluded from this report.",
+  "checks": {
+    "unauthorized_status": 401,
+    "unauthorized_code": "API_KEY_REQUIRED",
+    "wrong_scope_status": 403,
+    "wrong_scope_code": "INSUFFICIENT_SCOPE",
+    "allowed_status": 200,
+    "allowed_verdict": "safe",
+    "usage_operation": "guardrail.agent_trajectory_check",
+    "usage_operation_count": 1,
+    "temporary_keys_revoked": true
+  },
+  "passed": true
+}
