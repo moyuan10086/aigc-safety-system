@@ -9,7 +9,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import config
-from routers.dashboard import router
+from routers.audit import router as audit_router
+from routers.dashboard import router as dashboard_router
 from services import audit_log_service, auth_service
 
 
@@ -33,7 +34,8 @@ class DashboardTests(unittest.TestCase):
         self.config_patch.start()
         audit_log_service.reset_for_tests()
         app = FastAPI()
-        app.include_router(router)
+        app.include_router(audit_router)
+        app.include_router(dashboard_router)
         self.client = TestClient(app)
 
     def tearDown(self):
@@ -125,6 +127,13 @@ class DashboardTests(unittest.TestCase):
         )
         token = auth_service.create_session(auth_service.current_user())
         self.client.cookies.set("aigc_operator_session", token)
+        blocked = self.client.put(
+            f"/api/dashboard/shadow-reviews/{disagreement_id}",
+            json={"review_label": "safe"},
+        )
+        self.assertEqual(blocked.status_code, 409)
+        evidence_response = self.client.get(f"/api/audit/logs/{disagreement_id}/evidence")
+        self.assertEqual(evidence_response.status_code, 200)
         response = self.client.put(
             f"/api/dashboard/shadow-reviews/{disagreement_id}",
             json={"review_label": "safe"},
@@ -138,8 +147,14 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(overview["shadow_evaluation"]["pending_reviews"], 0)
         self.assertEqual(overview["shadow_evaluation"]["reviewed_count"], 1)
         self.assertEqual(overview["shadow_reviews"][0]["review_label"], "safe")
+        self.assertTrue(overview["shadow_reviews"][0]["evidence_reviewed"])
         evidence = audit_log_service.get_evidence(disagreement_id)
         self.assertEqual(evidence["prompt"], "结构化复核测试原文")
+        access_events = audit_log_service.export_events(event_type="audit.evidence_access")
+        review_events = audit_log_service.export_events(event_type="guardrail.shadow_review")
+        self.assertEqual(len(access_events), 1)
+        self.assertEqual(len(review_events), 1)
+        self.assertEqual(review_events[0]["prev_hash"], access_events[0]["record_hash"])
 
     def test_general_evidence_sample_can_be_reviewed_and_disagreement_stays_first(self):
         _, disagreement_id = self._seed()
@@ -173,7 +188,24 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(overview["shadow_reviews"][0]["is_disagreement"])
         self.assertEqual(overview["shadow_evaluation"]["eligible_samples"], 2)
         self.assertEqual(overview["shadow_evaluation"]["target_labels"], 200)
+        self.assertFalse(next(item for item in overview["shadow_reviews"] if item["event_id"] == general_id)["evidence_reviewed"])
 
+        blocked = self.client.put(
+            f"/api/dashboard/shadow-reviews/{general_id}",
+            json={"review_label": "unsafe"},
+        )
+        self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(self.client.get(f"/api/audit/logs/{general_id}/evidence").status_code, 200)
+        with self.assertRaises(PermissionError):
+            audit_log_service.resolve_shadow_review(general_id, "unsafe", "another-operator")
+        other_operator_view = audit_log_service.shadow_review_statistics(
+            reviewer="another-operator"
+        )
+        self.assertFalse(
+            next(item for item in other_operator_view["queue"] if item["event_id"] == general_id)[
+                "evidence_reviewed"
+            ]
+        )
         reviewed = self.client.put(
             f"/api/dashboard/shadow-reviews/{general_id}",
             json={"review_label": "unsafe"},
@@ -189,7 +221,9 @@ class DashboardTests(unittest.TestCase):
         exported = self.client.get("/api/dashboard/review-labels.csv")
         self.assertEqual(exported.status_code, 200)
         self.assertIn("human_label", exported.text.splitlines()[0])
+        self.assertIn("evidence_access_verified", exported.text.splitlines()[0])
         self.assertIn(general_id, exported.text)
+        self.assertIn(",True\r", exported.text)
         self.assertNotIn("这是不能出现在概览或导出里的原始提示词", exported.text)
         self.assertNotIn("这是不能出现在概览或导出里的危险模型输出", exported.text)
         self.assertTrue(audit_log_service.verify_chain())

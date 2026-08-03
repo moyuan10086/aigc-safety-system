@@ -673,6 +673,9 @@ def _review_item(row: sqlite3.Row) -> dict[str, Any] | None:
         "is_disagreement": is_disagreement,
         "priority": "disagreement" if is_disagreement else "stratified",
         "has_evidence": True,
+        "evidence_reviewed": bool(row["evidence_reviewed"])
+        if "evidence_reviewed" in row.keys()
+        else False,
         "review_label": row["review_label"],
         "reason_code": row["reason_code"],
         "reviewer": row["reviewer"],
@@ -710,6 +713,7 @@ def shadow_review_statistics(
     *,
     now: datetime | None = None,
     queue_limit: int = 8,
+    reviewer: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate shadow metrics and an evidence-backed human-review sample pool."""
     hours = max(1, min(int(hours), 168))
@@ -740,7 +744,14 @@ def shadow_review_statistics(
                    guardrail_shadow_reviews.review_label,
                    guardrail_shadow_reviews.reason_code,
                    guardrail_shadow_reviews.reviewer,
-                   guardrail_shadow_reviews.reviewed_at
+                   guardrail_shadow_reviews.reviewed_at,
+                   EXISTS(
+                       SELECT 1 FROM audit_events AS evidence_access
+                       WHERE evidence_access.event_type = 'audit.evidence_access'
+                         AND evidence_access.resource_id = audit_events.id
+                         AND evidence_access.actor = ?
+                         AND evidence_access.outcome = 'success'
+                   ) AS evidence_reviewed
             FROM audit_events
             INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
             LEFT JOIN guardrail_shadow_reviews
@@ -749,7 +760,8 @@ def shadow_review_statistics(
               AND audit_events.outcome IN ('allowed', 'review', 'blocked', 'denied')
             ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
             LIMIT 2000
-            """
+            """,
+            (_clean_text(reviewer, 128) or "",),
         ).fetchall()
 
     observed_events = 0
@@ -847,6 +859,17 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         shadow_decision = str(shadow.get("decision") or "")
         if primary_verdict is None or not row["has_evidence"]:
             raise LookupError("review_sample_not_found")
+        evidence_access = connection.execute(
+            """
+            SELECT 1 FROM audit_events
+            WHERE event_type = 'audit.evidence_access'
+              AND resource_id = ? AND actor = ? AND outcome = 'success'
+            LIMIT 1
+            """,
+            (event_id, _clean_text(reviewer, 128) or "operator"),
+        ).fetchone()
+        if evidence_access is None:
+            raise PermissionError("evidence_review_required")
         reason_code = _review_reason(primary_verdict, shadow_decision, review_label)
         reviewed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         connection.execute(
@@ -883,7 +906,14 @@ def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
                    guardrail_shadow_reviews.review_label,
                    guardrail_shadow_reviews.reason_code,
                    guardrail_shadow_reviews.reviewer,
-                   guardrail_shadow_reviews.reviewed_at
+                   guardrail_shadow_reviews.reviewed_at,
+                   EXISTS(
+                       SELECT 1 FROM audit_events AS evidence_access
+                       WHERE evidence_access.event_type = 'audit.evidence_access'
+                         AND evidence_access.resource_id = audit_events.id
+                         AND evidence_access.actor = guardrail_shadow_reviews.reviewer
+                         AND evidence_access.outcome = 'success'
+                   ) AS evidence_reviewed
             FROM guardrail_shadow_reviews
             INNER JOIN audit_events ON audit_events.id = guardrail_shadow_reviews.event_id
             INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id

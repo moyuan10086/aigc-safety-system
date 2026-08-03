@@ -56,6 +56,15 @@ class MaintenanceServiceTests(unittest.TestCase):
             },
         )
         audit_log_service.store_evidence(disagreement_id, prompt="复核样本")
+        audit_log_service.record(
+            event_type="audit.evidence_access",
+            module="audit",
+            action="reveal_raw_evidence",
+            outcome="success",
+            actor="operator",
+            resource_id=disagreement_id,
+            summary="备份测试审核员查看证据",
+        )
         audit_log_service.resolve_shadow_review(disagreement_id, "safe", "operator")
         api_access_service.issue_key(
             tenant_id="tenant-a", name="backup-test", scopes=["usage:read"]

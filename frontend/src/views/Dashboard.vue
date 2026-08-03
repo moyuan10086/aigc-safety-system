@@ -54,7 +54,7 @@
 
       <footer class="data-foot"><Database :size="14" /><span>{{ data.data_sources.join(' · ') }}</span><b :class="{ healthy: data.service_health.audit_chain === 'healthy' }">审计链{{ data.service_health.audit_chain === 'healthy' ? '完整' : '异常' }}</b><b>原始证据加密保留</b></footer>
     </template>
-    <AuditLogDetail :event="selectedAuditEvent" @close="selectedAuditEvent = null" />
+    <AuditLogDetail :event="selectedAuditEvent" @close="selectedAuditEvent = null" @evidence-revealed="handleEvidenceRevealed" />
   </div>
 </template>
 
@@ -122,6 +122,10 @@ async function inspectAuditEvent(eventId: string) {
   } catch (caught) {
     toast.error((caught as Error).message)
   }
+}
+async function handleEvidenceRevealed() {
+  await refresh(true)
+  toast.info('证据访问已审计，现在可以提交人工标签')
 }
 function formatDate(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
 function formatTime(value: string) { return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) }

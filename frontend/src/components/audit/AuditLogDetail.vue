@@ -59,7 +59,7 @@ import { Eye, TriangleAlert, X } from 'lucide-vue-next'
 import type { AuditEvent } from '../../composables/useAuditLogs'
 
 const props = defineProps<{ event: AuditEvent | null }>()
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; evidenceRevealed: [eventId: string] }>()
 const evidence = ref<any>(null)
 const evidenceLoading = ref(false)
 const evidenceError = ref('')
@@ -79,6 +79,7 @@ async function revealEvidence() {
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.detail || '原始证据读取失败')
     evidence.value = data
+    emit('evidenceRevealed', props.event.id)
   } catch (caught) {
     evidenceError.value = (caught as Error).message
   } finally {

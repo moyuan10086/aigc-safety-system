@@ -36,6 +36,7 @@ export interface ShadowReviewItem {
   is_disagreement: boolean
   priority: 'disagreement' | 'stratified'
   has_evidence: boolean
+  evidence_reviewed: boolean
   review_label?: 'safe' | 'borderline' | 'unsafe'
   reason_code?: string
   reviewer?: string

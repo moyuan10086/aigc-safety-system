@@ -31,9 +31,9 @@ async def dashboard_overview(
     request: Request,
     hours: int = Query(default=24, ge=1, le=168),
 ):
-    _operator(request)
+    user = _operator(request)
     return JSONResponse(
-        dashboard_service.overview(hours),
+        dashboard_service.overview(hours, reviewer=user["username"]),
         headers={"Cache-Control": "no-store"},
     )
 
@@ -51,6 +51,8 @@ async def resolve_shadow_review(
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="未找到含加密证据的可复核护栏事件") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail="请先打开取证详情并查看原始证据") from exc
     audit_log_service.record_safe(
         event_type="guardrail.shadow_review",
         module="guardrail",
@@ -80,6 +82,7 @@ async def export_review_labels(request: Request):
         "event_id", "content_hash", "occurred_at", "primary_verdict", "risk_code",
         "risk_score", "categories", "shadow_status", "shadow_decision",
         "is_disagreement", "human_label", "reason_code", "reviewer", "reviewed_at",
+        "evidence_access_verified",
     ])
     for review in reviews:
         writer.writerow([
@@ -89,6 +92,7 @@ async def export_review_labels(request: Request):
             review.get("shadow_status"), review.get("shadow_decision"),
             review.get("is_disagreement"), review["review_label"],
             review.get("reason_code"), review.get("reviewer"), review.get("reviewed_at"),
+            review.get("evidence_reviewed"),
         ])
     audit_log_service.record_safe(
         event_type="guardrail.review_export",
