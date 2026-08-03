@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import config
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 _LOCK = threading.RLock()
@@ -185,9 +186,6 @@ def record(
             {**payload, "prev_hash": prev_hash, "record_hash": record_hash},
         )
         _INSERT_COUNT += 1
-        if _INSERT_COUNT % 100 == 0:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, config.AUDIT_LOG_RETENTION_DAYS))
-            connection.execute("DELETE FROM audit_events WHERE occurred_at < ?", (cutoff.isoformat(),))
         connection.commit()
     return event_id
 
@@ -200,10 +198,18 @@ def record_safe(**event: Any) -> str | None:
         return None
 
 
-def _evidence_key() -> bytes:
-    if not config.AUDIT_CONTENT_KEY:
+def _evidence_key(value: str | None = None) -> bytes:
+    value = value if value is not None else config.AUDIT_CONTENT_KEY
+    if not value:
         raise RuntimeError("AUDIT_CONTENT_KEY is not configured")
-    return hashlib.sha256(config.AUDIT_CONTENT_KEY.encode("utf-8")).digest()
+    return hashlib.sha256(value.encode("utf-8")).digest()
+
+
+def _evidence_keys() -> list[bytes]:
+    values = [config.AUDIT_CONTENT_KEY]
+    if config.AUDIT_CONTENT_PREVIOUS_KEY:
+        values.append(config.AUDIT_CONTENT_PREVIOUS_KEY)
+    return list(dict.fromkeys(_evidence_key(value) for value in values if value))
 
 
 def store_evidence(
@@ -253,9 +259,15 @@ def get_evidence(event_id: str) -> dict[str, Any] | None:
         ).fetchone()
     if row is None:
         return None
-    plaintext = AESGCM(_evidence_key()).decrypt(
-        row["nonce"], row["ciphertext"], event_id.encode("ascii")
-    )
+    plaintext = None
+    for key in _evidence_keys():
+        try:
+            plaintext = AESGCM(key).decrypt(row["nonce"], row["ciphertext"], event_id.encode("ascii"))
+            break
+        except InvalidTag:
+            continue
+    if plaintext is None:
+        raise RuntimeError("证据密钥不匹配，无法解密")
     data = json.loads(plaintext)
     data.update({
         "event_id": event_id,
@@ -265,6 +277,42 @@ def get_evidence(event_id: str) -> dict[str, Any] | None:
         "encrypted_at_rest": True,
     })
     return data
+
+
+def reencrypt_evidence() -> int:
+    """Re-encrypt all evidence with the current key during a key rotation."""
+    current_keys = _evidence_keys()
+    if not current_keys:
+        raise RuntimeError("AUDIT_CONTENT_KEY is not configured")
+    current_key = current_keys[0]
+    with _LOCK, closing(_connect()) as connection:
+        rows = connection.execute(
+            "SELECT event_id, nonce, ciphertext FROM audit_evidence"
+        ).fetchall()
+        migrated = 0
+        for row in rows:
+            plaintext = None
+            for key in current_keys:
+                try:
+                    plaintext = AESGCM(key).decrypt(
+                        row["nonce"], row["ciphertext"], row["event_id"].encode("ascii")
+                    )
+                    break
+                except InvalidTag:
+                    continue
+            if plaintext is None:
+                raise RuntimeError(f"证据 {row['event_id']} 无法用当前或上一密钥解密")
+            nonce = os.urandom(12)
+            ciphertext = AESGCM(current_key).encrypt(
+                nonce, plaintext, row["event_id"].encode("ascii")
+            )
+            connection.execute(
+                "UPDATE audit_evidence SET nonce = ?, ciphertext = ? WHERE event_id = ?",
+                (nonce, ciphertext, row["event_id"]),
+            )
+            migrated += 1
+        connection.commit()
+    return migrated
 
 
 def _where(filters: dict[str, Any]) -> tuple[str, list[Any]]:
@@ -317,8 +365,15 @@ def export_events(*, limit: int = 5000, **filters: Any) -> list[dict[str, Any]]:
     return [_row_to_event(row) for row in rows]
 
 
-def verify_chain() -> bool:
-    with closing(_connect()) as connection:
+def verify_chain(db_path: str | Path | None = None) -> bool:
+    if db_path is None:
+        connection = _connect()
+    else:
+        connection = sqlite3.connect(
+            f"file:{Path(db_path).resolve()}?mode=ro", uri=True, timeout=10
+        )
+        connection.row_factory = sqlite3.Row
+    with closing(connection):
         rows = connection.execute("SELECT * FROM audit_events ORDER BY occurred_at ASC, rowid ASC").fetchall()
     previous_hash: str | None = None
     for row in rows:

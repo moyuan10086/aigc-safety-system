@@ -122,6 +122,10 @@ const scopeOptions = [
   { value:'image:deepfake', label:'Deepfake 检测' },
   { value:'image:mllm', label:'多模态图片审核' },
   { value:'usage:read', label:'用量查询' },
+  { value:'scan:run', label:'主动扫描提交' },
+  { value:'scan:read', label:'主动扫描查询' },
+  { value:'report:write', label:'报告生成' },
+  { value:'report:read', label:'报告查询与下载' },
 ]
 const form = reactive({
   tenant_id:'competition-demo', name:'现场演示客户端',

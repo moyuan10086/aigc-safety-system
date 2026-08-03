@@ -153,6 +153,15 @@ curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/guardrail/check \
 # 当前 Key 的用量、成功率与配额
 curl https://aigc.49.51.248.227.sslip.io/api/v1/usage?days=7 \
   -H "X-API-Key: <api-key>"
+
+# 提交受控主动扫描（异步返回 202）
+curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/scans \
+  -H "X-API-Key: <api-key>" -H "Content-Type: application/json" \
+  -d '{"preset":"quick"}'
+
+# 查询本 Key 的扫描与报告，并下载脱敏 JSON 报告
+curl https://aigc.49.51.248.227.sslip.io/api/v1/scans/<scan-id> -H "X-API-Key: <api-key>"
+curl https://aigc.49.51.248.227.sslip.io/api/v1/reports/<report-id>/download -H "X-API-Key: <api-key>" -o report.json
 ```
 
 统一成功响应包含 `api_version`、`request_id` 和 `data`。当前 v1 能力包括：
@@ -165,8 +174,28 @@ curl https://aigc.49.51.248.227.sslip.io/api/v1/usage?days=7 \
 - `POST /api/v1/images/mllm`：多模态图片审核
 - `GET /api/v1/catalog`：当前 Key 的作用域与配额
 - `GET /api/v1/usage`：当前 Key 的调用量与延迟
+- `POST /api/v1/scans`、`GET /api/v1/scans[/{id}]`：提交和查询租户隔离的异步 garak 扫描（仅 quick/standard）
+- `POST /api/v1/reports`、`GET /api/v1/reports[/{id}]`、`GET /api/v1/reports/{id}/download`：从已完成扫描生成、查询和下载租户隔离报告
 
 每个 Key 绑定租户、作用域、每分钟限流和每日配额；调用账本不保存提示词或模型输出。原始提示词与危险模型输出仍按审计策略写入独立 AES-GCM 加密证据库。
+
+### 维护、备份与密钥轮换
+
+维护命令只在服务器本地执行，不暴露为公网 API。在线备份会同时保存审计库和 API Key/租户账本，生成带 SHA-256 文件校验、事件数量、证据数量和哈希链状态的 `manifest.json`；默认只归档不删除生产证据。
+
+```bash
+cd /root/CH/aigc-safety-system/backend
+uv run python maintenance.py backup --label before-release
+uv run python maintenance.py verify --archive <manifest-archive-name>
+```
+
+API Key 哈希轮换：先把新值写入 `API_KEY_HASH_SECRET`，旧值暂存到 `API_KEY_HASH_PREVIOUS_SECRET` 并重启；旧 Key 首次使用时惰性迁移为新摘要。确认宽限期结束且调用方已更新后，再清空上一密钥。AES-GCM 证据轮换同样先配置 `AUDIT_CONTENT_KEY` 新值和 `AUDIT_CONTENT_PREVIOUS_KEY` 旧值，然后执行：
+
+```bash
+uv run python maintenance.py rotate-evidence
+```
+
+该命令会先生成并校验轮换前备份，再重加密全部证据；没有两把密钥时会拒绝执行。原始提示词和危险模型输出始终保留在加密证据表，列表、用量账本、报告摘要和 CSV 不返回原文。
 
 ### 单独检测接口
 

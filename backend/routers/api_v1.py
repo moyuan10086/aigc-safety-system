@@ -8,16 +8,26 @@ import time
 from typing import Any, Awaitable, Callable
 
 from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from routers import guardrail as guardrail_router
-from services import api_access_service, audit_log_service
+from services import api_access_service, audit_log_service, tenant_artifact_service
 
 router = APIRouter(prefix="/api/v1", tags=["external-api-v1"])
 
 
 class ContentCheckRequest(BaseModel):
     text: str = Field(min_length=1, max_length=12_000)
+
+
+class ScanCreateRequest(BaseModel):
+    preset: str = Field(default="quick", pattern="^(quick|standard)$")
+
+
+class ReportCreateRequest(BaseModel):
+    scan_id: str = Field(min_length=16, max_length=64)
+    title: str | None = Field(default=None, max_length=120)
 
 
 def _client_ip(request: Request) -> str:
@@ -42,13 +52,15 @@ async def _metered(
     scope: str,
     operation: str,
     run: Callable[[], Awaitable[Any]],
+    response_status: int = 200,
 ) -> dict[str, Any]:
     client = api_access_service.require_api_key(request, scope=scope)
     started = time.perf_counter()
     status_code = 200
     try:
         data = await run()
-        return _envelope(request, data)
+        payload = _envelope(request, data)
+        return JSONResponse(status_code=response_status, content=payload) if response_status != 200 else payload
     except HTTPException as exc:
         status_code = exc.status_code
         raise
@@ -108,6 +120,10 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/deepfake", "scope": "image:deepfake"},
                 {"method": "POST", "path": "/api/v1/images/mllm", "scope": "image:mllm"},
                 {"method": "GET", "path": "/api/v1/usage", "scope": "usage:read"},
+                {"method": "POST", "path": "/api/v1/scans", "scope": "scan:run"},
+                {"method": "GET", "path": "/api/v1/scans", "scope": "scan:read"},
+                {"method": "GET", "path": "/api/v1/reports", "scope": "report:read"},
+                {"method": "POST", "path": "/api/v1/reports", "scope": "report:write"},
             ],
         }
 
@@ -208,3 +224,108 @@ async def usage(request: Request, days: int = Query(default=1, ge=1, le=31)):
         return api_access_service.usage(request.state.api_client, days=days)
 
     return await _metered(request, scope="usage:read", operation="usage.read", run=run)
+
+
+def _artifact_http_error(error: tenant_artifact_service.ArtifactError) -> HTTPException:
+    return HTTPException(status_code=error.status_code, detail={"code": error.code, "message": error.message})
+
+
+@router.post("/scans")
+async def create_scan(body: ScanCreateRequest, request: Request):
+    async def run():
+        try:
+            return tenant_artifact_service.create_scan(request.state.api_client, preset=body.preset)
+        except tenant_artifact_service.ArtifactError as exc:
+            raise _artifact_http_error(exc) from exc
+
+    return await _metered(
+        request,
+        scope="scan:run",
+        operation="scan.create",
+        run=run,
+        response_status=202,
+    )
+
+
+@router.get("/scans")
+async def list_scans(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+    async def run():
+        return {"items": tenant_artifact_service.list_scans(request.state.api_client, limit=limit)}
+
+    return await _metered(request, scope="scan:read", operation="scan.list", run=run)
+
+
+@router.get("/scans/{scan_id}")
+async def get_scan(scan_id: str, request: Request):
+    async def run():
+        try:
+            return tenant_artifact_service.get_scan(request.state.api_client, scan_id)
+        except tenant_artifact_service.ArtifactError as exc:
+            raise _artifact_http_error(exc) from exc
+
+    return await _metered(request, scope="scan:read", operation="scan.read", run=run)
+
+
+@router.post("/reports")
+async def create_report(body: ReportCreateRequest, request: Request):
+    async def run():
+        try:
+            return tenant_artifact_service.create_scan_report(
+                request.state.api_client, scan_id=body.scan_id, title=body.title
+            )
+        except tenant_artifact_service.ArtifactError as exc:
+            raise _artifact_http_error(exc) from exc
+
+    return await _metered(request, scope="report:write", operation="report.create", run=run)
+
+
+@router.get("/reports")
+async def list_reports(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+    async def run():
+        return {"items": tenant_artifact_service.list_reports(request.state.api_client, limit=limit)}
+
+    return await _metered(request, scope="report:read", operation="report.list", run=run)
+
+
+@router.get("/reports/{report_id}")
+async def get_report(report_id: str, request: Request):
+    async def run():
+        try:
+            return tenant_artifact_service.get_report(request.state.api_client, report_id)
+        except tenant_artifact_service.ArtifactError as exc:
+            raise _artifact_http_error(exc) from exc
+
+    return await _metered(request, scope="report:read", operation="report.read", run=run)
+
+
+@router.get("/reports/{report_id}/download")
+async def download_report(report_id: str, request: Request):
+    client = api_access_service.require_api_key(request, scope="report:read")
+    started = time.perf_counter()
+    status_code = 200
+    try:
+        content, filename = tenant_artifact_service.report_download(client, report_id)
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            },
+        )
+    except tenant_artifact_service.ArtifactError as exc:
+        status_code = exc.status_code
+        raise _artifact_http_error(exc) from exc
+    except Exception:
+        status_code = 500
+        raise
+    finally:
+        latency_ms = round((time.perf_counter() - started) * 1000)
+        api_access_service.record_usage(
+            client,
+            operation="report.download",
+            status_code=status_code,
+            latency_ms=latency_ms,
+            client_ip=_client_ip(request),
+            request_id=getattr(request.state, "request_id", None),
+        )

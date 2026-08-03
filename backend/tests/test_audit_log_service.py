@@ -129,6 +129,21 @@ class AuditLogServiceTests(unittest.TestCase):
         self.assertIn("record_hash", exported.text.splitlines()[0])
         self.assertNotIn("原始内容", exported.text)
 
+    def test_evidence_rotation_uses_previous_key_grace_window(self):
+        event_id = audit_log_service.record(
+            event_type="guardrail.chat",
+            module="guardrail",
+            action="guarded_model_generation",
+            summary="轮换前证据",
+        )
+        audit_log_service.store_evidence(event_id, prompt="轮换前原文", dangerous=True)
+        config.AUDIT_CONTENT_PREVIOUS_KEY = config.AUDIT_CONTENT_KEY
+        config.AUDIT_CONTENT_KEY = "new-audit-encryption-key"
+        self.assertEqual(audit_log_service.reencrypt_evidence(), 1)
+        self.assertEqual(audit_log_service.get_evidence(event_id)["prompt"], "轮换前原文")
+        config.AUDIT_CONTENT_PREVIOUS_KEY = ""
+        self.assertEqual(audit_log_service.get_evidence(event_id)["prompt"], "轮换前原文")
+
 
 if __name__ == "__main__":
     unittest.main()

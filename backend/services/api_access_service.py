@@ -104,11 +104,12 @@ def _p95(values: list[int]) -> int:
     return ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)] if ordered else 0
 
 
-def _secret_digest(raw_key: str) -> str:
-    if not config.API_KEY_HASH_SECRET:
+def _secret_digest(raw_key: str, secret: str | None = None) -> str:
+    secret = secret if secret is not None else config.API_KEY_HASH_SECRET
+    if not secret:
         raise RuntimeError("API_KEY_HASH_SECRET is not configured")
     return hmac.new(
-        config.API_KEY_HASH_SECRET.encode("utf-8"),
+        secret.encode("utf-8"),
         raw_key.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
@@ -209,8 +210,25 @@ def authenticate(raw_key: str | None) -> dict[str, Any] | None:
         ).fetchone()
     if row is None:
         return None
-    if not hmac.compare_digest(row["key_hash"], _secret_digest(raw_key)):
+    current_digest = _secret_digest(raw_key)
+    previous_digest = (
+        _secret_digest(raw_key, config.API_KEY_HASH_PREVIOUS_SECRET)
+        if config.API_KEY_HASH_PREVIOUS_SECRET
+        else ""
+    )
+    current_match = hmac.compare_digest(row["key_hash"], current_digest)
+    previous_match = bool(previous_digest) and hmac.compare_digest(row["key_hash"], previous_digest)
+    if not (current_match or previous_match):
         return None
+    if previous_match and not current_match:
+        # Lazy migration lets a rotated hash secret keep existing clients alive
+        # during the documented grace window without storing plaintext keys.
+        with _LOCK, closing(_connect()) as connection:
+            connection.execute(
+                "UPDATE api_keys SET key_hash = ? WHERE key_id = ?",
+                (current_digest, row["key_id"]),
+            )
+            connection.commit()
     return _row_to_client(row)
 
 

@@ -191,6 +191,15 @@ class ApiAccessTests(unittest.TestCase):
         self.assertEqual(revoked.status_code, 200)
         self.assertIsNone(api_access_service.authenticate(issued["key"]))
 
+    def test_hash_secret_rotation_keeps_existing_key_during_grace_window(self):
+        issued = self._issue()
+        old_secret = config.API_KEY_HASH_SECRET
+        config.API_KEY_HASH_SECRET = "new-api-key-hash-secret"
+        config.API_KEY_HASH_PREVIOUS_SECRET = old_secret
+        self.assertEqual(api_access_service.authenticate(issued["key"])["key_id"], issued["key_id"])
+        config.API_KEY_HASH_PREVIOUS_SECRET = ""
+        self.assertEqual(api_access_service.authenticate(issued["key"])["key_id"], issued["key_id"])
+
 
 if __name__ == "__main__":
     unittest.main()
