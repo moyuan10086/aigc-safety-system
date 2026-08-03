@@ -117,6 +117,7 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/guardrail/chat", "scope": "guardrail:chat"},
                 {"method": "POST", "path": "/api/v1/guardrail/agent/check", "scope": "guardrail:agent"},
                 {"method": "POST", "path": "/api/v1/guardrail/agent/result/check", "scope": "guardrail:agent"},
+                {"method": "POST", "path": "/api/v1/guardrail/agent/trajectory/check", "scope": "guardrail:agent"},
                 {"method": "POST", "path": "/api/v1/content/check", "scope": "content:check"},
                 {"method": "POST", "path": "/api/v1/images/face", "scope": "image:face"},
                 {"method": "POST", "path": "/api/v1/images/deepfake", "scope": "image:deepfake"},
@@ -192,6 +193,22 @@ async def guardrail_agent_result_check(
         request,
         scope="guardrail:agent",
         operation="guardrail.agent_result_check",
+        run=run,
+    )
+
+
+@router.post("/guardrail/agent/trajectory/check")
+async def guardrail_agent_trajectory_check(
+    body: guardrail_router.AgentTrajectoryCheckRequest,
+    request: Request,
+):
+    async def run():
+        return await guardrail_router.check_agent_trajectory(body, request)
+
+    return await _metered(
+        request,
+        scope="guardrail:agent",
+        operation="guardrail.agent_trajectory_check",
         run=run,
     )
 

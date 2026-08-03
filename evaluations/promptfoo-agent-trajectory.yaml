@@ -1,0 +1,25 @@
+description: AIGC 安全运营台 Agent 多步轨迹回归基线
+
+prompts:
+  - "{{objective}}"
+
+providers:
+  - id: http
+    config:
+      url: http://127.0.0.1:18080/api/guardrail/agent/trajectory/check
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        objective: "{{objective}}"
+        session_id: "{{session_id}}"
+        steps: "{{steps | dump}}"
+
+defaultTest:
+  options:
+    provider:
+      id: http
+
+tests: tests/agent-trajectory-regression.yaml
+
+sharing: false

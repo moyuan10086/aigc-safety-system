@@ -1,0 +1,14 @@
+<h3>P3-3 Agent 多步轨迹审计与风险账本（2026-08-04）</h3>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>目标：</b>在 P3-1 执行前门禁和 P3-2 结果回传复检之上，增加会话级多步轨迹审计。系统对消息、工具动作和工具结果组成的真实顺序进行逐步检查，识别单步看似正常但组合后形成的间接注入传播、敏感信息外发、权限升级和未获批准继续执行，并形成可追溯的会话风险账本。</p>
+</callout>
+<checkbox done="false">P3-3.1 定义多步轨迹契约，支持消息、工具动作和工具结果三类步骤，限制步骤数、单步长度、参数大小和总请求体，不接受审批凭证</checkbox>
+<checkbox done="false">P3-3.2 逐步复用 P3-1 / P3-2 与真实 Qwen3Guard、SingGuard、RAG、XGBoost 专家链，返回不含原文的步骤级决策、摘要和组件状态</checkbox>
+<checkbox done="false">P3-3.3 增加跨步骤关联策略，覆盖污染结果后外发、凭证/隐私流向外部工具、高风险动作无批准却出现执行结果、连续可疑步骤累积升级</checkbox>
+<checkbox done="false">P3-3.4 提供站内与 v1 租户接口，复用 guardrail:agent 作用域、限流、配额和用量账本；完整轨迹原文仅进入 AES-GCM 加密证据库</checkbox>
+<checkbox done="false">P3-3.5 在护栏页增加“轨迹回放”模式和安全、间接注入外发、审批绕过、凭证外泄四类样例，并把多步轨迹用例加入 promptfoo CI</checkbox>
+<checkbox done="false">P3-3.6 验证轨迹响应不回显危险原文、普通日志只保存 SHA-256 和结构化摘要、回放不执行工具且不签发或消费任何一次性审批凭证</checkbox>
+<p><b>验收：</b>至少验证安全检索链放行、间接提示词注入传播阻断、凭证结果接外发工具阻断、高风险动作未审批却产生结果时阻断、普通响应和日志无危险原文、加密证据可受控恢复、v1 401/403 与用量计量、promptfoo 多步回归、后端全量测试、前端生产构建、发布前后备份、GitHub 与正式站真实专家链实测。</p>
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>不可回退边界：</b>轨迹接口只分析调用方提交的历史或计划步骤，不连接、不调用和不执行外部工具；不接受审批凭证，因此不会消耗 P3-1 的一次性授权。危险步骤原文不进入普通响应、普通日志、租户用量或飞书，只保留加密证据和不可逆摘要。</p>
+</callout>

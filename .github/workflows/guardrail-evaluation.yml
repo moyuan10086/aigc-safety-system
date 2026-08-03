@@ -68,11 +68,16 @@ jobs:
       - name: Run Chinese input-output regression
         working-directory: evaluations
         run: npm run eval:guardrail
+      - name: Run Agent trajectory regression
+        working-directory: evaluations
+        run: npm run eval:trajectory
       - name: Upload sanitized regression artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: guardrail-promptfoo-results
-          path: evaluations/results/latest.json
+          path: |
+            evaluations/results/latest.json
+            evaluations/results/trajectory-latest.json
           if-no-files-found: ignore
           retention-days: 14

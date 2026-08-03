@@ -5,13 +5,18 @@ import json
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import config
-from services import agent_guardrail_service, agent_result_guardrail_service, guarded_chat_service
+from services import (
+    agent_guardrail_service,
+    agent_result_guardrail_service,
+    agent_trajectory_service,
+    guarded_chat_service,
+)
 from services import guardrail_service
 from services import audit_log_service, auth_service
 
@@ -90,6 +95,64 @@ class AgentResultCheckRequest(AgentActionBase):
     def validate_output(self):
         if not self.output.strip():
             raise ValueError("Agent 工具返回内容不能为空")
+        return self
+
+
+class AgentTrajectoryStep(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    step_type: Literal["message", "action", "result"] = Field(alias="type")
+    direction: Literal["input", "output"] = "input"
+    content: str = Field(default="", max_length=12_000)
+    tool_name: str | None = Field(default=None, max_length=120)
+    resource: str | None = Field(default=None, max_length=500)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_step(self):
+        arguments = json.dumps(
+            self.arguments,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(arguments.encode("utf-8")) > 12_000:
+            raise ValueError("单步 Agent 工具参数不能超过 12 KB")
+        if self.step_type == "message":
+            if not self.content.strip():
+                raise ValueError("消息步骤内容不能为空")
+        else:
+            if not (self.tool_name or "").strip() or not (self.resource or "").strip():
+                raise ValueError("动作和结果步骤必须提供工具名称与资源范围")
+            if self.step_type == "result" and not self.content.strip():
+                raise ValueError("工具结果步骤内容不能为空")
+        return self
+
+
+class AgentTrajectoryCheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    objective: str = Field(min_length=1, max_length=1_000)
+    session_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
+    steps: list[AgentTrajectoryStep] = Field(min_length=2, max_length=12)
+
+    @model_validator(mode="after")
+    def validate_trajectory_size(self):
+        if not self.objective.strip():
+            raise ValueError("Agent 轨迹目标不能为空")
+        payload = json.dumps(
+            [step.model_dump(by_alias=True) for step in self.steps],
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(payload.encode("utf-8")) > 48_000:
+            raise ValueError("Agent 轨迹总大小不能超过 48 KB")
         return self
 
 
@@ -330,6 +393,58 @@ async def check_agent_result(body: AgentResultCheckRequest, request: Request):
                 body.tool_name, body.arguments, body.resource
             ),
             response=body.output,
+            dangerous=result["verdict"] != "safe",
+        )
+        result["audit_event_id"] = event_id
+    return result
+
+
+@router.post("/agent/trajectory/check")
+async def check_agent_trajectory(body: AgentTrajectoryCheckRequest, request: Request):
+    steps = [step.model_dump() for step in body.steps]
+    result = await asyncio.to_thread(
+        agent_trajectory_service.check_trajectory,
+        objective=body.objective,
+        steps=steps,
+        session_id=body.session_id,
+    )
+    actor, api_metadata = _actor_context(request)
+    event_id = audit_log_service.record_safe(
+        event_type="guardrail.agent_trajectory_check",
+        module="guardrail",
+        action="review_agent_trajectory",
+        severity={"safe": "info", "borderline": "warning", "unsafe": "critical"}.get(
+            result["verdict"], "warning"
+        ),
+        outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(
+            result["verdict"], "error"
+        ),
+        actor=actor,
+        client_ip=_client_key(request),
+        summary=f"Agent 多步轨迹审计：{result['risk_code']}",
+        resource_id=getattr(request.state, "request_id", None),
+        risk_code=result["risk_code"],
+        risk_score=result["risk_score"],
+        content_hash=result["trajectory_digest"],
+        metadata={
+            "session_id": result["session_id"],
+            "objective_hash": result["objective_hash"],
+            "step_count": result["step_count"],
+            "non_safe_steps": result["non_safe_steps"],
+            "categories": result.get("categories", []),
+            "step_codes": [step["risk_code"] for step in result.get("steps", [])],
+            "cross_step_rules": [
+                rule["rule_id"] for rule in result.get("cross_step_rules", [])
+            ],
+            "tool_execution": "disabled",
+            "approval_token_consumption": "disabled",
+            **api_metadata,
+        },
+    )
+    if event_id:
+        audit_log_service.store_evidence(
+            event_id,
+            prompt=agent_trajectory_service.canonical_trajectory(body.objective, steps),
             dangerous=result["verdict"] != "safe",
         )
         result["audit_event_id"] = event_id
