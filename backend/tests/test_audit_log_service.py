@@ -124,6 +124,10 @@ class AuditLogServiceTests(unittest.TestCase):
         self.assertEqual(reveal.status_code, 200)
         self.assertEqual(reveal.json()["prompt"], "原始内容")
         self.assertEqual(reveal.headers["cache-control"], "no-store")
+        exported = client.get("/api/audit/export.csv?module=guardrail")
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn("record_hash", exported.text.splitlines()[0])
+        self.assertNotIn("原始内容", exported.text)
 
 
 if __name__ == "__main__":

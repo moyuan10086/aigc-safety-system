@@ -151,19 +151,19 @@ async def guarded_chat(body: GuardedChatRequest, request: Request):
                 resource_id=result.get("request_id"),
                 risk_code=final_guard.get("risk_code"),
                 risk_score=final_guard.get("risk_score"),
-                content_hash=audit_log_service.content_digest(body.prompt.strip()),
+                content_hash=audit_log_service.content_digest(body.prompt),
                 metadata={
                     "model_called": result.get("model_called", False),
                     "model": result.get("generation", {}).get("model"),
                     "quarantined": result.get("quarantined", False),
                     "categories": final_guard.get("categories", []),
-                    "prompt_length": len(body.prompt.strip()),
+                    "prompt_length": len(body.prompt),
                 },
             )
             if event_id:
                 audit_log_service.store_evidence(
                     event_id,
-                    prompt=body.prompt.strip(),
+                    prompt=body.prompt,
                     response=evidence_capture.get("model_output"),
                     dangerous=result.get("status") in {"input_blocked", "output_blocked"},
                 )
