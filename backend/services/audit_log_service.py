@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import sqlite3
 import threading
@@ -360,6 +361,181 @@ def statistics() -> dict[str, Any]:
         "chain_valid": verify_chain(),
         "latest_at": latest["occurred_at"] if latest else None,
         "retention_days": config.AUDIT_LOG_RETENTION_DAYS,
+    }
+
+
+def dashboard_statistics(
+    hours: int = 24,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Aggregate safe, structured audit fields for the operations dashboard."""
+    hours = max(1, min(int(hours), 168))
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    start = now - timedelta(hours=hours)
+    bucket_hours = 1 if hours <= 48 else 3 if hours <= 96 else 6
+    bucket_count = math.ceil(hours / bucket_hours)
+    bucket_seconds = bucket_hours * 3600
+    buckets = [
+        {
+            "start": (start + timedelta(hours=index * bucket_hours))
+            .isoformat(timespec="seconds")
+            .replace("+00:00", "Z"),
+            "events": 0,
+            "alerts": 0,
+            "blocked": 0,
+            "latency_total_ms": 0,
+            "latency_samples": 0,
+        }
+        for index in range(bucket_count)
+    ]
+
+    with closing(_connect()) as connection:
+        rows = connection.execute(
+            """
+            SELECT id, occurred_at, event_type, module, action, severity, outcome,
+                   actor, client_ip, method, path, status_code, latency_ms, summary,
+                   risk_code, risk_score, metadata_json
+            FROM audit_events
+            WHERE occurred_at >= ? AND occurred_at <= ?
+            ORDER BY occurred_at ASC, rowid ASC
+            """,
+            (
+                start.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            ),
+        ).fetchall()
+
+    total_events = len(rows)
+    request_count = 0
+    business_reviews = 0
+    alerts = 0
+    blocked = 0
+    successful = 0
+    latencies: list[int] = []
+    clients: dict[str, dict[str, int]] = {}
+    actors: dict[str, int] = {}
+    modules: dict[str, int] = {}
+    categories: dict[str, int] = {}
+    recent_alerts: list[dict[str, Any]] = []
+
+    for row in rows:
+        event = dict(row)
+        occurred_at = datetime.fromisoformat(event["occurred_at"].replace("Z", "+00:00"))
+        is_alert = event["severity"] in {"warning", "high", "critical"} or event["outcome"] in {
+            "review", "blocked", "denied", "error"
+        }
+        is_blocked = event["outcome"] in {"blocked", "denied"}
+        is_success = event["outcome"] in {"success", "allowed"} and (
+            event["status_code"] is None or event["status_code"] < 400
+        )
+        if event["event_type"] == "request.access":
+            request_count += 1
+        if event["event_type"] in {"guardrail.check", "guardrail.chat", "detect.review"}:
+            business_reviews += 1
+        alerts += int(is_alert)
+        blocked += int(is_blocked)
+        successful += int(is_success)
+        modules[event["module"]] = modules.get(event["module"], 0) + 1
+
+        latency = event["latency_ms"]
+        if latency is not None:
+            latencies.append(max(0, int(latency)))
+
+        client_ip = event["client_ip"]
+        if client_ip:
+            source = clients.setdefault(client_ip, {"events": 0, "alerts": 0, "blocked": 0})
+            source["events"] += 1
+            source["alerts"] += int(is_alert)
+            source["blocked"] += int(is_blocked)
+        actor = event["actor"]
+        if actor:
+            actors[actor] = actors.get(actor, 0) + 1
+
+        metadata = json.loads(event["metadata_json"] or "{}")
+        event_categories = metadata.get("categories")
+        if isinstance(event_categories, list):
+            for category in {str(value)[:64] for value in event_categories if value}:
+                categories[category] = categories.get(category, 0) + 1
+        elif is_alert and event["risk_code"]:
+            categories[event["risk_code"]] = categories.get(event["risk_code"], 0) + 1
+
+        index = int((occurred_at - start).total_seconds() // bucket_seconds)
+        if 0 <= index < len(buckets):
+            bucket = buckets[index]
+            bucket["events"] += 1
+            bucket["alerts"] += int(is_alert)
+            bucket["blocked"] += int(is_blocked)
+            if latency is not None:
+                bucket["latency_total_ms"] += max(0, int(latency))
+                bucket["latency_samples"] += 1
+
+        if is_alert:
+            recent_alerts.append({
+                "id": event["id"],
+                "occurred_at": event["occurred_at"],
+                "module": event["module"],
+                "severity": event["severity"],
+                "outcome": event["outcome"],
+                "risk_code": event["risk_code"],
+                "risk_score": event["risk_score"],
+                "client_ip": event["client_ip"],
+                "summary": event["summary"],
+            })
+
+    latency_sorted = sorted(latencies)
+    p95_index = max(0, math.ceil(len(latency_sorted) * 0.95) - 1)
+    p95_latency = latency_sorted[p95_index] if latency_sorted else 0
+    average_latency = round(sum(latency_sorted) / len(latency_sorted)) if latency_sorted else 0
+    timeline = []
+    for bucket in buckets:
+        samples = bucket.pop("latency_samples")
+        total_latency = bucket.pop("latency_total_ms")
+        timeline.append({
+            **bucket,
+            "avg_latency_ms": round(total_latency / samples) if samples else 0,
+        })
+
+    return {
+        "window": {
+            "hours": hours,
+            "bucket_hours": bucket_hours,
+            "start": start.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "end": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        },
+        "summary": {
+            "total_events": total_events,
+            "request_count": request_count,
+            "business_reviews": business_reviews,
+            "alerts": alerts,
+            "blocked": blocked,
+            "successful": successful,
+            "success_rate": round(successful / total_events * 100, 1) if total_events else 0.0,
+            "block_rate": round(blocked / total_events * 100, 1) if total_events else 0.0,
+            "average_latency_ms": average_latency,
+            "p95_latency_ms": p95_latency,
+            "unique_clients": len(clients),
+            "unique_actors": len(actors),
+        },
+        "timeline": timeline,
+        "risk_distribution": [
+            {"name": name, "value": count}
+            for name, count in sorted(categories.items(), key=lambda item: (-item[1], item[0]))[:10]
+        ],
+        "module_distribution": [
+            {"name": name, "value": count}
+            for name, count in sorted(modules.items(), key=lambda item: (-item[1], item[0]))
+        ],
+        "top_sources": [
+            {"client_ip": ip, **counts}
+            for ip, counts in sorted(clients.items(), key=lambda item: (-item[1]["events"], item[0]))[:10]
+        ],
+        "top_actors": [
+            {"actor": actor, "events": count}
+            for actor, count in sorted(actors.items(), key=lambda item: (-item[1], item[0]))[:10]
+        ],
+        "recent_alerts": list(reversed(recent_alerts[-12:])),
+        "chain_valid": verify_chain(),
     }
 
 

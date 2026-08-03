@@ -1,5 +1,6 @@
 <template>
-  <div class="layout" :style="sidebarStyle">
+  <router-view v-if="isScreenLayout" />
+  <div v-else class="layout" :style="sidebarStyle">
     <aside class="sidebar" :class="{ collapsed: !sidebarOpen }">
       <div class="brand">
         <div class="brand-mark"><ShieldIcon :size="20" /></div>
@@ -64,6 +65,7 @@ import {
   ChartNoAxesCombined as ChartIcon,
   Image as ImageIcon,
   Info as InfoIcon,
+  LayoutDashboard as DashboardIcon,
   Menu as MenuIcon,
   PanelLeftClose as MenuOpenIcon,
   Radar as RadarIcon,
@@ -72,6 +74,7 @@ import {
 } from 'lucide-vue-next'
 
 const navItems = [
+  { to: '/dashboard', icon: DashboardIcon, label: '数据驾驶舱' },
   { to: '/detect', icon: ImageIcon, label: '图片与人脸审核' },
   { to: '/guardrail', icon: ShieldIcon, label: '实时安全护栏' },
   { to: '/scan', icon: RadarIcon, label: '主动安全扫描' },
@@ -82,6 +85,7 @@ const navItems = [
 ]
 const PLATFORM_NAME = '面向 AIGC 伪造的跨域泛化检测与可解释性防御平台'
 const route = useRoute()
+const isScreenLayout = computed(() => route.meta.layout === 'screen')
 const sidebarOpen = ref(window.innerWidth > 760)
 const showAbout = ref(false)
 const currentTitle = computed(() => navItems.find(n => route.path.startsWith(n.to))?.label ?? PLATFORM_NAME)

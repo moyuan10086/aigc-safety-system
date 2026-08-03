@@ -13,6 +13,7 @@ from routers.kb import router as kb_router
 from routers.guardrail import router as guardrail_router
 from routers.auth import router as auth_router
 from routers.audit import router as audit_router
+from routers.dashboard import router as dashboard_router
 from services import audit_log_service, auth_service
 import config
 
@@ -50,7 +51,12 @@ async def audit_http_requests(request: Request, call_next):
         if response is not None:
             response.headers["X-Request-ID"] = request_id
         path = request.url.path
-        if path.startswith("/api/") and not path.startswith("/api/audit/") and path != "/api/health":
+        if (
+            path.startswith("/api/")
+            and not path.startswith("/api/audit/")
+            and not path.startswith("/api/dashboard/")
+            and path != "/api/health"
+        ):
             status_code = response.status_code if response is not None else 500
             user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
             outcome = "success"
@@ -84,6 +90,7 @@ app.include_router(kb_router)
 app.include_router(guardrail_router)
 app.include_router(auth_router)
 app.include_router(audit_router)
+app.include_router(dashboard_router)
 
 @app.get("/api/health", tags=["system"])
 async def health_check():

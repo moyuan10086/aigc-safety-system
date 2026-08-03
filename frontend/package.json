@@ -11,6 +11,7 @@
     "@vueuse/core": "^14.2.1",
     "@vueuse/motion": "^3.0.3",
     "axios": "^1.19.0",
+    "echarts": "^6.1.0",
     "element-plus": "^2.13.7",
     "lucide-vue-next": "^0.577.0",
     "marked": "^18.0.2",

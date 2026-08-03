@@ -15,10 +15,15 @@ import Scan from './views/Scan.vue'
 import Kb from './views/Kb.vue'
 import Guardrail from './views/Guardrail.vue'
 
+const Dashboard = () => import('./views/Dashboard.vue')
+const BigScreen = () => import('./views/BigScreen.vue')
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/detect' },
+    { path: '/dashboard', component: Dashboard },
+    { path: '/dashboard/screen', component: BigScreen, meta: { layout: 'screen' } },
     { path: '/detect', component: Detect },
     { path: '/guardrail', component: Guardrail },
     { path: '/report', component: Report },
