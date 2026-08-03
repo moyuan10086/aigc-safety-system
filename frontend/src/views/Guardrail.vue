@@ -206,10 +206,11 @@ async function parseResponse(response: Response) {
 }
 
 async function run() {
+  const submittedOutput = outputText.value.trim()
   checking.value=true
   workflow.value=null
   manualResult.value=null
-  outputText.value=''
+  if (mode.value === 'chat') outputText.value=''
   evidenceView.value='final'
   activeStep.value=0
   const ticker = window.setInterval(() => { if (activeStep.value < pipeline.value.length - 2) activeStep.value++ }, mode.value === 'chat' ? 900 : 180)
@@ -226,7 +227,7 @@ async function run() {
       const response = await fetch('/api/guardrail/check', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ prompt:inputText.value.trim(), response:outputText.value.trim(), mode:'both' }),
+        body:JSON.stringify({ prompt:inputText.value.trim(), response:submittedOutput, mode:'both' }),
       })
       manualResult.value = await parseResponse(response)
     }
