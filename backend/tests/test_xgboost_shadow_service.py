@@ -11,6 +11,9 @@ from services import xgboost_shadow_service
 
 
 class XGBoostShadowServiceTests(unittest.TestCase):
+    def setUp(self):
+        xgboost_shadow_service.reset_for_tests()
+
     def tearDown(self):
         xgboost_shadow_service.reset_for_tests()
 

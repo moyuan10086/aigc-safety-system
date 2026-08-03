@@ -16,6 +16,10 @@ class GuardrailServiceTests(unittest.TestCase):
             guardrail_service, "GUARDRAIL_ENABLE_QWEN_CLASSIFIER", False
         ), patch.object(
             guardrail_service, "GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER", False
+        ), patch.object(
+            guardrail_service.xgboost_shadow_service.config,
+            "GUARDRAIL_ENABLE_XGBOOST_SHADOW",
+            False,
         ):
             return guardrail_service.check(**kwargs)
 
