@@ -6,11 +6,11 @@ from collections import defaultdict, deque
 from threading import Lock
 import time
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 import config
-from services import audit_log_service, auth_service
+from services import api_access_service, audit_log_service, auth_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "aigc_operator_session"
@@ -24,6 +24,14 @@ _failure_lock = Lock()
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=128)
     password: str = Field(min_length=1, max_length=256)
+
+
+class ApiKeyCreateRequest(BaseModel):
+    tenant_id: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=120)
+    scopes: list[str] | None = None
+    rate_limit_per_minute: int | None = Field(default=None, ge=1)
+    daily_quota: int | None = Field(default=None, ge=1)
 
 
 def _client_key(request: Request) -> str:
@@ -51,6 +59,13 @@ def _record_failure(client_key: str) -> None:
 def _clear_failures(client_key: str) -> None:
     with _failure_lock:
         _failures.pop(client_key, None)
+
+
+def _operator(request: Request) -> dict[str, str]:
+    user = auth_service.verify_session(request.cookies.get(COOKIE_NAME))
+    if user is None:
+        raise HTTPException(status_code=401, detail="请先登录审核员账号")
+    return user
 
 
 @router.get("/session")
@@ -148,3 +163,70 @@ async def logout(request: Request, response: Response):
         summary="审核员退出登录",
     )
     return {"authenticated": False}
+
+
+@router.post("/api-keys")
+async def create_api_key(body: ApiKeyCreateRequest, request: Request):
+    """Issue an external API key; the plaintext is returned only once."""
+    user = _operator(request)
+    try:
+        issued = api_access_service.issue_key(
+            tenant_id=body.tenant_id,
+            name=body.name,
+            scopes=body.scopes,
+            rate_limit_per_minute=body.rate_limit_per_minute,
+            daily_quota=body.daily_quota,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    audit_log_service.record_safe(
+        event_type="auth.api_key.issue",
+        module="auth",
+        action="issue_api_key",
+        actor=user["username"],
+        client_ip=_client_key(request),
+        summary="签发外部 API Key",
+        metadata={
+            "key_id": issued["key_id"],
+            "key_prefix": issued["key_prefix"],
+            "tenant_id": issued["tenant_id"],
+            "scopes": issued["scopes"],
+            "rate_limit_per_minute": issued["rate_limit_per_minute"],
+            "daily_quota": issued["daily_quota"],
+        },
+    )
+    return issued
+
+
+@router.get("/api-keys")
+async def list_api_keys(request: Request, tenant_id: str | None = None):
+    _operator(request)
+    return {"items": api_access_service.list_keys(tenant_id=tenant_id)}
+
+
+@router.get("/api-usage")
+async def api_usage(
+    request: Request,
+    days: int = Query(default=7, ge=1, le=31),
+    tenant_id: str | None = None,
+):
+    _operator(request)
+    return api_access_service.operator_usage(days=days, tenant_id=tenant_id)
+
+
+@router.delete("/api-keys/{key_id}")
+async def revoke_api_key(key_id: str, request: Request):
+    user = _operator(request)
+    revoked = api_access_service.revoke_key(key_id)
+    if not revoked:
+        raise HTTPException(status_code=404, detail="API Key 不存在或已撤销")
+    audit_log_service.record_safe(
+        event_type="auth.api_key.revoke",
+        module="auth",
+        action="revoke_api_key",
+        actor=user["username"],
+        client_ip=_client_key(request),
+        summary="撤销外部 API Key",
+        metadata={"key_id": key_id[:32]},
+    )
+    return {"revoked": True, "key_id": key_id}

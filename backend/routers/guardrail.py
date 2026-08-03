@@ -63,6 +63,21 @@ def _client_key(request: Request) -> str:
     return client_host
 
 
+def _actor_context(request: Request) -> tuple[str, dict[str, str]]:
+    api_client = getattr(request.state, "api_client", None)
+    if api_client:
+        return (
+            f"api:{api_client['key_id']}",
+            {
+                "api_key_id": api_client["key_id"],
+                "tenant_id": api_client["tenant_id"],
+                "api_version": "v1",
+            },
+        )
+    user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+    return (user["username"] if user else "anonymous", {})
+
+
 def _rate_limit(request: Request) -> None:
     key = _client_key(request)
     now = time.monotonic()
@@ -87,21 +102,26 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
             body.response,
             body.mode,
         )
-        user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+        actor, api_metadata = _actor_context(request)
         event_id = audit_log_service.record_safe(
             event_type="guardrail.check",
             module="guardrail",
             action=f"check_{body.mode}",
             severity={"safe": "info", "borderline": "warning", "unsafe": "high"}.get(result["verdict"], "info"),
             outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(result["verdict"], "success"),
-            actor=user["username"] if user else "anonymous",
+            actor=actor,
             client_ip=_client_key(request),
             summary=f"护栏判定：{result['risk_code']}",
             resource_id=getattr(request.state, "request_id", None),
             risk_code=result.get("risk_code"),
             risk_score=result.get("risk_score"),
             content_hash=audit_log_service.content_digest(f"{body.prompt}\n{body.response}"),
-            metadata={"mode": body.mode, "categories": result.get("categories", []), "content_length": len(body.prompt) + len(body.response)},
+            metadata={
+                "mode": body.mode,
+                "categories": result.get("categories", []),
+                "content_length": len(body.prompt) + len(body.response),
+                **api_metadata,
+            },
         )
         if event_id:
             audit_log_service.store_evidence(
@@ -136,14 +156,14 @@ async def guarded_chat(body: GuardedChatRequest, request: Request):
                 timeout=config.CHAT_MODEL_TIMEOUT_SECONDS + 10,
             )
             final_guard = result.get("final_guard", {})
-            user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+            actor, api_metadata = _actor_context(request)
             event_id = audit_log_service.record_safe(
                 event_type="guardrail.chat",
                 module="guardrail",
                 action="guarded_model_generation",
                 severity={"safe": "info", "borderline": "warning", "unsafe": "high"}.get(final_guard.get("verdict"), "info"),
                 outcome={"completed": "allowed", "review_required": "review", "input_blocked": "blocked", "output_blocked": "blocked"}.get(result.get("status"), "success"),
-                actor=user["username"] if user else "anonymous",
+                actor=actor,
                 client_ip=_client_key(request),
                 status_code=200,
                 latency_ms=result.get("generation", {}).get("latency_ms"),
@@ -158,6 +178,7 @@ async def guarded_chat(body: GuardedChatRequest, request: Request):
                     "quarantined": result.get("quarantined", False),
                     "categories": final_guard.get("categories", []),
                     "prompt_length": len(body.prompt),
+                    **api_metadata,
                 },
             )
             if event_id:

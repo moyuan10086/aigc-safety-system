@@ -139,6 +139,35 @@ RTX 4090 生成式模式实测为 10 例中 9 例正确，平均 5354.2 ms、P95
 
 ## API 文档
 
+### 对外 API v1（API Key 鉴权）
+
+审核员登录后可在“系统设置 → 开放 API 与租户”签发和撤销 API Key。服务端只保存 HMAC-SHA256 摘要，明文密钥仅在签发响应中出现一次。调用方可使用 `Authorization: Bearer <key>` 或 `X-API-Key: <key>`。
+
+```bash
+# 输入/输出护栏
+curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/guardrail/check \
+  -H "Authorization: Bearer <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"正常的产品咨询","response":"","mode":"input"}'
+
+# 当前 Key 的用量、成功率与配额
+curl https://aigc.49.51.248.227.sslip.io/api/v1/usage?days=7 \
+  -H "X-API-Key: <api-key>"
+```
+
+统一成功响应包含 `api_version`、`request_id` 和 `data`。当前 v1 能力包括：
+
+- `POST /api/v1/guardrail/check`：输入/输出双向审核
+- `POST /api/v1/guardrail/chat`：实际生成模型 + 输入输出护栏
+- `POST /api/v1/content/check`：红线知识与敏感内容审核
+- `POST /api/v1/images/face`：人脸与图像质量检查
+- `POST /api/v1/images/deepfake`：Deepfake 检测
+- `POST /api/v1/images/mllm`：多模态图片审核
+- `GET /api/v1/catalog`：当前 Key 的作用域与配额
+- `GET /api/v1/usage`：当前 Key 的调用量与延迟
+
+每个 Key 绑定租户、作用域、每分钟限流和每日配额；调用账本不保存提示词或模型输出。原始提示词与危险模型输出仍按审计策略写入独立 AES-GCM 加密证据库。
+
 ### 单独检测接口
 
 **Deepfake 检测**

@@ -14,6 +14,7 @@ from routers.guardrail import router as guardrail_router
 from routers.auth import router as auth_router
 from routers.audit import router as audit_router
 from routers.dashboard import router as dashboard_router
+from routers.api_v1 import router as api_v1_router
 from services import audit_log_service, auth_service
 import config
 
@@ -59,6 +60,14 @@ async def audit_http_requests(request: Request, call_next):
         ):
             status_code = response.status_code if response is not None else 500
             user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+            api_client = getattr(request.state, "api_client", None)
+            actor = (
+                f"api:{api_client['key_id']}"
+                if api_client
+                else user["username"]
+                if user
+                else "anonymous"
+            )
             outcome = "success"
             severity = "info"
             if status_code >= 500:
@@ -73,7 +82,7 @@ async def audit_http_requests(request: Request, call_next):
                 action="api_request",
                 severity=severity,
                 outcome=outcome,
-                actor=user["username"] if user else "anonymous",
+                actor=actor,
                 client_ip=_client_ip(request),
                 method=request.method,
                 path=path,
@@ -81,6 +90,13 @@ async def audit_http_requests(request: Request, call_next):
                 latency_ms=round((time.perf_counter() - started) * 1000),
                 summary=f"{request.method} {path} 返回 {status_code}",
                 resource_id=request_id,
+                metadata={
+                    "api_key_id": api_client["key_id"],
+                    "tenant_id": api_client["tenant_id"],
+                    "api_version": "v1",
+                }
+                if api_client
+                else {},
             )
 
 app.include_router(detect_router)
@@ -91,6 +107,7 @@ app.include_router(guardrail_router)
 app.include_router(auth_router)
 app.include_router(audit_router)
 app.include_router(dashboard_router)
+app.include_router(api_v1_router)
 
 @app.get("/api/health", tags=["system"])
 async def health_check():

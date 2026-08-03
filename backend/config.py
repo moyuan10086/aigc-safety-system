@@ -46,6 +46,15 @@ AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {
     "1", "true", "yes", "on"
 }
 
+# External API access. API keys are stored as one-way HMAC digests in a
+# separate SQLite ledger; the plaintext key is returned only at issuance time.
+API_KEY_HASH_SECRET = os.getenv("API_KEY_HASH_SECRET", "") or AUTH_SESSION_SECRET
+API_KEY_DB_PATH = os.getenv("API_KEY_DB_PATH", "audit_logs/api_keys.db")
+API_KEY_DEFAULT_RATE_LIMIT = int(os.getenv("API_KEY_DEFAULT_RATE_LIMIT", "60"))
+API_KEY_DEFAULT_DAILY_QUOTA = int(os.getenv("API_KEY_DEFAULT_DAILY_QUOTA", "5000"))
+API_KEY_MAX_RATE_LIMIT = int(os.getenv("API_KEY_MAX_RATE_LIMIT", "600"))
+API_KEY_MAX_DAILY_QUOTA = int(os.getenv("API_KEY_MAX_DAILY_QUOTA", "100000"))
+
 # Structured, tamper-evident audit trail. Runtime data stays outside Git and is
 # queried only through authenticated operator endpoints.
 AUDIT_LOG_DB_PATH = os.getenv("AUDIT_LOG_DB_PATH", "audit_logs/audit.db")
