@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import secrets
 import sqlite3
 import threading
@@ -96,6 +97,11 @@ def _now() -> datetime:
 
 def _iso(value: datetime | None = None) -> str:
     return (value or _now()).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _p95(values: list[int]) -> int:
+    ordered = sorted(max(0, int(value)) for value in values)
+    return ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)] if ordered else 0
 
 
 def _secret_digest(raw_key: str) -> str:
@@ -326,6 +332,12 @@ def usage(client: dict[str, Any], *, days: int = 1) -> dict[str, Any]:
             """,
             (client["key_id"], start),
         ).fetchone()
+        latency_rows = connection.execute(
+            "SELECT latency_ms FROM api_usage WHERE key_id = ? AND occurred_at >= ?",
+            (client["key_id"], start),
+        ).fetchall()
+    request_count = int(totals["requests"] or 0)
+    success_count = int(totals["successes"] or 0)
     return {
         "tenant_id": client["tenant_id"],
         "key_id": client["key_id"],
@@ -335,12 +347,14 @@ def usage(client: dict[str, Any], *, days: int = 1) -> dict[str, Any]:
             "rate_limit_per_minute": client["rate_limit_per_minute"],
         },
         "totals": {
-            "requests": int(totals["requests"] or 0),
+            "requests": request_count,
             "units": int(totals["units"] or 0),
-            "successes": int(totals["successes"] or 0),
-            "success_rate": round((int(totals["successes"] or 0) / int(totals["requests"]) * 100), 1)
-            if totals["requests"] else 0.0,
+            "successes": success_count,
+            "success_rate": round(success_count / request_count * 100, 1) if request_count else 0.0,
+            "failure_rate": round((request_count - success_count) / request_count * 100, 1)
+            if request_count else 0.0,
             "avg_latency_ms": round(float(totals["avg_latency_ms"] or 0), 1),
+            "p95_latency_ms": _p95([row["latency_ms"] for row in latency_rows]),
         },
         "by_operation": [
             {
@@ -409,8 +423,23 @@ def operator_usage(*, days: int = 7, tenant_id: str | None = None) -> dict[str, 
             """,
             params,
         ).fetchall()
+        samples = connection.execute(
+            f"""
+            SELECT key_id, tenant_id, latency_ms
+            FROM api_usage WHERE occurred_at >= ?{tenant_clause}
+            """,
+            params,
+        ).fetchall()
     request_count = int(totals["requests"] or 0)
     success_count = int(totals["successes"] or 0)
+    tenant_latencies: dict[str, list[int]] = {}
+    key_latencies: dict[str, list[int]] = {}
+    all_latencies: list[int] = []
+    for row in samples:
+        latency = int(row["latency_ms"])
+        all_latencies.append(latency)
+        tenant_latencies.setdefault(row["tenant_id"], []).append(latency)
+        key_latencies.setdefault(row["key_id"], []).append(latency)
     return {
         "window_days": days,
         "tenant_filter": tenant_id,
@@ -419,9 +448,12 @@ def operator_usage(*, days: int = 7, tenant_id: str | None = None) -> dict[str, 
             "units": int(totals["units"] or 0),
             "successes": success_count,
             "success_rate": round(success_count / request_count * 100, 1) if request_count else 0.0,
+            "failure_rate": round((request_count - success_count) / request_count * 100, 1)
+            if request_count else 0.0,
             "tenants": int(totals["tenants"] or 0),
             "keys": int(totals["keys"] or 0),
             "avg_latency_ms": round(float(totals["avg_latency_ms"] or 0), 1),
+            "p95_latency_ms": _p95(all_latencies),
         },
         "by_tenant": [
             {
@@ -430,6 +462,13 @@ def operator_usage(*, days: int = 7, tenant_id: str | None = None) -> dict[str, 
                 "units": int(row["units"]),
                 "successes": int(row["successes"] or 0),
                 "keys": int(row["keys"]),
+                "failure_rate": round(
+                    (int(row["requests"]) - int(row["successes"] or 0))
+                    / int(row["requests"])
+                    * 100,
+                    1,
+                ),
+                "p95_latency_ms": _p95(tenant_latencies.get(row["tenant_id"], [])),
             }
             for row in tenants
         ],
@@ -443,6 +482,13 @@ def operator_usage(*, days: int = 7, tenant_id: str | None = None) -> dict[str, 
                 "units": int(row["units"]),
                 "successes": int(row["successes"] or 0),
                 "avg_latency_ms": round(float(row["avg_latency_ms"] or 0), 1),
+                "failure_rate": round(
+                    (int(row["requests"]) - int(row["successes"] or 0))
+                    / int(row["requests"])
+                    * 100,
+                    1,
+                ),
+                "p95_latency_ms": _p95(key_latencies.get(row["key_id"], [])),
             }
             for row in keys
         ],
