@@ -1,0 +1,44 @@
+<h1>侧栏真实登录与生产验收（2026-08-03）</h1>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>侧栏真实登录闭环已上线正式站，已完成后端会话、移动端布局、刷新恢复、Cookie 安全属性与公网部署验证。</p>
+</callout>
+
+<h2>一、本轮实现</h2>
+<ul>
+  <li>侧栏底部新增“审核员登录”入口，登录成功后显示“现场审核员 / 系统管理员”与退出按钮。</li>
+  <li>前端拆分认证状态、登录弹窗、侧栏账户三个自定义模块；密码仅随登录请求提交，不写入 localStorage 或 sessionStorage。</li>
+  <li>后端新增 /api/auth/login、/api/auth/session、/api/auth/logout 三个真实接口。</li>
+  <li>密码使用 PBKDF2-SHA256 310000 次迭代摘要；会话使用 HMAC-SHA256 签名的 HttpOnly Cookie，有效期 8 小时。</li>
+  <li>正式环境启用 Secure、SameSite=Strict、HttpOnly；同一来源 5 分钟内连续失败 5 次后限流。</li>
+</ul>
+
+<h2>二、实际输入输出与测试证据</h2>
+<table>
+  <colgroup><col width="150"/><col width="210"/><col width="240"/><col width="180"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">测试项</th><th background-color="light-gray">实际输入 / 操作</th><th background-color="light-gray">实际输出</th><th background-color="light-gray">结论</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>未登录会话</td><td>GET /api/auth/session</td><td>authenticated=false，configured=true，user=null</td><td>通过：服务已配置且未伪造身份</td></tr>
+    <tr><td>正式账号登录</td><td>username=admin；密码使用服务器密文配置，不进入文档</td><td>HTTP 200；authenticated=true；display_name=现场审核员</td><td>通过：调用真实后端</td></tr>
+    <tr><td>刷新恢复</td><td>登录成功后刷新 /detect</td><td>侧栏继续显示“现场审核员 / 系统管理员”</td><td>通过：会话可恢复</td></tr>
+    <tr><td>Cookie 属性</td><td>检查登录响应 Set-Cookie</td><td>HttpOnly=true；Secure=true；SameSite=Strict</td><td>通过：浏览器脚本无法读取会话</td></tr>
+    <tr><td>失败限流</td><td>自动化连续提交 5 次错误密码，第 6 次再请求</td><td>前 5 次 HTTP 401；第 6 次 HTTP 429；Retry-After=300</td><td>通过：限制暴力试错</td></tr>
+    <tr><td>移动端布局</td><td>390×844 打开侧栏与登录弹窗</td><td>scrollWidth=390，innerWidth=390</td><td>通过：无横向溢出</td></tr>
+  </tbody>
+</table>
+
+<h2>三、自动化与部署结果</h2>
+<ul>
+  <li>后端：22 项 unittest 全部通过。</li>
+  <li>代码规范：认证相关 Python 文件通过 Ruff 检查。</li>
+  <li>前端：Vite 生产构建成功，3390 个模块完成转换。</li>
+  <li>GitHub 提交：<a href="https://github.com/moyuan10086/aigc-safety-system/commit/94589ec">94589ec feat: add secure operator login</a>。</li>
+  <li>服务器：/root/CH/aigc-safety-system 已更新至 94589ec；aigc-safety.service 为 active。</li>
+  <li>公网健康检查：<a href="https://aigc.49.51.248.227.sslip.io/api/health">/api/health</a> 返回 status=ok。</li>
+</ul>
+
+<h2>四、当前边界与下一步</h2>
+<callout emoji="ℹ️" background-color="light-blue" border-color="blue">
+  <p>当前登录用于建立审核员身份和后续审计归属，尚未强制拦截现有公开演示接口。下一步把用户身份写入 SQLite 调用审计，并为管理接口增加 RBAC、为外部 /api/v1 接口增加 API Key，保持比赛现场公开体验与管理权限隔离。</p>
+</callout>
