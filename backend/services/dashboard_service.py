@@ -11,13 +11,7 @@ import config
 from services import audit_log_service, guarded_chat_service
 
 REPORTS_DIR = Path(__file__).parents[1] / "reports"
-
-
-def _configured_path(value: str) -> bool:
-    path = Path(value)
-    if not path.is_absolute():
-        path = Path(__file__).parents[1] / path
-    return path.exists()
+DEEPFAKE_WEIGHTS = Path(__file__).parents[2] / "deepfake-detection" / "weights" / "model.ckpt"
 
 
 def _report_statistics(start: datetime) -> dict[str, Any]:
@@ -99,8 +93,8 @@ def _model_states() -> list[dict[str, Any]]:
         {
             "id": "deepfake",
             "label": "Deepfake 检测",
-            "model": Path(config.DEEPFAKE_MODEL_PATH).name or "model.ckpt",
-            "status": "configured" if _configured_path(config.DEEPFAKE_MODEL_PATH) else "degraded",
+            "model": "DFDet model.ckpt",
+            "status": "configured" if DEEPFAKE_WEIGHTS.exists() else "degraded",
         },
         {
             "id": "rag",
