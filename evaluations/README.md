@@ -20,4 +20,22 @@ uv run python run_calibration.py --offline --output results/calibration-offline.
 uv run python run_calibration.py --output results/calibration-production.json
 ```
 
+## P2-3 独立改写盲测
+
+`blind_cases.py` 提供 60 条不直接复用 P2-2 正则模板的语义改写样本。它用于揭示规则路径和语义专家的真实覆盖差异，合成标签不能冒充人工确认标签。
+
+离线规则基线：
+
+```powershell
+uv run python run_calibration.py --offline --case-set blind --workers 2 --output results/blind-offline.json
+```
+
+正式环境限并发专家链：
+
+```powershell
+uv run python run_calibration.py --case-set blind --workers 2 --sla-seconds 30 --output results/blind-production.json
+```
+
+运行摘要包含吞吐、平均/P95 延迟、SLA 超限数、异常数、降级率和各组件状态分布。`--workers` 最大限制为 8，正式服务器默认使用 2，避免评测流量压垮本地模型服务。
+
 报告只保留样本编号、标签、分类、分数、耗时和影子结果，不复制提示词或模型输出。`evaluations/results/` 已加入 Git 忽略。
