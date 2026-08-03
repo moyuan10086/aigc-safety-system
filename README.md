@@ -218,6 +218,20 @@ GUARDRAIL_XGBOOST_SHADOW_SHA256=<64位模型摘要>
 
 影子输出只包含决策、置信度、一致性、耗时和模型摘要；原始提示词与模型危险输出仍只保存在 AES-GCM 加密的 `audit_evidence`，不会进入 API 用量、CSV 导出或租户报告。
 
+### 真实模型人工复核样本活动
+
+比赛演示环境可通过生产护栏 API 生成可人工复核的真实链路样本。工具会读取审计库中的既有内容哈希以支持断点续跑和去重，并把并发硬限制为 2；首条样本必须确认 RAG、Qwen3Guard、SingGuard 与 XGBoost 影子模型均正常，才会继续批量运行。
+
+```bash
+cd /root/CH/aigc-safety-system
+backend/.venv/bin/python evaluations/run_review_campaign.py \
+  --endpoint http://127.0.0.1:8010/api/guardrail/check \
+  --audit-db backend/audit_logs/audit.db \
+  --target 200 --workers 2
+```
+
+该活动只调用正常审核接口，不写 `guardrail_shadow_reviews`。原始提示词和输出继续仅由服务端写入 AES-GCM 加密的 `audit_evidence`；活动报告只包含样本 ID、内容哈希、模型判定、组件状态、耗时和错误码，不包含原文、危险输出或合成测试预期标签。
+
 数据驾驶舱的“人工复核样本池”只接纳同时具备护栏主判和加密证据的真实事件。队列优先展示主判/影子模型分歧，再按 `safe`、`borderline`、`unsafe` 分层抽样；200 条目标只统计已登录审核员实际提交的标签，不使用合成标签补数。`GET /api/dashboard/review-labels.csv` 可导出事件哈希、主判、人工标签、类别与复核人等元数据，不解密或导出原始提示词及模型危险输出。
 
 人工复核默认使用盲审模式隐藏主判与影子结果。审核员必须先通过取证详情解密原始证据，形成与事件 ID、审核员身份绑定的 `audit.evidence_access` 审计事件，随后才能提交标签；其他审核员的证据访问记录不能代为解锁。导出的标签元数据包含 `evidence_access_verified`，用于证明标签具备“本人先审证据、后给真值”的审计链依据。
