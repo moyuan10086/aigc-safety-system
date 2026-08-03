@@ -6,6 +6,8 @@ import json
 import html
 import re
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Iterable
 
@@ -14,6 +16,8 @@ from config import (
     GUARDRAIL_ENABLE_RAG,
     GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER,
     GUARDRAIL_ENABLE_QWEN_CLASSIFIER,
+    GUARDRAIL_EXPERT_MAX_WORKERS,
+    GUARDRAIL_PARALLEL_EXPERTS,
     GUARDRAIL_QWEN_API_KEY,
     GUARDRAIL_QWEN_BASE_URL,
     GUARDRAIL_QWEN_MODEL,
@@ -435,30 +439,54 @@ def _merge_scores(target: dict[str, float], incoming: dict[str, float]) -> None:
         target[category] = round(max(target.get(category, 0.0), value), 3)
 
 
+def _timed_component(function, *args) -> tuple[dict[str, float], list[dict[str, Any]], str, float]:
+    started = time.perf_counter()
+    scores, evidence, status = function(*args)
+    return scores, evidence, status, round((time.perf_counter() - started) * 1000, 3)
+
+
 def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str, Any]:
     """Evaluate an input/output pair without requiring any external model."""
+    check_started = time.perf_counter()
     fields = _selected_fields(prompt, response, mode)
     if not fields:
         raise ValueError("prompt or response must contain non-whitespace text for the selected mode")
 
+    rules_started = time.perf_counter()
     scores, evidence = _run_rules(fields)
+    timings_ms = {"rules": round((time.perf_counter() - rules_started) * 1000, 3)}
     combined_text = "\n".join(text for _, text in fields)
+    expert_calls = {
+        "rag": (_run_rag, (combined_text,)),
+        "mllm": (_run_mllm, (prompt, response)),
+        "qwen3guard": (_run_qwen_classifier, (prompt, response)),
+        "singguard": (_run_singguard_classifier, (fields,)),
+    }
+    expert_started = time.perf_counter()
+    if GUARDRAIL_PARALLEL_EXPERTS:
+        with ThreadPoolExecutor(
+            max_workers=min(GUARDRAIL_EXPERT_MAX_WORKERS, len(expert_calls)),
+            thread_name_prefix="guardrail-expert",
+        ) as executor:
+            futures = {
+                name: executor.submit(_timed_component, function, *args)
+                for name, (function, args) in expert_calls.items()
+            }
+            expert_results = {name: futures[name].result() for name in expert_calls}
+    else:
+        expert_results = {
+            name: _timed_component(function, *args)
+            for name, (function, args) in expert_calls.items()
+        }
+    timings_ms["expert_stage"] = round((time.perf_counter() - expert_started) * 1000, 3)
 
-    rag_scores, rag_evidence, rag_status = _run_rag(combined_text)
-    _merge_scores(scores, rag_scores)
-    evidence.extend(rag_evidence)
-
-    mllm_scores, mllm_evidence, mllm_status = _run_mllm(prompt, response)
-    _merge_scores(scores, mllm_scores)
-    evidence.extend(mllm_evidence)
-
-    qwen_scores, qwen_evidence, qwen_status = _run_qwen_classifier(prompt, response)
-    _merge_scores(scores, qwen_scores)
-    evidence.extend(qwen_evidence)
-
-    singguard_scores, singguard_evidence, singguard_status = _run_singguard_classifier(fields)
-    _merge_scores(scores, singguard_scores)
-    evidence.extend(singguard_evidence)
+    statuses = {}
+    for name in expert_calls:
+        component_scores, component_evidence, status, latency_ms = expert_results[name]
+        _merge_scores(scores, component_scores)
+        evidence.extend(component_evidence)
+        statuses[name] = status
+        timings_ms[name] = latency_ms
 
     highest = max(scores.values(), default=0.0)
     strict = (mode or "").strip().lower() == "strict"
@@ -499,7 +527,10 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         if verdict == "borderline"
         else "内容未触发当前安全红线。"
     )
+    shadow_started = time.perf_counter()
     shadow_evaluation = xgboost_shadow_service.evaluate(combined_text, verdict)
+    timings_ms["xgboost_shadow"] = round((time.perf_counter() - shadow_started) * 1000, 3)
+    timings_ms["total"] = round((time.perf_counter() - check_started) * 1000, 3)
 
     return {
         "verdict": verdict,
@@ -519,12 +550,14 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         "engine": {
             "name": "hybrid_guardrail",
             "version": RULE_VERSION,
+            "expert_parallel": GUARDRAIL_PARALLEL_EXPERTS,
+            "timings_ms": timings_ms,
             "components": {
                 "rules": "ok",
-                "rag": rag_status,
-                "mllm": mllm_status,
-                "qwen3guard": qwen_status,
-                "singguard": singguard_status,
+                "rag": statuses["rag"],
+                "mllm": statuses["mllm"],
+                "qwen3guard": statuses["qwen3guard"],
+                "singguard": statuses["singguard"],
                 "xgboost_shadow": shadow_evaluation["status"],
             },
         },

@@ -102,6 +102,7 @@ def _evaluate_case(
         "latency_ms": latency,
         "error_code": error_code,
         "components": (output.get("engine") or {}).get("components", {}),
+        "component_timings_ms": (output.get("engine") or {}).get("timings_ms", {}),
         "shadow": {
             key: shadow.get(key)
             for key in ("status", "decision", "confidence", "agreement", "latency_ms", "risk_type")
@@ -160,9 +161,13 @@ def run(
     exact_hits = sum(item["expected"] == item["predicted"] for item in results)
     dataset_canonical = json.dumps(selected_cases, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     component_statuses: dict[str, Counter[str]] = defaultdict(Counter)
+    component_latencies: dict[str, list[float]] = defaultdict(list)
     for item in results:
         for component, status in item["components"].items():
             component_statuses[str(component)][str(status)] += 1
+        for component, latency in item["component_timings_ms"].items():
+            if isinstance(latency, (int, float)) and latency >= 0:
+                component_latencies[str(component)].append(float(latency))
     degraded_samples = sum(
         any(status in {"unavailable", "error", "warming"} for status in item["components"].values())
         for item in results
@@ -198,6 +203,14 @@ def run(
             "component_statuses": {
                 component: dict(statuses)
                 for component, statuses in sorted(component_statuses.items())
+            },
+            "component_latency_ms": {
+                component: {
+                    "samples": len(values),
+                    "average": round(sum(values) / len(values), 3),
+                    "p95": _percentile(values, 0.95),
+                }
+                for component, values in sorted(component_latencies.items())
             },
         },
         "primary": {

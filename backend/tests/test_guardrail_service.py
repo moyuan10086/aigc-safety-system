@@ -2,6 +2,7 @@
 
 import unittest
 import sys
+import threading
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -229,6 +230,34 @@ class GuardrailServiceTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "safe")
         self.assertEqual(result["shadow_evaluation"]["decision"], "fail")
         self.assertEqual(result["engine"]["components"]["xgboost_shadow"], "ok")
+
+    def test_independent_experts_run_in_parallel_with_timings(self):
+        barrier = threading.Barrier(4)
+
+        def fake_component(*_args):
+            barrier.wait(timeout=1)
+            return {}, [], "ok"
+
+        shadow = {"status": "disabled"}
+        with patch.object(guardrail_service, "GUARDRAIL_PARALLEL_EXPERTS", True), patch.object(
+            guardrail_service, "GUARDRAIL_EXPERT_MAX_WORKERS", 4
+        ), patch.object(
+            guardrail_service, "_run_rag", fake_component
+        ), patch.object(
+            guardrail_service, "_run_mllm", fake_component
+        ), patch.object(
+            guardrail_service, "_run_qwen_classifier", fake_component
+        ), patch.object(
+            guardrail_service, "_run_singguard_classifier", fake_component
+        ), patch.object(
+            guardrail_service.xgboost_shadow_service, "evaluate", return_value=shadow
+        ):
+            result = guardrail_service.check(prompt="正常文本")
+
+        self.assertTrue(result["engine"]["expert_parallel"])
+        self.assertEqual(result["engine"]["components"]["qwen3guard"], "ok")
+        self.assertIn("expert_stage", result["engine"]["timings_ms"])
+        self.assertIn("total", result["engine"]["timings_ms"])
 
     @staticmethod
     def _fake_classifier_modules(content):

@@ -38,4 +38,8 @@ uv run python run_calibration.py --case-set blind --workers 2 --sla-seconds 30 -
 
 运行摘要包含吞吐、平均/P95 延迟、SLA 超限数、异常数、降级率和各组件状态分布。`--workers` 最大限制为 8，正式服务器默认使用 2，避免评测流量压垮本地模型服务。
 
+在线护栏默认通过 `GUARDRAIL_PARALLEL_EXPERTS=true` 并行调用彼此独立的 RAG、Qwen3Guard、SingGuard 和可选 MLLM；融合阈值、证据顺序和 XGBoost 影子边界不变。可设置 `GUARDRAIL_PARALLEL_EXPERTS=false` 立即回退到串行路径，`GUARDRAIL_EXPERT_MAX_WORKERS` 的硬上限为 4。
+
+报告的 `run.component_latency_ms` 记录规则、各专家、专家阶段、XGBoost 与总链路的平均/P95 耗时，用于定位性能瓶颈。它只包含组件名与时长，不包含原始输入或模型输出。
+
 报告只保留样本编号、标签、分类、分数、耗时和影子结果，不复制提示词或模型输出。`evaluations/results/` 已加入 Git 忽略。

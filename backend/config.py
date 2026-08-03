@@ -103,6 +103,13 @@ GUARDRAIL_SINGGUARD_MODEL = os.getenv(
 GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS = float(
     os.getenv("GUARDRAIL_SINGGUARD_TIMEOUT_SECONDS", "20")
 )
+GUARDRAIL_PARALLEL_EXPERTS = os.getenv("GUARDRAIL_PARALLEL_EXPERTS", "true").lower() in {
+    "1", "true", "yes", "on",
+}
+GUARDRAIL_EXPERT_MAX_WORKERS = max(
+    1,
+    min(int(os.getenv("GUARDRAIL_EXPERT_MAX_WORKERS", "4")), 4),
+)
 GUARDRAIL_ENABLE_XGBOOST_SHADOW = os.getenv(
     "GUARDRAIL_ENABLE_XGBOOST_SHADOW", "false"
 ).lower() in {"1", "true", "yes", "on"}

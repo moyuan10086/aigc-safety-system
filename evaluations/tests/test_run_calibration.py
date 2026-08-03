@@ -31,7 +31,10 @@ def test_run_caps_workers_and_keeps_report_metadata_only(monkeypatch) -> None:
             "verdict": "unsafe" if prompt.endswith("unsafe") else "safe",
             "risk_score": 0.9,
             "categories": [],
-            "engine": {"components": {"rules": "ok"}},
+            "engine": {
+                "components": {"rules": "ok"},
+                "timings_ms": {"rules": 1.25, "total": 2.5},
+            },
         }
 
     monkeypatch.setitem(run_calibration.CASE_SETS, "test", cases)
@@ -42,6 +45,7 @@ def test_run_caps_workers_and_keeps_report_metadata_only(monkeypatch) -> None:
     assert report["run"]["workers"] == 8
     assert report["primary"]["block_only"]["samples"] == 2
     assert report["primary"]["block_only"]["accuracy"] == 100.0
+    assert report["run"]["component_latency_ms"]["rules"]["average"] == 1.25
     assert all("prompt" not in item and "response" not in item for item in report["results"])
 
 

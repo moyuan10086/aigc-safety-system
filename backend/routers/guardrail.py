@@ -122,6 +122,8 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
                 "mode": body.mode,
                 "categories": result.get("categories", []),
                 "content_length": len(body.prompt) + len(body.response),
+                "expert_parallel": (result.get("engine") or {}).get("expert_parallel"),
+                "engine_timings_ms": (result.get("engine") or {}).get("timings_ms", {}),
                 "shadow_evaluation": shadow_evaluation,
                 **api_metadata,
             },
