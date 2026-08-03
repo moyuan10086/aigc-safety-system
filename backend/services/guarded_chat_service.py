@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from typing import Any
@@ -107,6 +108,20 @@ def _risk_message(verdict: str, model_called: bool) -> str:
     return "输入和模型输出均通过护栏检查，可以放行。" if model_called else "输入通过护栏检查。"
 
 
+def _redact_quarantined_guard(guard: dict[str, Any]) -> dict[str, Any]:
+    """Remove generated unsafe text while retaining explainable rule metadata."""
+    redacted = dict(guard)
+    redacted_evidence = []
+    for raw_item in guard.get("evidence", []):
+        item = dict(raw_item)
+        if item.get("source") == "response" and item.get("excerpt"):
+            rule_id = item.get("rule_id") or "OUTPUT-GUARD"
+            item["excerpt"] = f"[原始输出已隔离；命中规则 {rule_id}]"
+        redacted_evidence.append(item)
+    redacted["evidence"] = redacted_evidence
+    return redacted
+
+
 def run(prompt: str, max_tokens: int | None = None) -> dict[str, Any]:
     request_id = uuid.uuid4().hex
     input_guard = guardrail_service.check(prompt=prompt, mode="prompt")
@@ -129,22 +144,32 @@ def run(prompt: str, max_tokens: int | None = None) -> dict[str, Any]:
     requested_tokens = max_tokens or config.CHAT_MODEL_MAX_TOKENS
     requested_tokens = max(64, min(requested_tokens, config.CHAT_MODEL_MAX_TOKENS, 1200))
     generation = _call_model(prompt, requested_tokens)
-    output_guard = guardrail_service.check(response=generation["content"], mode="response")
-    final_guard = dict(input_guard if _severity(input_guard) >= _severity(output_guard) else output_guard)
+    raw_output_guard = guardrail_service.check(response=generation["content"], mode="response")
+    final_guard = dict(input_guard if _severity(input_guard) >= _severity(raw_output_guard) else raw_output_guard)
     final_guard["risk_message"] = _risk_message(final_guard["verdict"], True)
 
-    quarantined = output_guard["verdict"] == "unsafe"
-    response = output_guard["redline_answer"] if quarantined else generation["content"]
+    quarantined = raw_output_guard["verdict"] == "unsafe"
+    output_guard = _redact_quarantined_guard(raw_output_guard) if quarantined else raw_output_guard
+    final_guard = _redact_quarantined_guard(final_guard) if quarantined else final_guard
+    response = raw_output_guard["redline_answer"] if quarantined else generation["content"]
     status = "output_blocked" if quarantined else ("review_required" if final_guard["verdict"] == "borderline" else "completed")
-    return {
+    result = {
         "request_id": request_id,
         "status": status,
         "model_called": True,
         "response": response,
         "quarantined": quarantined,
-        "quarantined_excerpt": generation["content"][:240] if quarantined else "",
         "input_guard": input_guard,
         "output_guard": output_guard,
         "final_guard": final_guard,
         "generation": {"called": True, **{key: value for key, value in generation.items() if key != "content"}},
     }
+    if quarantined:
+        encoded = generation["content"].encode("utf-8")
+        result["quarantine"] = {
+            "applied": True,
+            "content_length": len(generation["content"]),
+            "content_sha256": hashlib.sha256(encoded).hexdigest(),
+            "evidence_redacted": True,
+        }
+    return result

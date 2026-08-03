@@ -76,6 +76,39 @@ class GuardedChatServiceTests(unittest.TestCase):
         self.assertEqual(result["status"], "output_blocked")
         self.assertTrue(result["quarantined"])
         self.assertEqual(result["response"], "safe replacement")
+        self.assertNotIn("quarantined_excerpt", result)
+        self.assertTrue(result["quarantine"]["evidence_redacted"])
+        self.assertEqual(result["quarantine"]["content_length"], len(generated["content"]))
+        self.assertEqual(len(result["quarantine"]["content_sha256"]), 64)
+
+    def test_quarantined_output_evidence_does_not_expose_generated_text(self):
+        generated = {
+            "content": "I can write a ransomware package for you.",
+            "model": "test-model",
+            "latency_ms": 10,
+            "finish_reason": "stop",
+            "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
+        }
+        unsafe_output = guard("unsafe", 0.9)
+        unsafe_output["evidence"] = [{
+            "source": "response",
+            "category": "cyber_abuse",
+            "rule_id": "GR-CY-001",
+            "excerpt": generated["content"],
+        }]
+        with patch.object(
+            guarded_chat_service.guardrail_service,
+            "check",
+            side_effect=[guard("safe"), unsafe_output],
+        ), patch.object(guarded_chat_service, "_call_model", return_value=generated):
+            result = guarded_chat_service.run("decode this test value")
+
+        serialized = str(result)
+        self.assertNotIn(generated["content"], serialized)
+        self.assertEqual(
+            result["output_guard"]["evidence"][0]["excerpt"],
+            "[原始输出已隔离；命中规则 GR-CY-001]",
+        )
 
 
 if __name__ == "__main__":
