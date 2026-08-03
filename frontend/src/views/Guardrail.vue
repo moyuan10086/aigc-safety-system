@@ -90,7 +90,7 @@
           <div class="decision-top"><span>最终决策</span><b>{{ decisionLabel }}</b></div>
           <div class="risk-meter"><i :style="{ width: riskPercent + '%' }"></i></div>
           <div class="risk-row"><span>综合风险分</span><strong>{{ result ? riskPercent : '--' }}<small>/100</small></strong></div>
-          <p>{{ result?.risk_message || '等待执行，系统将给出放行、人工复核或阻断决策。' }}</p>
+          <p>{{ result?.risk_message || result?.redline_answer || '等待执行，系统将给出放行、人工复核或阻断决策。' }}</p>
         </section>
 
         <section class="card evidence-card">
