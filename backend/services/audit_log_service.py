@@ -627,14 +627,82 @@ def _primary_verdict(outcome: str) -> str | None:
     }.get(outcome)
 
 
-def _shadow_reason(primary_verdict: str, shadow_decision: str, review_label: str) -> str:
+def _review_reason(primary_verdict: str, shadow_decision: str, review_label: str) -> str:
     if review_label == "borderline":
         return "policy_ambiguous"
+    if review_label == "safe" and shadow_decision == "fail":
+        return "shadow_false_positive"
+    if review_label == "unsafe" and shadow_decision == "pass":
+        return "shadow_false_negative"
+    if review_label == primary_verdict:
+        return f"human_confirmed_{review_label}"
     if review_label == "safe":
-        return "shadow_false_positive" if shadow_decision == "fail" else "primary_false_positive"
+        return "primary_false_positive"
     if review_label == "unsafe":
-        return "shadow_false_negative" if shadow_decision == "pass" else "primary_false_negative"
+        return "primary_false_negative"
     return "reviewer_confirmation"
+
+
+def _review_item(row: sqlite3.Row) -> dict[str, Any] | None:
+    primary_verdict = _primary_verdict(row["outcome"])
+    if primary_verdict is None:
+        return None
+    try:
+        metadata = json.loads(row["metadata_json"] or "{}")
+    except (TypeError, json.JSONDecodeError):
+        metadata = {}
+    shadow = metadata.get("shadow_evaluation")
+    if not isinstance(shadow, dict):
+        shadow = {}
+    categories = metadata.get("categories")
+    is_disagreement = shadow.get("status") == "ok" and shadow.get("agreement") is False
+    return {
+        "event_id": row["id"],
+        "occurred_at": row["occurred_at"],
+        "primary_verdict": primary_verdict,
+        "risk_code": row["risk_code"],
+        "risk_score": row["risk_score"],
+        "content_hash": row["content_hash"],
+        "categories": categories if isinstance(categories, list) else [],
+        "shadow_status": str(shadow.get("status") or "not_available")[:32],
+        "shadow_decision": str(shadow.get("decision") or "")[:16],
+        "shadow_confidence": shadow.get("confidence"),
+        "shadow_alert": bool(shadow.get("alert")),
+        "shadow_latency_ms": shadow.get("latency_ms"),
+        "shadow_risk_type": str(shadow.get("risk_type") or "")[:64],
+        "is_disagreement": is_disagreement,
+        "priority": "disagreement" if is_disagreement else "stratified",
+        "has_evidence": True,
+        "review_label": row["review_label"],
+        "reason_code": row["reason_code"],
+        "reviewer": row["reviewer"],
+        "reviewed_at": row["reviewed_at"],
+    }
+
+
+def _stratified_review_queue(items: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    pending = [item for item in items if not item["review_label"]]
+    disagreements = [item for item in pending if item["is_disagreement"]]
+    selected = disagreements[:limit]
+    selected_ids = {item["event_id"] for item in selected}
+    buckets = {
+        label: [
+            item for item in pending
+            if item["primary_verdict"] == label and item["event_id"] not in selected_ids
+        ]
+        for label in ("unsafe", "borderline", "safe")
+    }
+    while len(selected) < limit and any(buckets.values()):
+        for label in ("unsafe", "borderline", "safe"):
+            if buckets[label] and len(selected) < limit:
+                selected.append(buckets[label].pop(0))
+    if len(selected) < limit:
+        selected_ids = {item["event_id"] for item in selected}
+        selected.extend(
+            item for item in items
+            if item["review_label"] and item["event_id"] not in selected_ids
+        )
+    return selected[:limit]
 
 
 def shadow_review_statistics(
@@ -643,7 +711,7 @@ def shadow_review_statistics(
     now: datetime | None = None,
     queue_limit: int = 8,
 ) -> dict[str, Any]:
-    """Aggregate metadata-only shadow comparisons and their structured reviews."""
+    """Aggregate shadow metrics and an evidence-backed human-review sample pool."""
     hours = max(1, min(int(hours), 168))
     queue_limit = max(1, min(int(queue_limit), 50))
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
@@ -653,16 +721,8 @@ def shadow_review_statistics(
             """
             SELECT audit_events.id, audit_events.occurred_at, audit_events.outcome,
                    audit_events.risk_code, audit_events.risk_score,
-                   audit_events.content_hash, audit_events.metadata_json,
-                   EXISTS(SELECT 1 FROM audit_evidence WHERE audit_evidence.event_id = audit_events.id)
-                       AS has_evidence,
-                   guardrail_shadow_reviews.review_label,
-                   guardrail_shadow_reviews.reason_code,
-                   guardrail_shadow_reviews.reviewer,
-                   guardrail_shadow_reviews.reviewed_at
+                   audit_events.content_hash, audit_events.metadata_json
             FROM audit_events
-            LEFT JOIN guardrail_shadow_reviews
-                ON guardrail_shadow_reviews.event_id = audit_events.id
             WHERE audit_events.event_type = 'guardrail.check'
               AND audit_events.occurred_at >= ? AND audit_events.occurred_at <= ?
             ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
@@ -672,6 +732,25 @@ def shadow_review_statistics(
                 now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             ),
         ).fetchall()
+        review_rows = connection.execute(
+            """
+            SELECT audit_events.id, audit_events.occurred_at, audit_events.outcome,
+                   audit_events.risk_code, audit_events.risk_score,
+                   audit_events.content_hash, audit_events.metadata_json,
+                   guardrail_shadow_reviews.review_label,
+                   guardrail_shadow_reviews.reason_code,
+                   guardrail_shadow_reviews.reviewer,
+                   guardrail_shadow_reviews.reviewed_at
+            FROM audit_events
+            INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
+            LEFT JOIN guardrail_shadow_reviews
+                ON guardrail_shadow_reviews.event_id = audit_events.id
+            WHERE audit_events.event_type = 'guardrail.check'
+              AND audit_events.outcome IN ('allowed', 'review', 'blocked', 'denied')
+            ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
+            LIMIT 2000
+            """
+        ).fetchall()
 
     observed_events = 0
     evaluated_samples = 0
@@ -680,11 +759,8 @@ def shadow_review_statistics(
     not_comparable = 0
     false_positive_candidates = 0
     false_negative_candidates = 0
-    reviewed = 0
     latencies: list[float] = []
     statuses: dict[str, int] = {}
-    review_labels: dict[str, int] = {}
-    queue: list[dict[str, Any]] = []
 
     for row in rows:
         try:
@@ -715,31 +791,13 @@ def shadow_review_statistics(
         if agreement is False and primary_verdict == "unsafe" and shadow_decision == "pass":
             false_negative_candidates += 1
 
-        if row["review_label"]:
-            reviewed += 1
-            review_labels[row["review_label"]] = review_labels.get(row["review_label"], 0) + 1
-
-        if agreement is False and len(queue) < queue_limit:
-            categories = metadata.get("categories")
-            queue.append({
-                "event_id": row["id"],
-                "occurred_at": row["occurred_at"],
-                "primary_verdict": primary_verdict,
-                "risk_code": row["risk_code"],
-                "risk_score": row["risk_score"],
-                "content_hash": row["content_hash"],
-                "categories": categories if isinstance(categories, list) else [],
-                "shadow_decision": shadow_decision,
-                "shadow_confidence": shadow.get("confidence"),
-                "shadow_alert": bool(shadow.get("alert")),
-                "shadow_latency_ms": latency,
-                "shadow_risk_type": str(shadow.get("risk_type") or "")[:64],
-                "has_evidence": bool(row["has_evidence"]),
-                "review_label": row["review_label"],
-                "reason_code": row["reason_code"],
-                "reviewer": row["reviewer"],
-                "reviewed_at": row["reviewed_at"],
-            })
+    review_items = [item for row in review_rows if (item := _review_item(row)) is not None]
+    reviewed = sum(bool(item["review_label"]) for item in review_items)
+    review_labels: dict[str, int] = {}
+    for item in review_items:
+        if item["review_label"]:
+            review_labels[item["review_label"]] = review_labels.get(item["review_label"], 0) + 1
+    target_labels = 200
 
     latency_sorted = sorted(latencies)
     p95_index = max(0, math.ceil(len(latency_sorted) * 0.95) - 1)
@@ -754,12 +812,15 @@ def shadow_review_statistics(
         else 0.0,
         "false_positive_candidates": false_positive_candidates,
         "false_negative_candidates": false_negative_candidates,
-        "pending_reviews": max(0, disagreements - reviewed),
+        "target_labels": target_labels,
+        "eligible_samples": len(review_items),
+        "pending_reviews": max(0, len(review_items) - reviewed),
         "reviewed_count": reviewed,
+        "remaining_count": max(0, target_labels - reviewed),
         "p95_latency_ms": round(latency_sorted[p95_index], 3) if latency_sorted else 0.0,
         "statuses": statuses,
         "review_labels": review_labels,
-        "queue": queue,
+        "queue": _stratified_review_queue(review_items, queue_limit),
     }
 
 
@@ -768,20 +829,25 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         raise ValueError("invalid_review_label")
     with _LOCK, closing(_connect()) as connection:
         row = connection.execute(
-            "SELECT outcome, metadata_json FROM audit_events WHERE id = ? AND event_type = 'guardrail.check'",
+            """
+            SELECT audit_events.outcome, audit_events.metadata_json,
+                   EXISTS(SELECT 1 FROM audit_evidence WHERE audit_evidence.event_id = audit_events.id)
+                       AS has_evidence
+            FROM audit_events WHERE audit_events.id = ? AND audit_events.event_type = 'guardrail.check'
+            """,
             (event_id,),
         ).fetchone()
         if row is None:
-            raise LookupError("shadow_disagreement_not_found")
+            raise LookupError("review_sample_not_found")
         try:
             shadow = json.loads(row["metadata_json"] or "{}").get("shadow_evaluation") or {}
         except (TypeError, json.JSONDecodeError) as exc:
-            raise LookupError("shadow_disagreement_not_found") from exc
+            raise LookupError("review_sample_not_found") from exc
         primary_verdict = _primary_verdict(row["outcome"])
         shadow_decision = str(shadow.get("decision") or "")
-        if shadow.get("status") != "ok" or shadow.get("agreement") is not False:
-            raise LookupError("shadow_disagreement_not_found")
-        reason_code = _shadow_reason(primary_verdict or "unknown", shadow_decision, review_label)
+        if primary_verdict is None or not row["has_evidence"]:
+            raise LookupError("review_sample_not_found")
+        reason_code = _review_reason(primary_verdict, shadow_decision, review_label)
         reviewed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         connection.execute(
             """
@@ -804,6 +870,30 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         "reviewer": _clean_text(reviewer, 128) or "operator",
         "reviewed_at": reviewed_at,
     }
+
+
+def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
+    """Return reviewed annotation metadata without decrypting raw evidence."""
+    with closing(_connect()) as connection:
+        rows = connection.execute(
+            """
+            SELECT audit_events.id, audit_events.occurred_at, audit_events.outcome,
+                   audit_events.risk_code, audit_events.risk_score,
+                   audit_events.content_hash, audit_events.metadata_json,
+                   guardrail_shadow_reviews.review_label,
+                   guardrail_shadow_reviews.reason_code,
+                   guardrail_shadow_reviews.reviewer,
+                   guardrail_shadow_reviews.reviewed_at
+            FROM guardrail_shadow_reviews
+            INNER JOIN audit_events ON audit_events.id = guardrail_shadow_reviews.event_id
+            INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
+            WHERE audit_events.event_type = 'guardrail.check'
+            ORDER BY guardrail_shadow_reviews.reviewed_at DESC
+            LIMIT ?
+            """,
+            (max(1, min(int(limit), 5000)),),
+        ).fetchall()
+    return [item for row in rows if (item := _review_item(row)) is not None]
 
 
 def reset_for_tests() -> None:

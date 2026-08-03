@@ -141,6 +141,59 @@ class DashboardTests(unittest.TestCase):
         evidence = audit_log_service.get_evidence(disagreement_id)
         self.assertEqual(evidence["prompt"], "结构化复核测试原文")
 
+    def test_general_evidence_sample_can_be_reviewed_and_disagreement_stays_first(self):
+        _, disagreement_id = self._seed()
+        general_id = audit_log_service.record(
+            event_type="guardrail.check",
+            module="guardrail",
+            action="check_prompt",
+            outcome="blocked",
+            summary="普通危险样本",
+            content_hash="b" * 64,
+            metadata={"categories": ["cyber_abuse"]},
+        )
+        audit_log_service.store_evidence(
+            general_id,
+            prompt="这是不能出现在概览或导出里的原始提示词",
+            response="这是不能出现在概览或导出里的危险模型输出",
+            dangerous=True,
+        )
+        no_evidence_id = audit_log_service.record(
+            event_type="guardrail.check",
+            module="guardrail",
+            action="check_prompt",
+            outcome="allowed",
+            summary="无证据事件",
+        )
+        token = auth_service.create_session(auth_service.current_user())
+        self.client.cookies.set("aigc_operator_session", token)
+
+        overview = self.client.get("/api/dashboard/overview?hours=24").json()
+        self.assertEqual(overview["shadow_reviews"][0]["event_id"], disagreement_id)
+        self.assertTrue(overview["shadow_reviews"][0]["is_disagreement"])
+        self.assertEqual(overview["shadow_evaluation"]["eligible_samples"], 2)
+        self.assertEqual(overview["shadow_evaluation"]["target_labels"], 200)
+
+        reviewed = self.client.put(
+            f"/api/dashboard/shadow-reviews/{general_id}",
+            json={"review_label": "unsafe"},
+        )
+        self.assertEqual(reviewed.status_code, 200)
+        self.assertEqual(reviewed.json()["reason_code"], "human_confirmed_unsafe")
+        rejected = self.client.put(
+            f"/api/dashboard/shadow-reviews/{no_evidence_id}",
+            json={"review_label": "safe"},
+        )
+        self.assertEqual(rejected.status_code, 404)
+
+        exported = self.client.get("/api/dashboard/review-labels.csv")
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn("human_label", exported.text.splitlines()[0])
+        self.assertIn(general_id, exported.text)
+        self.assertNotIn("这是不能出现在概览或导出里的原始提示词", exported.text)
+        self.assertNotIn("这是不能出现在概览或导出里的危险模型输出", exported.text)
+        self.assertTrue(audit_log_service.verify_chain())
+
 
 if __name__ == "__main__":
     unittest.main()

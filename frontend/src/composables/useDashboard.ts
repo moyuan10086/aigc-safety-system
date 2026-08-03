@@ -9,8 +9,11 @@ export interface ShadowEvaluationSummary {
   agreement_rate: number
   false_positive_candidates: number
   false_negative_candidates: number
+  target_labels: number
+  eligible_samples: number
   pending_reviews: number
   reviewed_count: number
+  remaining_count: number
   p95_latency_ms: number
   statuses: Record<string, number>
   review_labels: Record<string, number>
@@ -24,11 +27,14 @@ export interface ShadowReviewItem {
   risk_score?: number
   content_hash?: string
   categories: string[]
-  shadow_decision: 'pass' | 'fail'
+  shadow_status: string
+  shadow_decision?: 'pass' | 'fail'
   shadow_confidence?: number
   shadow_alert: boolean
   shadow_latency_ms?: number
   shadow_risk_type?: string
+  is_disagreement: boolean
+  priority: 'disagreement' | 'stratified'
   has_evidence: boolean
   review_label?: 'safe' | 'borderline' | 'unsafe'
   reason_code?: string
@@ -114,7 +120,7 @@ export function useDashboard() {
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
-        const detail = typeof body.detail === 'string' ? body.detail : '分歧复核保存失败'
+        const detail = typeof body.detail === 'string' ? body.detail : '人工复核保存失败'
         throw new Error(detail)
       }
       await refresh(true)

@@ -48,7 +48,7 @@
         </DashboardPanel>
       </div>
 
-      <DashboardPanel title="XGBoost 影子分歧复核" subtitle="主判保持生效，人工标签只用于校准与评测" class="shadow-review-panel">
+      <DashboardPanel title="人工复核样本池" subtitle="主判保持生效；真实人工标签用于评测、校准与比赛证据" class="shadow-review-panel">
         <ShadowReviewPanel :summary="data.shadow_evaluation" :items="data.shadow_reviews" :busy-event-id="reviewingEventId" @resolve="handleShadowReview" @inspect="inspectAuditEvent" />
       </DashboardPanel>
 

@@ -55,13 +55,14 @@ class MaintenanceServiceTests(unittest.TestCase):
                 }
             },
         )
+        audit_log_service.store_evidence(disagreement_id, prompt="复核样本")
         audit_log_service.resolve_shadow_review(disagreement_id, "safe", "operator")
         api_access_service.issue_key(
             tenant_id="tenant-a", name="backup-test", scopes=["usage:read"]
         )
         backup = maintenance_service.create_backup(label="unit-test")
         self.assertTrue(backup["audit_chain_valid"])
-        self.assertEqual(backup["counts"]["audit_evidence"], 1)
+        self.assertEqual(backup["counts"]["audit_evidence"], 2)
         self.assertEqual(backup["counts"]["guardrail_shadow_reviews"], 1)
         verified = maintenance_service.verify_backup(backup["archive"])
         self.assertTrue(verified["valid"])
