@@ -1,5 +1,6 @@
 """Tests for real dashboard aggregation and access control."""
 
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,7 @@ class DashboardTests(unittest.TestCase):
             AUTH_DISPLAY_NAME="审核员",
             AUTH_ROLE="operator",
             AUTH_PASSWORD_HASH=auth_service.hash_password("test-password", iterations=100_000),
+            AUTH_OPERATORS_JSON="",
             AUTH_SESSION_SECRET="dashboard-session-secret-with-enough-entropy",
             AUTH_SESSION_TTL_SECONDS=3600,
         )
@@ -114,6 +116,10 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(data["shadow_evaluation"]["disagreement_count"], 1)
         self.assertEqual(data["shadow_evaluation"]["false_positive_candidates"], 1)
         self.assertEqual(data["shadow_evaluation"]["pending_reviews"], 1)
+        self.assertEqual(data["shadow_evaluation"]["pilot_target_labels"], 20)
+        self.assertEqual(data["shadow_evaluation"]["pilot_remaining_count"], 20)
+        self.assertFalse(data["shadow_evaluation"]["pilot_completed"])
+        self.assertEqual(data["shadow_evaluation"]["verified_review_count"], 0)
         self.assertEqual(data["shadow_reviews"][0]["event_id"], disagreement_id)
         self.assertNotIn("结构化复核测试原文", response.text)
 
@@ -174,6 +180,13 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(overview["shadow_evaluation"]["pending_reviews"], 0)
         self.assertEqual(overview["shadow_evaluation"]["reviewed_count"], 1)
         self.assertEqual(overview["shadow_evaluation"]["reviewer_reviewed_count"], 1)
+        self.assertEqual(overview["shadow_evaluation"]["verified_review_count"], 1)
+        self.assertEqual(overview["shadow_evaluation"]["unverified_review_count"], 0)
+        self.assertEqual(overview["shadow_evaluation"]["pilot_remaining_count"], 19)
+        self.assertEqual(
+            overview["shadow_evaluation"]["reviewer_counts"],
+            [{"reviewer": "operator", "count": 1}],
+        )
         self.assertEqual(overview["shadow_reviews"][0]["review_label"], "safe")
         self.assertTrue(overview["shadow_reviews"][0]["evidence_reviewed"])
         evidence = audit_log_service.get_evidence(disagreement_id)
@@ -305,6 +318,33 @@ class DashboardTests(unittest.TestCase):
             reviewer="operator", now=datetime.now(timezone.utc)
         )
         self.assertEqual(overview["queue"][0]["claim_state"], "other")
+
+    def test_distinct_authenticated_reviewers_cannot_steal_active_claim(self):
+        _, disagreement_id = self._seed()
+        first_token = auth_service.create_session(auth_service.current_user())
+        second_hash = auth_service.hash_password("reviewer-two-password", iterations=100_000)
+        accounts = json.dumps([{
+            "username": "reviewer02",
+            "display_name": "复核员 02",
+            "role": "operator",
+            "password_hash": second_hash,
+        }], ensure_ascii=False)
+        with patch.object(config, "AUTH_OPERATORS_JSON", accounts):
+            self.client.cookies.set("aigc_operator_session", first_token)
+            self.assertEqual(
+                self.client.post(f"/api/dashboard/review-claims/{disagreement_id}").status_code,
+                200,
+            )
+            second = auth_service.current_user("reviewer02")
+            self.client.cookies.set(
+                "aigc_operator_session", auth_service.create_session(second)
+            )
+            conflict = self.client.post(
+                f"/api/dashboard/review-claims/{disagreement_id}"
+            )
+            self.assertEqual(conflict.status_code, 409)
+            overview = self.client.get("/api/dashboard/overview").json()
+            self.assertEqual(overview["shadow_reviews"][0]["claim_state"], "other")
 
 
 if __name__ == "__main__":

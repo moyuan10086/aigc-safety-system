@@ -1,5 +1,6 @@
 """Tests for password hashing, signed sessions and auth endpoints."""
 
+import json
 import unittest
 from unittest.mock import patch
 
@@ -27,6 +28,7 @@ class AuthTests(unittest.TestCase):
             AUTH_DISPLAY_NAME="审核员",
             AUTH_ROLE="operator",
             AUTH_PASSWORD_HASH=auth_service.hash_password(self.password, iterations=100_000),
+            AUTH_OPERATORS_JSON="",
             AUTH_SESSION_SECRET="test-session-secret-with-enough-entropy",
             AUTH_SESSION_TTL_SECONDS=3600,
             AUTH_COOKIE_SECURE=False,
@@ -80,6 +82,30 @@ class AuthTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 503)
         self.assertIn("尚未配置", response.json()["detail"])
+
+    def test_multiple_operator_accounts_keep_distinct_signed_identities(self):
+        second_password = "Second-Reviewer-2026"
+        accounts = json.dumps([{
+            "username": "reviewer02",
+            "display_name": "复核员 02",
+            "role": "operator",
+            "password_hash": auth_service.hash_password(
+                second_password, iterations=100_000
+            ),
+        }], ensure_ascii=False)
+        with patch.object(config, "AUTH_OPERATORS_JSON", accounts):
+            second = auth_service.authenticate("reviewer02", second_password)
+            self.assertEqual(second["display_name"], "复核员 02")
+            self.assertNotEqual(second["username"], auth_service.current_user()["username"])
+            token = auth_service.create_session(second, now=100)
+            verified = auth_service.verify_session(token, now=101)
+            self.assertEqual(verified["username"], "reviewer02")
+            self.assertEqual(verified["display_name"], "复核员 02")
+            self.assertIsNone(auth_service.authenticate("unknown", second_password))
+
+        with patch.object(config, "AUTH_OPERATORS_JSON", "not-json"):
+            self.assertFalse(auth_service.configured())
+            self.assertIsNone(auth_service.verify_session(token, now=101))
 
     def test_repeated_failures_are_rate_limited(self):
         for _ in range(5):

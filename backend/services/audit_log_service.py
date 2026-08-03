@@ -21,6 +21,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 _LOCK = threading.RLock()
 _INITIALIZED_PATHS: set[str] = set()
 _INSERT_COUNT = 0
+HUMAN_REVIEW_TARGET = 200
+HUMAN_REVIEW_PILOT_TARGET = 20
 
 
 def _db_path() -> Path:
@@ -710,6 +712,9 @@ def _review_item(
         "review_claim_verified": bool(row["claim_verified"])
         if "claim_verified" in row_keys
         else False,
+        "label_evidence_verified": bool(row["label_evidence_verified"])
+        if "label_evidence_verified" in row_keys
+        else False,
     }
 
 
@@ -799,7 +804,31 @@ def shadow_review_statistics(
                          AND evidence_access.occurred_at > COALESCE(
                              guardrail_review_claims.claimed_at, ''
                          )
-                   ) AS evidence_reviewed
+                   ) AS evidence_reviewed,
+                   EXISTS(
+                       SELECT 1 FROM audit_events AS review_claim
+                       WHERE review_claim.event_type = 'guardrail.review_claim'
+                         AND review_claim.resource_id = audit_events.id
+                         AND review_claim.actor = guardrail_shadow_reviews.reviewer
+                         AND review_claim.outcome = 'success'
+                         AND review_claim.occurred_at <= guardrail_shadow_reviews.reviewed_at
+                   ) AS claim_verified,
+                   EXISTS(
+                       SELECT 1 FROM audit_events AS label_evidence
+                       WHERE label_evidence.event_type = 'audit.evidence_access'
+                         AND label_evidence.resource_id = audit_events.id
+                         AND label_evidence.actor = guardrail_shadow_reviews.reviewer
+                         AND label_evidence.outcome = 'success'
+                         AND label_evidence.occurred_at <= guardrail_shadow_reviews.reviewed_at
+                         AND EXISTS(
+                             SELECT 1 FROM audit_events AS prior_claim
+                             WHERE prior_claim.event_type = 'guardrail.review_claim'
+                               AND prior_claim.resource_id = audit_events.id
+                               AND prior_claim.actor = guardrail_shadow_reviews.reviewer
+                               AND prior_claim.outcome = 'success'
+                               AND prior_claim.occurred_at <= label_evidence.occurred_at
+                         )
+                   ) AS label_evidence_verified
             FROM audit_events
             INNER JOIN audit_evidence ON audit_evidence.event_id = audit_events.id
             LEFT JOIN guardrail_shadow_reviews
@@ -860,13 +889,24 @@ def shadow_review_statistics(
     ]
     reviewed = sum(bool(item["review_label"]) for item in review_items)
     reviewer_reviewed = sum(item["reviewer"] == clean_reviewer for item in review_items)
+    verified_reviews = sum(
+        bool(item["review_label"])
+        and item["review_claim_verified"]
+        and item["label_evidence_verified"]
+        for item in review_items
+    )
     active_claims = sum(item["claim_state"] in {"mine", "other"} for item in review_items)
     claimed_by_me = sum(item["claim_state"] == "mine" for item in review_items)
     review_labels: dict[str, int] = {}
     for item in review_items:
         if item["review_label"]:
             review_labels[item["review_label"]] = review_labels.get(item["review_label"], 0) + 1
-    target_labels = 200
+    reviewer_counts: dict[str, int] = {}
+    for item in review_items:
+        if item["review_label"] and item["reviewer"]:
+            reviewer_counts[item["reviewer"]] = reviewer_counts.get(item["reviewer"], 0) + 1
+    target_labels = HUMAN_REVIEW_TARGET
+    pilot_target_labels = HUMAN_REVIEW_PILOT_TARGET
 
     latency_sorted = sorted(latencies)
     p95_index = max(0, math.ceil(len(latency_sorted) * 0.95) - 1)
@@ -882,16 +922,28 @@ def shadow_review_statistics(
         "false_positive_candidates": false_positive_candidates,
         "false_negative_candidates": false_negative_candidates,
         "target_labels": target_labels,
+        "pilot_target_labels": pilot_target_labels,
+        "pilot_remaining_count": max(0, pilot_target_labels - reviewed),
+        "pilot_completed": reviewed >= pilot_target_labels,
         "eligible_samples": len(review_items),
         "pending_reviews": max(0, len(review_items) - reviewed),
         "reviewed_count": reviewed,
         "reviewer_reviewed_count": reviewer_reviewed,
+        "verified_review_count": verified_reviews,
+        "unverified_review_count": max(0, reviewed - verified_reviews),
+        "review_completion_rate": round(reviewed / target_labels * 100, 1),
         "active_claims": active_claims,
         "claimed_by_me_count": claimed_by_me,
         "remaining_count": max(0, target_labels - reviewed),
         "p95_latency_ms": round(latency_sorted[p95_index], 3) if latency_sorted else 0.0,
         "statuses": statuses,
         "review_labels": review_labels,
+        "reviewer_counts": [
+            {"reviewer": reviewer_name, "count": count}
+            for reviewer_name, count in sorted(
+                reviewer_counts.items(), key=lambda value: (-value[1], value[0])
+            )
+        ],
         "queue": _stratified_review_queue(review_items, queue_limit),
     }
 
@@ -1147,6 +1199,15 @@ def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
                          AND evidence_access.resource_id = audit_events.id
                          AND evidence_access.actor = guardrail_shadow_reviews.reviewer
                          AND evidence_access.outcome = 'success'
+                         AND evidence_access.occurred_at <= guardrail_shadow_reviews.reviewed_at
+                         AND EXISTS(
+                             SELECT 1 FROM audit_events AS prior_claim
+                             WHERE prior_claim.event_type = 'guardrail.review_claim'
+                               AND prior_claim.resource_id = audit_events.id
+                               AND prior_claim.actor = guardrail_shadow_reviews.reviewer
+                               AND prior_claim.outcome = 'success'
+                               AND prior_claim.occurred_at <= evidence_access.occurred_at
+                         )
                    ) AS evidence_reviewed
                    ,EXISTS(
                        SELECT 1 FROM audit_events AS review_claim
@@ -1154,6 +1215,7 @@ def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
                          AND review_claim.resource_id = audit_events.id
                          AND review_claim.actor = guardrail_shadow_reviews.reviewer
                          AND review_claim.outcome = 'success'
+                         AND review_claim.occurred_at <= guardrail_shadow_reviews.reviewed_at
                    ) AS claim_verified
             FROM guardrail_shadow_reviews
             INNER JOIN audit_events ON audit_events.id = guardrail_shadow_reviews.event_id

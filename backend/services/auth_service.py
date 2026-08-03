@@ -14,6 +14,7 @@ import config
 
 PASSWORD_SCHEME = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 310_000
+MAX_OPERATOR_ACCOUNTS = 50
 
 
 def _encode(data: bytes) -> str:
@@ -48,28 +49,82 @@ def verify_password(password: str, encoded: str) -> bool:
         return False
 
 
+def _clean_account(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+    username = str(value.get("username") or "").strip()
+    password_hash = str(value.get("password_hash") or "").strip()
+    display_name = str(value.get("display_name") or username).strip()
+    role = str(value.get("role") or "operator").strip()
+    if not username or len(username) > 128 or not password_hash:
+        return None
+    if len(display_name) > 128 or not role or len(role) > 48:
+        return None
+    return {
+        "username": username,
+        "display_name": display_name or username,
+        "role": role,
+        "password_hash": password_hash,
+    }
+
+
+def _operator_accounts() -> dict[str, dict[str, str]]:
+    accounts: dict[str, dict[str, str]] = {}
+    legacy = _clean_account({
+        "username": config.AUTH_USERNAME,
+        "display_name": config.AUTH_DISPLAY_NAME,
+        "role": config.AUTH_ROLE,
+        "password_hash": config.AUTH_PASSWORD_HASH,
+    })
+    if legacy:
+        accounts[legacy["username"]] = legacy
+
+    raw = str(config.AUTH_OPERATORS_JSON or "").strip()
+    if not raw:
+        return accounts
+    try:
+        values = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(values, list) or len(values) > MAX_OPERATOR_ACCOUNTS:
+        return {}
+    for value in values:
+        account = _clean_account(value)
+        if account is None or account["username"] in accounts:
+            return {}
+        accounts[account["username"]] = account
+    return accounts
+
+
 def configured() -> bool:
-    return bool(
-        config.AUTH_USERNAME
-        and config.AUTH_PASSWORD_HASH
-        and config.AUTH_SESSION_SECRET
-    )
+    return bool(config.AUTH_SESSION_SECRET and _operator_accounts())
 
 
 def authenticate(username: str, password: str) -> dict[str, str] | None:
-    username_matches = hmac.compare_digest(username, config.AUTH_USERNAME)
-    password_matches = verify_password(password, config.AUTH_PASSWORD_HASH)
-    if not configured() or not username_matches or not password_matches:
+    accounts = _operator_accounts()
+    if not config.AUTH_SESSION_SECRET or not accounts:
         return None
-    return current_user()
+    account = accounts.get(username)
+    comparison_hash = (
+        account["password_hash"]
+        if account is not None
+        else next(iter(accounts.values()))["password_hash"]
+    )
+    password_matches = verify_password(password, comparison_hash)
+    if account is None or not password_matches:
+        return None
+    return {key: account[key] for key in ("username", "display_name", "role")}
 
 
-def current_user() -> dict[str, str]:
-    return {
-        "username": config.AUTH_USERNAME,
-        "display_name": config.AUTH_DISPLAY_NAME or config.AUTH_USERNAME,
-        "role": config.AUTH_ROLE,
-    }
+def current_user(username: str | None = None) -> dict[str, str]:
+    accounts = _operator_accounts()
+    selected = username or config.AUTH_USERNAME
+    account = accounts.get(selected)
+    if account is None and username is None and len(accounts) == 1:
+        account = next(iter(accounts.values()))
+    if account is None:
+        raise RuntimeError("operator account is not configured")
+    return {key: account[key] for key in ("username", "display_name", "role")}
 
 
 def create_session(user: dict[str, str], now: int | None = None) -> str:
@@ -105,12 +160,13 @@ def verify_session(token: str | None, now: int | None = None) -> dict[str, Any] 
         current_time = int(time.time() if now is None else now)
         if payload.get("exp", 0) <= current_time:
             return None
-        if not hmac.compare_digest(str(payload.get("sub", "")), config.AUTH_USERNAME):
+        account = _operator_accounts().get(str(payload.get("sub", "")))
+        if account is None:
             return None
         return {
-            "username": payload["sub"],
-            "display_name": payload.get("name") or payload["sub"],
-            "role": payload.get("role") or "operator",
+            "username": account["username"],
+            "display_name": account["display_name"],
+            "role": account["role"],
         }
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
         return None

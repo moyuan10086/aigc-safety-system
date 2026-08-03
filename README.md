@@ -195,6 +195,14 @@ API Key 哈希轮换：先把新值写入 `API_KEY_HASH_SECRET`，旧值暂存�
 uv run python maintenance.py rotate-evidence
 ```
 
+多人复核需要为每位审核员配置独立用户名，租约、证据访问和首次标签才能绑定到真实操作者。保留 `AUTH_USERNAME` 等单账号变量作为兼容账号，并可用单行 JSON 追加最多 50 个账号：
+
+```bash
+AUTH_OPERATORS_JSON=[{"username":"reviewer02","display_name":"复核员 02","role":"operator","password_hash":"pbkdf2_sha256$..."}]
+```
+
+密码摘要使用 `backend/services/auth_service.py` 中的 `hash_password` 生成。服务不会保存或返回明文密码；JSON 无效、用户名重复或条目缺少摘要时认证配置会失败关闭。
+
 ### 中文护栏回归与 XGBoost 影子评测
 
 `evaluations/` 使用 promptfoo 对 `/api/guardrail/check` 执行输入侧、输出侧中文安全回归。该套件默认关闭所有远程分类器，不读取任何生产密钥：

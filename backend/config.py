@@ -40,6 +40,9 @@ AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
 AUTH_DISPLAY_NAME = os.getenv("AUTH_DISPLAY_NAME", "安全审核员")
 AUTH_ROLE = os.getenv("AUTH_ROLE", "operator")
 AUTH_PASSWORD_HASH = os.getenv("AUTH_PASSWORD_HASH", "")
+# Optional JSON array of additional operators. The legacy AUTH_* account stays
+# valid during migration so existing sessions and deployment scripts keep working.
+AUTH_OPERATORS_JSON = os.getenv("AUTH_OPERATORS_JSON", "")
 AUTH_SESSION_SECRET = os.getenv("AUTH_SESSION_SECRET", "")
 AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS", "28800"))
 AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {

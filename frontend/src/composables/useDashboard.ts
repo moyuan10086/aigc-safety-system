@@ -10,16 +10,23 @@ export interface ShadowEvaluationSummary {
   false_positive_candidates: number
   false_negative_candidates: number
   target_labels: number
+  pilot_target_labels: number
+  pilot_remaining_count: number
+  pilot_completed: boolean
   eligible_samples: number
   pending_reviews: number
   reviewed_count: number
   reviewer_reviewed_count: number
+  verified_review_count: number
+  unverified_review_count: number
+  review_completion_rate: number
   active_claims: number
   claimed_by_me_count: number
   remaining_count: number
   p95_latency_ms: number
   statuses: Record<string, number>
   review_labels: Record<string, number>
+  reviewer_counts: Array<{ reviewer: string; count: number }>
 }
 
 export interface ShadowReviewItem {
@@ -47,6 +54,7 @@ export interface ShadowReviewItem {
   reviewer?: string
   reviewed_at?: string
   review_claim_verified: boolean
+  label_evidence_verified: boolean
 }
 
 export interface ReviewResolution {
