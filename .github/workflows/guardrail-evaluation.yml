@@ -48,6 +48,9 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: uv sync --frozen
+      - name: Run backend lint
+        working-directory: backend
+        run: uv run ruff check .
       - name: Run backend tests
         working-directory: backend
         run: uv run python -m unittest discover -s tests

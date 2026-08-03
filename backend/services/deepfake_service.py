@@ -1,17 +1,18 @@
 """
 Deepfake 检测服务 — 复用 deepfake-detection 项目模块
 """
+import hashlib
 import sys
 from pathlib import Path
 
 DFDET_ROOT = Path(__file__).parents[2] / "deepfake-detection"
 sys.path.insert(0, str(DFDET_ROOT))
 
-import torch
-from PIL import Image
-from huggingface_hub import hf_hub_download
-from src.config import Config
-from src.model.dfdet import DeepfakeDetectionModel
+import torch  # noqa: E402
+from PIL import Image  # noqa: E402
+from huggingface_hub import hf_hub_download  # noqa: E402
+from src.config import Config  # noqa: E402
+from src.model.dfdet import DeepfakeDetectionModel  # noqa: E402
 
 _model = None
 _preprocess = None
@@ -46,8 +47,6 @@ def _load():
 
     _model = model
 
-
-import hashlib
 _cache: dict = {}
 
 

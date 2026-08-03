@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, File, Form, UploadFile, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 
 from services import kb_service

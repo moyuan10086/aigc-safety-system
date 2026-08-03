@@ -52,7 +52,6 @@ async def update_config(
     ):
         raise HTTPException(status_code=401, detail="管理令牌无效")
     env_path = Path(__file__).parents[1] / ".env"
-    lines = []
     mapping = {
         "MLLM_BASE_URL": body.mllm_base_url,
         "MLLM_MODEL": body.mllm_model,
@@ -73,11 +72,17 @@ async def update_config(
     env_path.write_text("\n".join(existing.values()) + "\n", encoding="utf-8")
 
     # Update in-memory config
-    if body.mllm_base_url: config.MLLM_BASE_URL = body.mllm_base_url
-    if body.mllm_model: config.MLLM_MODEL = body.mllm_model
-    if body.mllm_api_key: config.MLLM_API_KEY = body.mllm_api_key
-    if body.deepfake_model_path: config.DEEPFAKE_MODEL_PATH = body.deepfake_model_path
-    if body.chroma_path: config.CHROMA_PATH = body.chroma_path
-    if body.lexicon_path: config.LEXICON_PATH = body.lexicon_path
+    if body.mllm_base_url:
+        config.MLLM_BASE_URL = body.mllm_base_url
+    if body.mllm_model:
+        config.MLLM_MODEL = body.mllm_model
+    if body.mllm_api_key:
+        config.MLLM_API_KEY = body.mllm_api_key
+    if body.deepfake_model_path:
+        config.DEEPFAKE_MODEL_PATH = body.deepfake_model_path
+    if body.chroma_path:
+        config.CHROMA_PATH = body.chroma_path
+    if body.lexicon_path:
+        config.LEXICON_PATH = body.lexicon_path
 
     return {"status": "ok"}

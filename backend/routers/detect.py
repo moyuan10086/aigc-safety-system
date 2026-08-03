@@ -296,8 +296,11 @@ async def download_report_md(report_id: str):
     report = json.loads(p.read_text(encoding="utf-8"))
     summary = report.get("summary", "")
     # 生成完整 Markdown 文档
-    lines = [f"# AIGC 内容安全审计报告\n", f"**报告ID**: {report_id}  \n",
-             f"**生成时间**: {report.get('created_at','')}\n\n---\n"]
+    lines = [
+        "# AIGC 内容安全审计报告\n",
+        f"**报告ID**: {report_id}  \n",
+        f"**生成时间**: {report.get('created_at','')}\n\n---\n",
+    ]
     if report.get("filename"):
         lines.append(f"**检测文件**: {report['filename']}\n\n")
     if report.get("deepfake"):

@@ -3,7 +3,6 @@ OCR 服务 — pypdf 提取失败时 fallback 到 PaddleOCR，
 并可调用 MLLM 对图片页面做内容分析
 """
 import re
-from pathlib import Path
 
 _ocr = None
 

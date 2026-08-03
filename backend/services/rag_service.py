@@ -64,7 +64,11 @@ def _init():
             for f in lex_path.glob("*.txt"):
                 try:
                     with open(f, encoding="utf-8") as fp:
-                        _keywords.extend([l.strip() for l in fp if l.strip() and not l.startswith("#")])
+                        _keywords.extend([
+                            line.strip()
+                            for line in fp
+                            if line.strip() and not line.startswith("#")
+                        ])
                 except Exception:
                     pass
 
