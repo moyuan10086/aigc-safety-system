@@ -63,6 +63,8 @@ def _load_guardrail(offline: bool) -> Callable[..., dict[str, Any]]:
             "GUARDRAIL_ENABLE_XGBOOST_SHADOW",
         ):
             os.environ[switch] = "false"
+    # Runtime configuration includes model and lexicon paths relative to backend/.
+    os.chdir(BACKEND_DIR)
     if str(BACKEND_DIR) not in sys.path:
         sys.path.insert(0, str(BACKEND_DIR))
     from services import guardrail_service
