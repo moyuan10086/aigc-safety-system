@@ -1,6 +1,7 @@
 """Large-model safety guardrail API."""
 
 import asyncio
+import json
 import threading
 import time
 from collections import defaultdict, deque
@@ -10,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 import config
-from services import guarded_chat_service
+from services import agent_guardrail_service, guarded_chat_service
 from services import guardrail_service
 from services import audit_log_service, auth_service
 
@@ -55,6 +56,33 @@ class GuardedChatRequest(BaseModel):
     max_tokens: int | None = Field(default=None, ge=64, le=1_200)
 
 
+class AgentActionBase(BaseModel):
+    tool_name: str = Field(min_length=1, max_length=120)
+    resource: str = Field(min_length=1, max_length=500)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_action_size(self):
+        canonical = json.dumps(
+            self.arguments,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(canonical.encode("utf-8")) > 12_000:
+            raise ValueError("Agent 工具参数不能超过 12 KB")
+        return self
+
+
+class AgentActionCheckRequest(AgentActionBase):
+    approval_token: str | None = Field(default=None, max_length=2_000)
+
+
+class AgentApprovalRequest(AgentActionBase):
+    reason: str = Field(min_length=2, max_length=500)
+    ttl_seconds: int | None = Field(default=None, ge=60, le=900)
+
+
 def _client_key(request: Request) -> str:
     client_host = request.client.host if request.client else "unknown"
     if client_host in {"127.0.0.1", "::1"}:
@@ -77,6 +105,13 @@ def _actor_context(request: Request) -> tuple[str, dict[str, str]]:
         )
     user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
     return (user["username"] if user else "anonymous", {})
+
+
+def _operator(request: Request) -> dict[str, str]:
+    user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+    if user is None:
+        raise HTTPException(status_code=401, detail="请先登录审核员账号")
+    return user
 
 
 def _rate_limit(request: Request) -> None:
@@ -143,6 +178,100 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
 @router.get("/model-status")
 async def get_model_status():
     return guarded_chat_service.model_status()
+
+
+@router.post("/agent/approvals")
+async def issue_agent_approval(body: AgentApprovalRequest, request: Request):
+    user = _operator(request)
+    try:
+        issued = await asyncio.to_thread(
+            agent_guardrail_service.issue_approval,
+            tool_name=body.tool_name,
+            arguments=body.arguments,
+            resource=body.resource,
+            approver=user["username"],
+            ttl_seconds=body.ttl_seconds,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    event_id = audit_log_service.record_safe(
+        event_type="guardrail.agent_approval.issue",
+        module="guardrail",
+        action="issue_agent_action_approval",
+        severity="warning",
+        outcome="success",
+        actor=user["username"],
+        client_ip=_client_key(request),
+        summary="签发 Agent 工具执行一次性审批凭证",
+        resource_id=getattr(request.state, "request_id", None),
+        content_hash=issued["action_digest"],
+        metadata={
+            "approval_id": issued["approval_id"],
+            "tool_name": body.tool_name.strip()[:120],
+            "resource_hash": audit_log_service.content_digest(body.resource),
+            "reason_hash": audit_log_service.content_digest(body.reason),
+            "expires_at": issued["expires_at"],
+            "single_use": True,
+        },
+    )
+    if event_id:
+        audit_log_service.store_evidence(
+            event_id,
+            prompt=agent_guardrail_service.canonical_action(
+                body.tool_name, body.arguments, body.resource
+            ),
+            response=body.reason,
+            dangerous=True,
+        )
+    return issued
+
+
+@router.post("/agent/check")
+async def check_agent_action(body: AgentActionCheckRequest, request: Request):
+    result = await asyncio.to_thread(
+        agent_guardrail_service.check_action,
+        tool_name=body.tool_name,
+        arguments=body.arguments,
+        resource=body.resource,
+        approval_token=body.approval_token,
+    )
+    actor, api_metadata = _actor_context(request)
+    event_id = audit_log_service.record_safe(
+        event_type="guardrail.agent_check",
+        module="guardrail",
+        action="pre_execute_agent_tool",
+        severity={"safe": "info", "borderline": "warning", "unsafe": "critical"}.get(
+            result["verdict"], "warning"
+        ),
+        outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(
+            result["verdict"], "error"
+        ),
+        actor=actor,
+        client_ip=_client_key(request),
+        summary=f"Agent 工具执行前门禁：{result['risk_code']}",
+        resource_id=getattr(request.state, "request_id", None),
+        risk_code=result["risk_code"],
+        risk_score=result["risk_score"],
+        content_hash=result["action_digest"],
+        metadata={
+            "tool_name": body.tool_name.strip()[:120],
+            "resource_hash": audit_log_service.content_digest(body.resource),
+            "categories": result.get("categories", []),
+            "approval_status": result.get("approval", {}).get("status"),
+            "engine_components": result.get("engine", {}).get("components", {}),
+            **api_metadata,
+        },
+    )
+    if event_id:
+        audit_log_service.store_evidence(
+            event_id,
+            prompt=agent_guardrail_service.canonical_action(
+                body.tool_name, body.arguments, body.resource
+            ),
+            dangerous=result["verdict"] != "safe",
+        )
+        result["audit_event_id"] = event_id
+    return result
 
 
 @router.post("/chat")

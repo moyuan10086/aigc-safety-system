@@ -117,6 +117,7 @@ const usage = reactive({ totals:{ requests:0, tenants:0, keys:0, success_rate:0,
 const scopeOptions = [
   { value:'guardrail:check', label:'输入输出护栏' },
   { value:'guardrail:chat', label:'受保护模型调用' },
+  { value:'guardrail:agent', label:'Agent 执行前门禁' },
   { value:'content:check', label:'红线内容审核' },
   { value:'image:face', label:'人脸质量检查' },
   { value:'image:deepfake', label:'Deepfake 检测' },

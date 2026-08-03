@@ -49,6 +49,17 @@ AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {
     "1", "true", "yes", "on"
 }
 
+# Short-lived, exact-action approvals for Agent tool execution. A dedicated
+# secret can be rotated independently; deployments may fall back to the signed
+# operator-session secret to keep the feature fail-closed and easy to operate.
+AGENT_APPROVAL_SIGNING_SECRET = (
+    os.getenv("AGENT_APPROVAL_SIGNING_SECRET", "") or AUTH_SESSION_SECRET
+)
+AGENT_APPROVAL_TTL_SECONDS = int(os.getenv("AGENT_APPROVAL_TTL_SECONDS", "300"))
+AGENT_APPROVAL_MAX_TTL_SECONDS = int(
+    os.getenv("AGENT_APPROVAL_MAX_TTL_SECONDS", "900")
+)
+
 # External API access. API keys are stored as one-way HMAC digests in a
 # separate SQLite ledger; the plaintext key is returned only at issuance time.
 API_KEY_HASH_SECRET = os.getenv("API_KEY_HASH_SECRET", "") or AUTH_SESSION_SECRET

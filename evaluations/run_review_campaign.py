@@ -17,7 +17,7 @@ import math
 from pathlib import Path
 import sqlite3
 import time
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Dict, Iterable
 from urllib import error, request
 
 from blind_cases import BLIND_CASES
@@ -50,7 +50,7 @@ class Candidate:
     content_hash: str
 
 
-Sender = Callable[[str, dict[str, str], float], dict[str, Any]]
+Sender = Callable[[str, Dict[str, str], float], Dict[str, Any]]
 
 
 def _content_hash(prompt: str, response: str) -> str:

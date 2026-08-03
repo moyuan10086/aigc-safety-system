@@ -106,6 +106,16 @@ def _initialize(connection: sqlite3.Connection, key: str) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_review_claims_reviewer
                 ON guardrail_review_claims(reviewer, expires_at DESC);
+            CREATE TABLE IF NOT EXISTS agent_action_approvals (
+                token_id_hash TEXT PRIMARY KEY,
+                action_digest TEXT NOT NULL,
+                approver TEXT NOT NULL,
+                issued_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_approvals_expires_at
+                ON agent_action_approvals(expires_at DESC);
             """
         )
         connection.commit()
@@ -298,6 +308,69 @@ def get_evidence(event_id: str) -> dict[str, Any] | None:
         "encrypted_at_rest": True,
     })
     return data
+
+
+def register_agent_approval(
+    *,
+    token_id: str,
+    action_digest: str,
+    approver: str,
+    issued_at: str,
+    expires_at: str,
+) -> None:
+    """Persist only a token digest so approvals survive process restarts."""
+    token_id_hash = content_digest(token_id)
+    if not token_id_hash:
+        raise ValueError("agent approval token id is required")
+    with _LOCK, closing(_connect()) as connection:
+        connection.execute(
+            """
+            INSERT INTO agent_action_approvals
+                (token_id_hash, action_digest, approver, issued_at, expires_at, used_at)
+            VALUES (?, ?, ?, ?, ?, NULL)
+            """,
+            (token_id_hash, action_digest, approver, issued_at, expires_at),
+        )
+        connection.commit()
+
+
+def consume_agent_approval(
+    *,
+    token_id: str,
+    action_digest: str,
+    now: str,
+) -> tuple[str, str | None]:
+    """Atomically consume an exact-action approval and reject replay."""
+    token_id_hash = content_digest(token_id)
+    if not token_id_hash:
+        return "invalid", None
+    with _LOCK, closing(_connect()) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            """
+            SELECT action_digest, approver, expires_at, used_at
+            FROM agent_action_approvals WHERE token_id_hash = ?
+            """,
+            (token_id_hash,),
+        ).fetchone()
+        if row is None:
+            connection.rollback()
+            return "invalid", None
+        if row["action_digest"] != action_digest:
+            connection.rollback()
+            return "mismatch", row["approver"]
+        if row["used_at"] is not None:
+            connection.rollback()
+            return "replayed", row["approver"]
+        if row["expires_at"] <= now:
+            connection.rollback()
+            return "expired", row["approver"]
+        connection.execute(
+            "UPDATE agent_action_approvals SET used_at = ? WHERE token_id_hash = ?",
+            (now, token_id_hash),
+        )
+        connection.commit()
+        return "valid", row["approver"]
 
 
 def reencrypt_evidence() -> int:
