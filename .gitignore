@@ -23,6 +23,7 @@ frontend/dist/
 backend/uploads/
 backend/reports/
 backend/audit_logs/
+backend/audit_archives/
 backend/rag_db/
 backend/rag/
 *.log
