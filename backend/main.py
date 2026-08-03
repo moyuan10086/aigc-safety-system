@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from routers.detect import router as detect_router
@@ -7,6 +8,7 @@ from routers.system import router as system_router
 from routers.garak_scan import router as garak_router
 from routers.kb import router as kb_router
 from routers.guardrail import router as guardrail_router
+from routers.auth import router as auth_router
 import config
 
 app = FastAPI(title="AIGC 内容安全审核系统")
@@ -14,6 +16,7 @@ app = FastAPI(title="AIGC 内容安全审核系统")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -23,9 +26,7 @@ app.include_router(system_router)
 app.include_router(garak_router)
 app.include_router(kb_router)
 app.include_router(guardrail_router)
-
-from fastapi.responses import FileResponse
-
+app.include_router(auth_router)
 
 @app.get("/api/health", tags=["system"])
 async def health_check():

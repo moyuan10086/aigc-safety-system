@@ -34,6 +34,18 @@ CORS_ORIGINS = [
     if origin.strip()
 ]
 
+# Operator authentication. Passwords are stored as PBKDF2 digests; the session
+# secret signs HttpOnly cookies and must be unique in production.
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
+AUTH_DISPLAY_NAME = os.getenv("AUTH_DISPLAY_NAME", "安全审核员")
+AUTH_ROLE = os.getenv("AUTH_ROLE", "operator")
+AUTH_PASSWORD_HASH = os.getenv("AUTH_PASSWORD_HASH", "")
+AUTH_SESSION_SECRET = os.getenv("AUTH_SESSION_SECRET", "")
+AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS", "28800"))
+AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {
+    "1", "true", "yes", "on"
+}
+
 # Text guardrail feature switches. Rule-based checks are always enabled; local
 # RAG and remote MLLM analysis are optional enrichment layers.
 GUARDRAIL_ENABLE_RAG = os.getenv("GUARDRAIL_ENABLE_RAG", "true").lower() in {

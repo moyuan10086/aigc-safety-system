@@ -16,6 +16,8 @@
         </router-link>
       </nav>
 
+      <SidebarAccount :expanded="sidebarOpen" />
+
       <div class="sidebar-foot">
         <div v-show="sidebarOpen" class="engine-state"><i></i><span>防护引擎在线</span><b>v1.1</b></div>
         <button class="icon-command" title="关于系统" @click="showAbout = true"><InfoIcon :size="18" /></button>
@@ -55,6 +57,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import SidebarAccount from './components/auth/SidebarAccount.vue'
+import { restoreSession } from './composables/useAuth'
 import {
   BookOpen as BookIcon,
   ChartNoAxesCombined as ChartIcon,
@@ -83,7 +87,10 @@ const showAbout = ref(false)
 const currentTitle = computed(() => navItems.find(n => route.path.startsWith(n.to))?.label ?? PLATFORM_NAME)
 const sidebarStyle = computed(() => ({ '--sidebar-w': sidebarOpen.value ? '252px' : '68px' }))
 const onResize = () => { if (window.innerWidth <= 760) sidebarOpen.value = false }
-onMounted(() => window.addEventListener('resize', onResize))
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+  restoreSession()
+})
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 watch(currentTitle, (title) => { document.title = `${title} - ${PLATFORM_NAME}` }, { immediate: true })
 watch(() => route.path, () => { if (window.innerWidth <= 760) sidebarOpen.value = false })
