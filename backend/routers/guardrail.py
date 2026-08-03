@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 import config
-from services import agent_guardrail_service, guarded_chat_service
+from services import agent_guardrail_service, agent_result_guardrail_service, guarded_chat_service
 from services import guardrail_service
 from services import audit_log_service, auth_service
 
@@ -81,6 +81,16 @@ class AgentActionCheckRequest(AgentActionBase):
 class AgentApprovalRequest(AgentActionBase):
     reason: str = Field(min_length=2, max_length=500)
     ttl_seconds: int | None = Field(default=None, ge=60, le=900)
+
+
+class AgentResultCheckRequest(AgentActionBase):
+    output: str = Field(min_length=1, max_length=12_000)
+
+    @model_validator(mode="after")
+    def validate_output(self):
+        if not self.output.strip():
+            raise ValueError("Agent 工具返回内容不能为空")
+        return self
 
 
 def _client_key(request: Request) -> str:
@@ -268,6 +278,58 @@ async def check_agent_action(body: AgentActionCheckRequest, request: Request):
             prompt=agent_guardrail_service.canonical_action(
                 body.tool_name, body.arguments, body.resource
             ),
+            dangerous=result["verdict"] != "safe",
+        )
+        result["audit_event_id"] = event_id
+    return result
+
+
+@router.post("/agent/result/check")
+async def check_agent_result(body: AgentResultCheckRequest, request: Request):
+    result = await asyncio.to_thread(
+        agent_result_guardrail_service.check_result,
+        tool_name=body.tool_name,
+        arguments=body.arguments,
+        resource=body.resource,
+        content=body.output,
+    )
+    actor, api_metadata = _actor_context(request)
+    event_id = audit_log_service.record_safe(
+        event_type="guardrail.agent_result_check",
+        module="guardrail",
+        action="review_agent_tool_result",
+        severity={"safe": "info", "borderline": "warning", "unsafe": "critical"}.get(
+            result["verdict"], "warning"
+        ),
+        outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(
+            result["verdict"], "error"
+        ),
+        actor=actor,
+        client_ip=_client_key(request),
+        summary=f"Agent 工具结果回传复检：{result['risk_code']}",
+        resource_id=getattr(request.state, "request_id", None),
+        risk_code=result["risk_code"],
+        risk_score=result["risk_score"],
+        content_hash=result["content_hash"],
+        metadata={
+            "tool_name": body.tool_name.strip()[:120],
+            "resource_hash": audit_log_service.content_digest(body.resource),
+            "action_digest": result["action_digest"],
+            "result_digest": result["result_digest"],
+            "categories": result.get("categories", []),
+            "content_released": result["content_released"],
+            "quarantined": result["quarantined"],
+            "engine_components": result.get("engine", {}).get("components", {}),
+            **api_metadata,
+        },
+    )
+    if event_id:
+        audit_log_service.store_evidence(
+            event_id,
+            prompt=agent_guardrail_service.canonical_action(
+                body.tool_name, body.arguments, body.resource
+            ),
+            response=body.output,
             dangerous=result["verdict"] != "safe",
         )
         result["audit_event_id"] = event_id
