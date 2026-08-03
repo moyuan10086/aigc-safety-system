@@ -41,12 +41,28 @@ class MaintenanceServiceTests(unittest.TestCase):
             event_type="system.test", module="system", action="backup", summary="备份测试"
         )
         audit_log_service.store_evidence(event_id, prompt="保留原文", dangerous=True)
+        disagreement_id = audit_log_service.record(
+            event_type="guardrail.check",
+            module="guardrail",
+            action="check_prompt",
+            outcome="allowed",
+            summary="影子分歧",
+            metadata={
+                "shadow_evaluation": {
+                    "status": "ok",
+                    "decision": "fail",
+                    "agreement": False,
+                }
+            },
+        )
+        audit_log_service.resolve_shadow_review(disagreement_id, "safe", "operator")
         api_access_service.issue_key(
             tenant_id="tenant-a", name="backup-test", scopes=["usage:read"]
         )
         backup = maintenance_service.create_backup(label="unit-test")
         self.assertTrue(backup["audit_chain_valid"])
         self.assertEqual(backup["counts"]["audit_evidence"], 1)
+        self.assertEqual(backup["counts"]["guardrail_shadow_reviews"], 1)
         verified = maintenance_service.verify_backup(backup["archive"])
         self.assertTrue(verified["valid"])
         self.assertTrue((Path(backup["path"]) / "audit.db").is_file())

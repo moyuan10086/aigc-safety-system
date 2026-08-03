@@ -91,6 +91,12 @@ def _model_states() -> list[dict[str, Any]]:
             ),
         },
         {
+            "id": "xgboost_shadow",
+            "label": "XGBoost 影子评测",
+            "model": "Local Hybrid Safety Model",
+            "status": "enabled" if config.GUARDRAIL_ENABLE_XGBOOST_SHADOW else "standby",
+        },
+        {
             "id": "deepfake",
             "label": "Deepfake 检测",
             "model": "DFDet model.ckpt",
@@ -109,11 +115,16 @@ def overview(hours: int = 24) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     audit = audit_log_service.dashboard_statistics(hours=hours, now=now)
     reports = _report_statistics(now - timedelta(hours=audit["window"]["hours"]))
+    shadow = audit_log_service.shadow_review_statistics(
+        hours=audit["window"]["hours"], now=now
+    )
     models = _model_states()
     audit["summary"]["business_reviews"] += reports["in_window"]
     audit.update({
         "generated_at": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
         "reports": reports,
+        "shadow_evaluation": {key: value for key, value in shadow.items() if key != "queue"},
+        "shadow_reviews": shadow["queue"],
         "models": models,
         "service_health": {
             "api": "online",

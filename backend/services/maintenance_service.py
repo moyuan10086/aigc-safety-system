@@ -54,7 +54,15 @@ def _online_backup(source: Path, destination: Path) -> None:
 def _counts(path: Path) -> dict[str, int]:
     with closing(sqlite3.connect(path, timeout=10)) as connection:
         result: dict[str, int] = {}
-        for table in ("audit_events", "audit_evidence", "api_keys", "api_usage", "tenant_scan_jobs", "tenant_reports"):
+        for table in (
+            "audit_events",
+            "audit_evidence",
+            "guardrail_shadow_reviews",
+            "api_keys",
+            "api_usage",
+            "tenant_scan_jobs",
+            "tenant_reports",
+        ):
             try:
                 result[table] = int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
             except sqlite3.OperationalError:

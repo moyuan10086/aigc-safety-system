@@ -85,6 +85,16 @@ def _initialize(connection: sqlite3.Connection, key: str) -> None:
                 dangerous INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(event_id) REFERENCES audit_events(id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS guardrail_shadow_reviews (
+                event_id TEXT PRIMARY KEY,
+                review_label TEXT NOT NULL,
+                reason_code TEXT NOT NULL,
+                reviewer TEXT NOT NULL,
+                reviewed_at TEXT NOT NULL,
+                FOREIGN KEY(event_id) REFERENCES audit_events(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_shadow_reviews_reviewed_at
+                ON guardrail_shadow_reviews(reviewed_at DESC);
             """
         )
         connection.commit()
@@ -355,6 +365,20 @@ def list_events(*, page: int = 1, page_size: int = 30, **filters: Any) -> dict[s
     return {"items": [_row_to_event(row) for row in rows], "total": total, "page": page, "page_size": page_size}
 
 
+def get_event(event_id: str) -> dict[str, Any] | None:
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            """
+            SELECT audit_events.*,
+                   EXISTS(SELECT 1 FROM audit_evidence WHERE audit_evidence.event_id = audit_events.id)
+                       AS has_evidence
+            FROM audit_events WHERE audit_events.id = ?
+            """,
+            (event_id,),
+        ).fetchone()
+    return _row_to_event(row) if row else None
+
+
 def export_events(*, limit: int = 5000, **filters: Any) -> list[dict[str, Any]]:
     where, params = _where(filters)
     with closing(_connect()) as connection:
@@ -591,6 +615,194 @@ def dashboard_statistics(
         ],
         "recent_alerts": list(reversed(recent_alerts[-12:])),
         "chain_valid": verify_chain(),
+    }
+
+
+def _primary_verdict(outcome: str) -> str | None:
+    return {
+        "allowed": "safe",
+        "review": "borderline",
+        "blocked": "unsafe",
+        "denied": "unsafe",
+    }.get(outcome)
+
+
+def _shadow_reason(primary_verdict: str, shadow_decision: str, review_label: str) -> str:
+    if review_label == "borderline":
+        return "policy_ambiguous"
+    if review_label == "safe":
+        return "shadow_false_positive" if shadow_decision == "fail" else "primary_false_positive"
+    if review_label == "unsafe":
+        return "shadow_false_negative" if shadow_decision == "pass" else "primary_false_negative"
+    return "reviewer_confirmation"
+
+
+def shadow_review_statistics(
+    hours: int = 24,
+    *,
+    now: datetime | None = None,
+    queue_limit: int = 8,
+) -> dict[str, Any]:
+    """Aggregate metadata-only shadow comparisons and their structured reviews."""
+    hours = max(1, min(int(hours), 168))
+    queue_limit = max(1, min(int(queue_limit), 50))
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    start = now - timedelta(hours=hours)
+    with closing(_connect()) as connection:
+        rows = connection.execute(
+            """
+            SELECT audit_events.id, audit_events.occurred_at, audit_events.outcome,
+                   audit_events.risk_code, audit_events.risk_score,
+                   audit_events.content_hash, audit_events.metadata_json,
+                   EXISTS(SELECT 1 FROM audit_evidence WHERE audit_evidence.event_id = audit_events.id)
+                       AS has_evidence,
+                   guardrail_shadow_reviews.review_label,
+                   guardrail_shadow_reviews.reason_code,
+                   guardrail_shadow_reviews.reviewer,
+                   guardrail_shadow_reviews.reviewed_at
+            FROM audit_events
+            LEFT JOIN guardrail_shadow_reviews
+                ON guardrail_shadow_reviews.event_id = audit_events.id
+            WHERE audit_events.event_type = 'guardrail.check'
+              AND audit_events.occurred_at >= ? AND audit_events.occurred_at <= ?
+            ORDER BY audit_events.occurred_at DESC, audit_events.rowid DESC
+            """,
+            (
+                start.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                now.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            ),
+        ).fetchall()
+
+    observed_events = 0
+    evaluated_samples = 0
+    agreements = 0
+    disagreements = 0
+    not_comparable = 0
+    false_positive_candidates = 0
+    false_negative_candidates = 0
+    reviewed = 0
+    latencies: list[float] = []
+    statuses: dict[str, int] = {}
+    review_labels: dict[str, int] = {}
+    queue: list[dict[str, Any]] = []
+
+    for row in rows:
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        shadow = metadata.get("shadow_evaluation")
+        if not isinstance(shadow, dict) or not shadow:
+            continue
+        observed_events += 1
+        status = str(shadow.get("status") or "unknown")[:32]
+        statuses[status] = statuses.get(status, 0) + 1
+        if status != "ok":
+            continue
+        evaluated_samples += 1
+        agreement = shadow.get("agreement")
+        agreements += int(agreement is True)
+        disagreements += int(agreement is False)
+        not_comparable += int(agreement is None)
+        latency = shadow.get("latency_ms")
+        if isinstance(latency, (int, float)) and latency >= 0:
+            latencies.append(float(latency))
+
+        primary_verdict = _primary_verdict(row["outcome"])
+        shadow_decision = str(shadow.get("decision") or "")
+        if agreement is False and primary_verdict == "safe" and shadow_decision == "fail":
+            false_positive_candidates += 1
+        if agreement is False and primary_verdict == "unsafe" and shadow_decision == "pass":
+            false_negative_candidates += 1
+
+        if row["review_label"]:
+            reviewed += 1
+            review_labels[row["review_label"]] = review_labels.get(row["review_label"], 0) + 1
+
+        if agreement is False and len(queue) < queue_limit:
+            categories = metadata.get("categories")
+            queue.append({
+                "event_id": row["id"],
+                "occurred_at": row["occurred_at"],
+                "primary_verdict": primary_verdict,
+                "risk_code": row["risk_code"],
+                "risk_score": row["risk_score"],
+                "content_hash": row["content_hash"],
+                "categories": categories if isinstance(categories, list) else [],
+                "shadow_decision": shadow_decision,
+                "shadow_confidence": shadow.get("confidence"),
+                "shadow_alert": bool(shadow.get("alert")),
+                "shadow_latency_ms": latency,
+                "shadow_risk_type": str(shadow.get("risk_type") or "")[:64],
+                "has_evidence": bool(row["has_evidence"]),
+                "review_label": row["review_label"],
+                "reason_code": row["reason_code"],
+                "reviewer": row["reviewer"],
+                "reviewed_at": row["reviewed_at"],
+            })
+
+    latency_sorted = sorted(latencies)
+    p95_index = max(0, math.ceil(len(latency_sorted) * 0.95) - 1)
+    return {
+        "observed_events": observed_events,
+        "evaluated_samples": evaluated_samples,
+        "agreement_count": agreements,
+        "disagreement_count": disagreements,
+        "not_comparable_count": not_comparable,
+        "agreement_rate": round(agreements / (agreements + disagreements) * 100, 1)
+        if agreements + disagreements
+        else 0.0,
+        "false_positive_candidates": false_positive_candidates,
+        "false_negative_candidates": false_negative_candidates,
+        "pending_reviews": max(0, disagreements - reviewed),
+        "reviewed_count": reviewed,
+        "p95_latency_ms": round(latency_sorted[p95_index], 3) if latency_sorted else 0.0,
+        "statuses": statuses,
+        "review_labels": review_labels,
+        "queue": queue,
+    }
+
+
+def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> dict[str, Any]:
+    if review_label not in {"safe", "borderline", "unsafe"}:
+        raise ValueError("invalid_review_label")
+    with _LOCK, closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT outcome, metadata_json FROM audit_events WHERE id = ? AND event_type = 'guardrail.check'",
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            raise LookupError("shadow_disagreement_not_found")
+        try:
+            shadow = json.loads(row["metadata_json"] or "{}").get("shadow_evaluation") or {}
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise LookupError("shadow_disagreement_not_found") from exc
+        primary_verdict = _primary_verdict(row["outcome"])
+        shadow_decision = str(shadow.get("decision") or "")
+        if shadow.get("status") != "ok" or shadow.get("agreement") is not False:
+            raise LookupError("shadow_disagreement_not_found")
+        reason_code = _shadow_reason(primary_verdict or "unknown", shadow_decision, review_label)
+        reviewed_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        connection.execute(
+            """
+            INSERT INTO guardrail_shadow_reviews
+                (event_id, review_label, reason_code, reviewer, reviewed_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(event_id) DO UPDATE SET
+                review_label = excluded.review_label,
+                reason_code = excluded.reason_code,
+                reviewer = excluded.reviewer,
+                reviewed_at = excluded.reviewed_at
+            """,
+            (event_id, review_label, reason_code, _clean_text(reviewer, 128) or "operator", reviewed_at),
+        )
+        connection.commit()
+    return {
+        "event_id": event_id,
+        "review_label": review_label,
+        "reason_code": reason_code,
+        "reviewer": _clean_text(reviewer, 128) or "operator",
+        "reviewed_at": reviewed_at,
     }
 
 

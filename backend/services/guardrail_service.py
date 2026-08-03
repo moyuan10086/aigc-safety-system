@@ -29,7 +29,7 @@ from config import (
 )
 from services import xgboost_shadow_service
 
-RULE_VERSION = "2026.08.3"
+RULE_VERSION = "2026.08.4"
 MAX_ANALYSIS_CHARS = 12_000
 _RAG_LOCK = threading.Lock()
 
@@ -102,6 +102,8 @@ RULES: tuple[Rule, ...] = (
     Rule("GR-PRIV-001", "personal_data", 0.58, (
         r"\b(?:leak|doxx|publish)\s+(?:their|his|her|someone(?:'s)?)\s+(?:address|phone|identity|private data)\b",
         r"(?:曝光|开盒|泄露|查询).{0,10}(?:住址|身份证|手机号|个人信息|隐私)",
+        r"(?:公开|发布).{0,16}(?:住址|身份证|手机号|个人信息|隐私|identity|private data)",
+        r"(?:批量获取|批量收集).{0,10}(?:客户|用户|他人)?(?:的)?(?:个人信息|隐私|手机号|身份证)",
         r"(?<!\d)[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[0-9Xx](?!\d)",
     )),
     Rule("GR-HATE-001", "hate_harassment", 0.82, (
@@ -111,6 +113,7 @@ RULES: tuple[Rule, ...] = (
     Rule("GR-ILL-001", "illegal_activity", 0.84, (
         r"\b(?:how to|steps? to)\s+(?:launder money|forge (?:a )?(?:passport|identity|invoice))\b",
         r"(?:如何|教程|步骤).{0,12}(?:洗钱|伪造身份证|伪造护照|电信诈骗)",
+        r"(?:洗钱|伪造身份证|伪造护照|电信诈骗).{0,12}(?:教程|步骤|方法|怎么做)",
         r"(?:合成|制作).{0,8}(?:冰毒|甲基苯丙胺|芬太尼).{0,8}(?:步骤|配方|教程)",
     )),
     Rule("GR-AGENT-001", "agent_tool_abuse", 0.91, (

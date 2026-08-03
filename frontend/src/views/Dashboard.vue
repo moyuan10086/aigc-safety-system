@@ -48,23 +48,33 @@
         </DashboardPanel>
       </div>
 
+      <DashboardPanel title="XGBoost 影子分歧复核" subtitle="主判保持生效，人工标签只用于校准与评测" class="shadow-review-panel">
+        <ShadowReviewPanel :summary="data.shadow_evaluation" :items="data.shadow_reviews" :busy-event-id="reviewingEventId" @resolve="handleShadowReview" @inspect="inspectAuditEvent" />
+      </DashboardPanel>
+
       <footer class="data-foot"><Database :size="14" /><span>{{ data.data_sources.join(' · ') }}</span><b :class="{ healthy: data.service_health.audit_chain === 'healthy' }">审计链{{ data.service_health.audit_chain === 'healthy' ? '完整' : '异常' }}</b><b>原始证据加密保留</b></footer>
     </template>
+    <AuditLogDetail :event="selectedAuditEvent" @close="selectedAuditEvent = null" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
 import { Activity, CircleAlert, ClipboardCheck, Database, FileCheck2, LayoutDashboard, LockKeyhole, MonitorUp, Network, RefreshCw, ScanLine, ShieldAlert, Timer } from 'lucide-vue-next'
+import { toast } from 'vue3-toastify'
+import AuditLogDetail from '../components/audit/AuditLogDetail.vue'
+import type { AuditEvent } from '../composables/useAuditLogs'
 import BaseChart from '../components/dashboard/BaseChart.vue'
 import DashboardPanel from '../components/dashboard/DashboardPanel.vue'
 import MetricCard from '../components/dashboard/MetricCard.vue'
+import ShadowReviewPanel from '../components/dashboard/ShadowReviewPanel.vue'
 import { useDashboard } from '../composables/useDashboard'
 
 const router = useRouter()
-const { data, hours, loading, error, authRequired, refresh, openLogin } = useDashboard()
+const { data, hours, loading, error, authRequired, reviewingEventId, refresh, resolveShadowReview, openLogin } = useDashboard()
+const selectedAuditEvent = ref<AuditEvent | null>(null)
 const ranges = [{ label: '24 小时', value: 24 }, { label: '3 天', value: 72 }, { label: '7 天', value: 168 }]
 const categoryNames: Record<string, string> = { jailbreak: '越狱攻击', prompt_injection: '提示词注入', cyber_abuse: '网络攻击滥用', weapons_violence: '武器暴力', self_harm: '自伤风险', sexual_content: '色情内容', child_safety: '未成年人安全', personal_data: '隐私数据', illegal_activity: '违法活动', agent_security: 'Agent 安全' }
 const chartText = '#5d7082'
@@ -95,6 +105,24 @@ async function enterBigScreen() {
   try { await document.documentElement.requestFullscreen() } catch { /* Browser may deny fullscreen; route still provides a viewport-filling mode. */ }
   router.push('/dashboard/screen')
 }
+async function handleShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe') {
+  try {
+    await resolveShadowReview(eventId, reviewLabel)
+    toast.success('人工复核标签已写入审计闭环')
+  } catch (caught) {
+    toast.error((caught as Error).message)
+  }
+}
+async function inspectAuditEvent(eventId: string) {
+  try {
+    const response = await fetch(`/api/audit/logs/${eventId}`, { credentials: 'same-origin' })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : '审计事件读取失败')
+    selectedAuditEvent.value = body
+  } catch (caught) {
+    toast.error((caught as Error).message)
+  }
+}
 function formatDate(value: string) { return new Date(value).toLocaleString('zh-CN', { hour12: false }) }
 function formatTime(value: string) { return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) }
 function formatAxis(value: string) { const date = new Date(value); return hours.value <= 48 ? `${date.getHours().toString().padStart(2, '0')}:00` : `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:00` }
@@ -102,6 +130,6 @@ function statusLabel(status: string) { return ({ enabled: '已启用', configure
 </script>
 
 <style scoped>
-.dashboard-page{width:100%;max-width:1540px;margin:0 auto}.page-heading{display:flex;align-items:flex-end;gap:18px;margin-bottom:16px}.page-heading p{margin:0 0 5px;color:var(--primary);font:700 9px/1 ui-monospace,monospace}.page-heading h1{margin:0;font-size:20px}.mode-switch,.range-switch{display:flex;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.mode-switch{margin-left:auto}.mode-switch button,.range-switch button{height:32px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;color:var(--muted);background:transparent;border:0;border-radius:5px;font-size:11px;cursor:pointer}.mode-switch button.active,.range-switch button.active{color:#fff;background:var(--primary);font-weight:650}.dashboard-toolbar{height:42px;display:flex;align-items:center;gap:10px;margin-bottom:14px}.generated-at{margin-left:auto;color:var(--faint);font-size:10px}.dashboard-toolbar .icon-command:disabled{cursor:wait;opacity:.6}.spinning{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.metric-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:12px}.dashboard-grid{display:grid;gap:12px;margin-bottom:12px}.main-grid{grid-template-columns:minmax(0,2fr) minmax(300px,.8fr)}.detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.main-grid .dashboard-panel{height:340px}.detail-grid .dashboard-panel{height:320px}.chart-box{height:260px}.trend-panel :deep(.panel-body){height:284px;padding:6px 10px 10px}.model-list,.source-list,.alert-list{display:flex;flex-direction:column}.model-row,.source-row,.alert-row{min-height:50px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}.model-row:last-child,.source-row:last-child,.alert-row:last-child{border-bottom:0}.model-row i,.alert-row i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--faint)}.model-row i.enabled,.model-row i.configured{background:var(--success);box-shadow:0 0 8px rgba(22,128,94,.35)}.model-row i.standby{background:var(--warning)}.model-row>div,.alert-row>div{min-width:0;display:flex;flex:1;flex-direction:column}.model-row strong,.alert-row strong{color:var(--text);font-size:11px}.model-row span,.alert-row span{margin-top:3px;color:var(--faint);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.model-row b{color:var(--muted);font-size:9px}.source-row code{color:var(--text);font-size:10px}.source-row span{margin-left:auto;color:var(--muted);font-size:10px}.source-row b{color:var(--danger);font-size:9px}.alert-row i.warning{background:var(--warning)}.alert-row i.high,.alert-row i.critical{background:var(--danger)}.alert-row time{color:var(--faint);font-size:9px}.empty-state{height:230px;display:grid;place-items:center;color:var(--faint);font-size:11px}.access-state{min-height:330px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px}.access-state button{height:34px;padding:0 14px;color:#fff;background:var(--primary);border:0;border-radius:6px;cursor:pointer}.access-state.error{color:var(--danger)}.data-foot{min-height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:7px;font-size:9px}.data-foot span{flex:1}.data-foot b{padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:4px}.data-foot b.healthy{color:var(--success)}@media(max-width:1260px){.metric-grid{grid-template-columns:repeat(3,1fr)}.detail-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:860px){.page-heading{align-items:flex-start;flex-direction:column}.mode-switch{width:100%;margin-left:0}.mode-switch button{flex:1}.main-grid,.detail-grid{grid-template-columns:1fr}.detail-grid .dashboard-panel{height:auto;min-height:280px}}@media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,1fr)}.metric-card{height:112px}.dashboard-toolbar{flex-wrap:wrap;height:auto}.generated-at{order:3;width:100%;margin-left:0}.data-foot{align-items:flex-start;flex-wrap:wrap;padding:10px}.data-foot span{flex-basis:100%}}
+.dashboard-page{width:100%;max-width:1540px;margin:0 auto}.page-heading{display:flex;align-items:flex-end;gap:18px;margin-bottom:16px}.page-heading p{margin:0 0 5px;color:var(--primary);font:700 9px/1 ui-monospace,monospace}.page-heading h1{margin:0;font-size:20px}.mode-switch,.range-switch{display:flex;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.mode-switch{margin-left:auto}.mode-switch button,.range-switch button{height:32px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;color:var(--muted);background:transparent;border:0;border-radius:5px;font-size:11px;cursor:pointer}.mode-switch button.active,.range-switch button.active{color:#fff;background:var(--primary);font-weight:650}.dashboard-toolbar{height:42px;display:flex;align-items:center;gap:10px;margin-bottom:14px}.generated-at{margin-left:auto;color:var(--faint);font-size:10px}.dashboard-toolbar .icon-command:disabled{cursor:wait;opacity:.6}.spinning{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.metric-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:12px}.dashboard-grid{display:grid;gap:12px;margin-bottom:12px}.main-grid{grid-template-columns:minmax(0,2fr) minmax(300px,.8fr)}.detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.main-grid .dashboard-panel{height:340px}.detail-grid .dashboard-panel{height:320px}.shadow-review-panel{margin-bottom:12px}.shadow-review-panel :deep(.panel-body){padding:0}.chart-box{height:260px}.trend-panel :deep(.panel-body){height:284px;padding:6px 10px 10px}.model-list,.source-list,.alert-list{display:flex;flex-direction:column}.model-row,.source-row,.alert-row{min-height:50px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}.model-row:last-child,.source-row:last-child,.alert-row:last-child{border-bottom:0}.model-row i,.alert-row i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--faint)}.model-row i.enabled,.model-row i.configured{background:var(--success);box-shadow:0 0 8px rgba(22,128,94,.35)}.model-row i.standby{background:var(--warning)}.model-row>div,.alert-row>div{min-width:0;display:flex;flex:1;flex-direction:column}.model-row strong,.alert-row strong{color:var(--text);font-size:11px}.model-row span,.alert-row span{margin-top:3px;color:var(--faint);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.model-row b{color:var(--muted);font-size:9px}.source-row code{color:var(--text);font-size:10px}.source-row span{margin-left:auto;color:var(--muted);font-size:10px}.source-row b{color:var(--danger);font-size:9px}.alert-row i.warning{background:var(--warning)}.alert-row i.high,.alert-row i.critical{background:var(--danger)}.alert-row time{color:var(--faint);font-size:9px}.empty-state{height:230px;display:grid;place-items:center;color:var(--faint);font-size:11px}.access-state{min-height:330px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px}.access-state button{height:34px;padding:0 14px;color:#fff;background:var(--primary);border:0;border-radius:6px;cursor:pointer}.access-state.error{color:var(--danger)}.data-foot{min-height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:7px;font-size:9px}.data-foot span{flex:1}.data-foot b{padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:4px}.data-foot b.healthy{color:var(--success)}@media(max-width:1260px){.metric-grid{grid-template-columns:repeat(3,1fr)}.detail-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:860px){.page-heading{align-items:flex-start;flex-direction:column}.mode-switch{width:100%;margin-left:0}.mode-switch button{flex:1}.main-grid,.detail-grid{grid-template-columns:1fr}.detail-grid .dashboard-panel{height:auto;min-height:280px}}@media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,1fr)}.metric-card{height:112px}.dashboard-toolbar{flex-wrap:wrap;height:auto}.generated-at{order:3;width:100%;margin-left:0}.data-foot{align-items:flex-start;flex-wrap:wrap;padding:10px}.data-foot span{flex-basis:100%}}
 .model-row i.degraded{background:var(--danger)}
 </style>

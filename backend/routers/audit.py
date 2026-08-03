@@ -70,6 +70,15 @@ async def audit_logs(
     )
 
 
+@router.get("/logs/{event_id}")
+async def audit_log(event_id: str, request: Request):
+    _operator(request)
+    event = audit_log_service.get_event(event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="审计事件不存在")
+    return JSONResponse(event, headers={"Cache-Control": "no-store"})
+
+
 @router.get("/logs/{event_id}/evidence")
 async def audit_evidence(event_id: str, request: Request):
     user = _operator(request)

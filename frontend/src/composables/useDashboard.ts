@@ -1,5 +1,41 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+export interface ShadowEvaluationSummary {
+  observed_events: number
+  evaluated_samples: number
+  agreement_count: number
+  disagreement_count: number
+  not_comparable_count: number
+  agreement_rate: number
+  false_positive_candidates: number
+  false_negative_candidates: number
+  pending_reviews: number
+  reviewed_count: number
+  p95_latency_ms: number
+  statuses: Record<string, number>
+  review_labels: Record<string, number>
+}
+
+export interface ShadowReviewItem {
+  event_id: string
+  occurred_at: string
+  primary_verdict: 'safe' | 'borderline' | 'unsafe'
+  risk_code?: string
+  risk_score?: number
+  content_hash?: string
+  categories: string[]
+  shadow_decision: 'pass' | 'fail'
+  shadow_confidence?: number
+  shadow_alert: boolean
+  shadow_latency_ms?: number
+  shadow_risk_type?: string
+  has_evidence: boolean
+  review_label?: 'safe' | 'borderline' | 'unsafe'
+  reason_code?: string
+  reviewer?: string
+  reviewed_at?: string
+}
+
 export interface DashboardOverview {
   generated_at: string
   window: { hours: number; bucket_hours: number; start: string; end: string }
@@ -15,6 +51,8 @@ export interface DashboardOverview {
   recent_alerts: Array<{ id: string; occurred_at: string; module: string; severity: string; outcome: string; risk_code?: string; risk_score?: number; client_ip?: string; summary: string }>
   models: Array<{ id: string; label: string; model: string; status: string }>
   reports: { total: number; in_window: number; fake_count: number; risk_count: number; latest_at?: string }
+  shadow_evaluation: ShadowEvaluationSummary
+  shadow_reviews: ShadowReviewItem[]
   service_health: { api: string; audit_chain: string; raw_evidence_vault: string; configured_models: number; total_models: number }
   data_sources: string[]
   privacy: { raw_content_included: boolean; encrypted_evidence_retained: boolean }
@@ -26,6 +64,7 @@ export function useDashboard() {
   const loading = ref(false)
   const error = ref('')
   const authRequired = ref(false)
+  const reviewingEventId = ref('')
   let controller: AbortController | null = null
   let timer: ReturnType<typeof setInterval> | null = null
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -63,6 +102,28 @@ export function useDashboard() {
     debounceTimer = setTimeout(() => refresh(true), 220)
   }
 
+  async function resolveShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe') {
+    if (reviewingEventId.value) return
+    reviewingEventId.value = eventId
+    try {
+      const response = await fetch(`/api/dashboard/shadow-reviews/${eventId}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ review_label: reviewLabel }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : '分歧复核保存失败'
+        throw new Error(detail)
+      }
+      await refresh(true)
+      return body
+    } finally {
+      reviewingEventId.value = ''
+    }
+  }
+
   function openLogin() { window.dispatchEvent(new CustomEvent('aigc:open-login')) }
   watch(hours, scheduleRefresh)
   onMounted(() => {
@@ -74,5 +135,5 @@ export function useDashboard() {
     if (timer) clearInterval(timer)
     if (debounceTimer) clearTimeout(debounceTimer)
   })
-  return { data, hours, loading, error, authRequired, refresh, openLogin }
+  return { data, hours, loading, error, authRequired, reviewingEventId, refresh, resolveShadowReview, openLogin }
 }
