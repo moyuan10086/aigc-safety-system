@@ -15,10 +15,11 @@ from routers.auth import router as auth_router
 from routers.audit import router as audit_router
 from routers.dashboard import router as dashboard_router
 from routers.api_v1 import router as api_v1_router
-from services import audit_log_service, auth_service
+from services import audit_log_service, auth_service, xgboost_shadow_service
 import config
 
 app = FastAPI(title="AIGC 内容安全审核系统")
+app.add_event_handler("startup", xgboost_shadow_service.start_warmup)
 
 app.add_middleware(
     CORSMiddleware,

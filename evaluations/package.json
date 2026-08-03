@@ -1,0 +1,10 @@
+{
+  "name": "aigc-safety-evaluations",
+  "private": true,
+  "scripts": {
+    "eval:guardrail": "promptfoo eval --config promptfooconfig.yaml --no-cache --no-table --output results/latest.json"
+  },
+  "devDependencies": {
+    "promptfoo": "0.121.20"
+  }
+}

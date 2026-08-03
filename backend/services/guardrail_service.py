@@ -27,8 +27,9 @@ from config import (
     MLLM_MODEL,
     PROXY_URL,
 )
+from services import xgboost_shadow_service
 
-RULE_VERSION = "2026.08.2"
+RULE_VERSION = "2026.08.3"
 MAX_ANALYSIS_CHARS = 12_000
 _RAG_LOCK = threading.Lock()
 
@@ -81,6 +82,7 @@ RULES: tuple[Rule, ...] = (
     Rule("GR-WPN-001", "weapons_violence", 0.92, (
         r"\b(?:how to|instructions? (?:for|to)|steps? to)\s+(?:make|build|assemble)\s+(?:a\s+)?(?:bomb|explosive|firearm)\b",
         r"(?:如何|步骤|教程).{0,12}(?:制造|制作|组装).{0,8}(?:炸弹|爆炸物|枪支)",
+        r"(?:制造|制作|组装).{0,8}(?:炸弹|爆炸物|枪支).{0,12}(?:步骤|教程|方法)",
         r"(?:教我|帮我).{0,10}(?:杀死|谋杀|伤害).{0,10}(?:某人|他|她|人)",
     )),
     Rule("GR-SH-001", "self_harm", 0.91, (
@@ -494,6 +496,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         if verdict == "borderline"
         else "内容未触发当前安全红线。"
     )
+    shadow_evaluation = xgboost_shadow_service.evaluate(combined_text, verdict)
 
     return {
         "verdict": verdict,
@@ -509,6 +512,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         "action": actions[0],
         "redline_answer": redline_answer,
         "scores": scores,
+        "shadow_evaluation": shadow_evaluation,
         "engine": {
             "name": "hybrid_guardrail",
             "version": RULE_VERSION,
@@ -518,6 +522,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
                 "mllm": mllm_status,
                 "qwen3guard": qwen_status,
                 "singguard": singguard_status,
+                "xgboost_shadow": shadow_evaluation["status"],
             },
         },
     }

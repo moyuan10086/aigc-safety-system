@@ -46,6 +46,7 @@ class GuardrailCheckResponse(BaseModel):
     action: str
     redline_answer: str
     scores: dict[str, float]
+    shadow_evaluation: dict[str, Any]
     engine: dict[str, Any]
 
 
@@ -103,6 +104,7 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
             body.mode,
         )
         actor, api_metadata = _actor_context(request)
+        shadow_evaluation = result.get("shadow_evaluation", {})
         event_id = audit_log_service.record_safe(
             event_type="guardrail.check",
             module="guardrail",
@@ -120,6 +122,7 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
                 "mode": body.mode,
                 "categories": result.get("categories", []),
                 "content_length": len(body.prompt) + len(body.response),
+                "shadow_evaluation": shadow_evaluation,
                 **api_metadata,
             },
         )

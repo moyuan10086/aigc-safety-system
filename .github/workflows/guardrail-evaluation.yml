@@ -1,0 +1,78 @@
+name: Guardrail Evaluation
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "evaluations/**"
+      - ".github/workflows/guardrail-evaluation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "evaluations/**"
+      - ".github/workflows/guardrail-evaluation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-guardrail-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GUARDRAIL_ENABLE_RAG: "false"
+      GUARDRAIL_ENABLE_MLLM: "false"
+      GUARDRAIL_ENABLE_QWEN_CLASSIFIER: "false"
+      GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER: "false"
+      GUARDRAIL_ENABLE_XGBOOST_SHADOW: "false"
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: evaluations/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Run backend tests
+        working-directory: backend
+        run: uv run python -m unittest discover -s tests
+      - name: Install promptfoo
+        working-directory: evaluations
+        run: npm ci
+      - name: Start offline guardrail API
+        working-directory: backend
+        run: |
+          uv run uvicorn offline_guardrail_app:app --app-dir ../evaluations --host 127.0.0.1 --port 18080 > /tmp/aigc-guardrail.log 2>&1 &
+          echo $! > /tmp/aigc-guardrail.pid
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:18080/api/health && exit 0
+            sleep 1
+          done
+          cat /tmp/aigc-guardrail.log
+          exit 1
+      - name: Run Chinese input-output regression
+        working-directory: evaluations
+        run: npm run eval:guardrail
+      - name: Upload sanitized regression artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrail-promptfoo-results
+          path: evaluations/results/latest.json
+          if-no-files-found: ignore
+          retention-days: 14

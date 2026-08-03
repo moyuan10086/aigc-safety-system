@@ -14,6 +14,7 @@ backend/.env
 # Frontend
 frontend/node_modules/
 frontend/dist/
+evaluations/node_modules/
 
 # Model artifacts (downloaded or copied during deployment)
 **/weights/
@@ -38,3 +39,7 @@ Thumbs.db
 .playwright-cli/
 output/playwright/
 .claude/
+
+# Local evaluation output may contain exact synthetic attack prompts.
+evaluations/results/*.json
+evaluations/results/*.html

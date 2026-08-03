@@ -1,0 +1,25 @@
+description: AIGC 安全运营台中文护栏双向回归基线
+
+prompts:
+  - "{{prompt}}"
+
+providers:
+  - id: http
+    config:
+      url: http://127.0.0.1:18080/api/guardrail/check
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        prompt: "{{prompt}}"
+        response: "{{response}}"
+        mode: "{{mode}}"
+
+defaultTest:
+  options:
+    provider:
+      id: http
+
+tests: tests/guardrail-regression.yaml
+
+sharing: false

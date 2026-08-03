@@ -195,6 +195,29 @@ API Key 哈希轮换：先把新值写入 `API_KEY_HASH_SECRET`，旧值暂存�
 uv run python maintenance.py rotate-evidence
 ```
 
+### 中文护栏回归与 XGBoost 影子评测
+
+`evaluations/` 使用 promptfoo 对 `/api/guardrail/check` 执行输入侧、输出侧中文安全回归。该套件默认关闭所有远程分类器，不读取任何生产密钥：
+
+```bash
+cd backend
+GUARDRAIL_ENABLE_RAG=false uv run uvicorn offline_guardrail_app:app --app-dir ../evaluations --host 127.0.0.1 --port 18080
+cd ../evaluations
+npm ci
+npm run eval:guardrail
+```
+
+本地交付包可作为影子评测器并行运行，但不会改变在线 `safe/borderline/unsafe` 结果。模型使用 pickle 载荷，只有可信文件才可启用；系统在加载前强制校验 SHA-256：
+
+```bash
+GUARDRAIL_ENABLE_XGBOOST_SHADOW=true
+GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH=/opt/aigc-local-auditor
+GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH=/opt/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json
+GUARDRAIL_XGBOOST_SHADOW_SHA256=<64位模型摘要>
+```
+
+影子输出只包含决策、置信度、一致性、耗时和模型摘要；原始提示词与模型危险输出仍只保存在 AES-GCM 加密的 `audit_evidence`，不会进入 API 用量、CSV 导出或租户报告。
+
 该命令会先生成并校验轮换前备份，再重加密全部证据；没有两把密钥时会拒绝执行。原始提示词和危险模型输出始终保留在加密证据表，列表、用量账本、报告摘要和 CSV 不返回原文。
 
 ### 单独检测接口
