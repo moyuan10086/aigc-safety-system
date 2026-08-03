@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 import config
 from services import guarded_chat_service
 from services import guardrail_service
+from services import audit_log_service, auth_service
 
 router = APIRouter(prefix="/api/guardrail", tags=["guardrail"])
 _CHAT_SEMAPHORE = asyncio.Semaphore(2)
@@ -78,14 +79,38 @@ def _rate_limit(request: Request) -> None:
 
 
 @router.post("/check", response_model=GuardrailCheckResponse)
-async def check_guardrail(request: GuardrailCheckRequest):
+async def check_guardrail(body: GuardrailCheckRequest, request: Request):
     try:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             guardrail_service.check,
-            request.prompt,
-            request.response,
-            request.mode,
+            body.prompt,
+            body.response,
+            body.mode,
         )
+        user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+        event_id = audit_log_service.record_safe(
+            event_type="guardrail.check",
+            module="guardrail",
+            action=f"check_{body.mode}",
+            severity={"safe": "info", "borderline": "warning", "unsafe": "high"}.get(result["verdict"], "info"),
+            outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(result["verdict"], "success"),
+            actor=user["username"] if user else "anonymous",
+            client_ip=_client_key(request),
+            summary=f"护栏判定：{result['risk_code']}",
+            resource_id=getattr(request.state, "request_id", None),
+            risk_code=result.get("risk_code"),
+            risk_score=result.get("risk_score"),
+            content_hash=audit_log_service.content_digest(f"{body.prompt}\n{body.response}"),
+            metadata={"mode": body.mode, "categories": result.get("categories", []), "content_length": len(body.prompt) + len(body.response)},
+        )
+        if event_id:
+            audit_log_service.store_evidence(
+                event_id,
+                prompt=body.prompt or None,
+                response=body.response or None,
+                dangerous=result["verdict"] == "unsafe",
+            )
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -100,10 +125,49 @@ async def guarded_chat(body: GuardedChatRequest, request: Request):
     _rate_limit(request)
     try:
         async with _CHAT_SEMAPHORE:
-            return await asyncio.wait_for(
-                asyncio.to_thread(guarded_chat_service.run, body.prompt.strip(), body.max_tokens),
+            evidence_capture: dict[str, str] = {}
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    guarded_chat_service.run,
+                    body.prompt.strip(),
+                    body.max_tokens,
+                    evidence_capture,
+                ),
                 timeout=config.CHAT_MODEL_TIMEOUT_SECONDS + 10,
             )
+            final_guard = result.get("final_guard", {})
+            user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+            event_id = audit_log_service.record_safe(
+                event_type="guardrail.chat",
+                module="guardrail",
+                action="guarded_model_generation",
+                severity={"safe": "info", "borderline": "warning", "unsafe": "high"}.get(final_guard.get("verdict"), "info"),
+                outcome={"completed": "allowed", "review_required": "review", "input_blocked": "blocked", "output_blocked": "blocked"}.get(result.get("status"), "success"),
+                actor=user["username"] if user else "anonymous",
+                client_ip=_client_key(request),
+                status_code=200,
+                latency_ms=result.get("generation", {}).get("latency_ms"),
+                summary=f"大模型护栏流程：{result.get('status', 'completed')}",
+                resource_id=result.get("request_id"),
+                risk_code=final_guard.get("risk_code"),
+                risk_score=final_guard.get("risk_score"),
+                content_hash=audit_log_service.content_digest(body.prompt.strip()),
+                metadata={
+                    "model_called": result.get("model_called", False),
+                    "model": result.get("generation", {}).get("model"),
+                    "quarantined": result.get("quarantined", False),
+                    "categories": final_guard.get("categories", []),
+                    "prompt_length": len(body.prompt.strip()),
+                },
+            )
+            if event_id:
+                audit_log_service.store_evidence(
+                    event_id,
+                    prompt=body.prompt.strip(),
+                    response=evidence_capture.get("model_output"),
+                    dangerous=result.get("status") in {"input_blocked", "output_blocked"},
+                )
+            return result
     except guarded_chat_service.ModelNotConfiguredError as exc:
         raise HTTPException(
             status_code=503,

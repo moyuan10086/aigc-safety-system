@@ -122,7 +122,11 @@ def _redact_quarantined_guard(guard: dict[str, Any]) -> dict[str, Any]:
     return redacted
 
 
-def run(prompt: str, max_tokens: int | None = None) -> dict[str, Any]:
+def run(
+    prompt: str,
+    max_tokens: int | None = None,
+    evidence_capture: dict[str, str] | None = None,
+) -> dict[str, Any]:
     request_id = uuid.uuid4().hex
     input_guard = guardrail_service.check(prompt=prompt, mode="prompt")
 
@@ -144,6 +148,8 @@ def run(prompt: str, max_tokens: int | None = None) -> dict[str, Any]:
     requested_tokens = max_tokens or config.CHAT_MODEL_MAX_TOKENS
     requested_tokens = max(64, min(requested_tokens, config.CHAT_MODEL_MAX_TOKENS, 1200))
     generation = _call_model(prompt, requested_tokens)
+    if evidence_capture is not None:
+        evidence_capture["model_output"] = generation["content"]
     raw_output_guard = guardrail_service.check(response=generation["content"], mode="response")
     final_guard = dict(input_guard if _severity(input_guard) >= _severity(raw_output_guard) else raw_output_guard)
     final_guard["risk_message"] = _risk_message(final_guard["verdict"], True)

@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { LoaderCircle, LogIn, LogOut, UserRound } from 'lucide-vue-next'
 import { logout, useAuth } from '../../composables/useAuth'
 import LoginDialog from './LoginDialog.vue'
@@ -39,6 +39,10 @@ const { user, loading } = useAuth()
 const dialogOpen = ref(false)
 const signingOut = ref(false)
 const roleLabel = computed(() => user.value?.role === 'admin' ? '系统管理员' : '安全审核员')
+const openLogin = () => { dialogOpen.value = true }
+
+onMounted(() => window.addEventListener('aigc:open-login', openLogin))
+onBeforeUnmount(() => window.removeEventListener('aigc:open-login', openLogin))
 
 async function signOut() {
   if (signingOut.value) return

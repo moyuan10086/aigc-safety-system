@@ -46,6 +46,15 @@ AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {
     "1", "true", "yes", "on"
 }
 
+# Structured, tamper-evident audit trail. Runtime data stays outside Git and is
+# queried only through authenticated operator endpoints.
+AUDIT_LOG_DB_PATH = os.getenv("AUDIT_LOG_DB_PATH", "audit_logs/audit.db")
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "90"))
+AUDIT_STORE_RAW_CONTENT = os.getenv("AUDIT_STORE_RAW_CONTENT", "true").lower() in {
+    "1", "true", "yes", "on"
+}
+AUDIT_CONTENT_KEY = os.getenv("AUDIT_CONTENT_KEY", "") or AUTH_SESSION_SECRET
+
 # Text guardrail feature switches. Rule-based checks are always enabled; local
 # RAG and remote MLLM analysis are optional enrichment layers.
 GUARDRAIL_ENABLE_RAG = os.getenv("GUARDRAIL_ENABLE_RAG", "true").lower() in {

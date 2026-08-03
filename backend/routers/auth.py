@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 import config
-from services import auth_service
+from services import audit_log_service, auth_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "aigc_operator_session"
@@ -70,6 +70,17 @@ async def login(body: LoginRequest, request: Request, response: Response):
 
     client_key = _client_key(request)
     if _is_limited(client_key):
+        audit_log_service.record_safe(
+            event_type="auth.login",
+            module="auth",
+            action="operator_login",
+            severity="high",
+            outcome="denied",
+            actor=body.username.strip(),
+            client_ip=client_key,
+            summary="审核员登录被速率限制",
+            metadata={"reason": "rate_limited"},
+        )
         raise HTTPException(
             status_code=429,
             detail="登录失败次数过多，请 5 分钟后重试",
@@ -79,6 +90,17 @@ async def login(body: LoginRequest, request: Request, response: Response):
     user = auth_service.authenticate(body.username.strip(), body.password)
     if user is None:
         _record_failure(client_key)
+        audit_log_service.record_safe(
+            event_type="auth.login",
+            module="auth",
+            action="operator_login",
+            severity="warning",
+            outcome="denied",
+            actor=body.username.strip(),
+            client_ip=client_key,
+            summary="审核员登录失败",
+            metadata={"reason": "invalid_credentials"},
+        )
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     _clear_failures(client_key)
@@ -91,16 +113,38 @@ async def login(body: LoginRequest, request: Request, response: Response):
         samesite="strict",
         path="/",
     )
+    audit_log_service.record_safe(
+        event_type="auth.login",
+        module="auth",
+        action="operator_login",
+        severity="info",
+        outcome="success",
+        actor=user["username"],
+        client_ip=client_key,
+        summary="审核员登录成功",
+        metadata={"role": user["role"]},
+    )
     return {"authenticated": True, "user": user}
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    user = auth_service.verify_session(request.cookies.get(COOKIE_NAME))
     response.delete_cookie(
         key=COOKIE_NAME,
         path="/",
         secure=config.AUTH_COOKIE_SECURE,
         httponly=True,
         samesite="strict",
+    )
+    audit_log_service.record_safe(
+        event_type="auth.logout",
+        module="auth",
+        action="operator_logout",
+        severity="info",
+        outcome="success",
+        actor=user["username"] if user else "anonymous",
+        client_ip=_client_key(request),
+        summary="审核员退出登录",
     )
     return {"authenticated": False}

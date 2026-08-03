@@ -1,5 +1,15 @@
 <template>
-  <div style="max-width:900px;margin:0 auto">
+  <div class="report-page">
+    <div class="view-switcher">
+      <div><p>TRACE &amp; EVIDENCE</p><h1>审计与取证</h1></div>
+      <div class="segmented" role="tablist" aria-label="审计视图">
+        <button type="button" :class="{ active: activeView === 'reports' }" @click="activeView = 'reports'"><FileText :size="15" />检测报告</button>
+        <button type="button" :class="{ active: activeView === 'logs' }" @click="activeView = 'logs'"><ShieldCheck :size="15" />安全日志</button>
+      </div>
+    </div>
+
+    <AuditLogPanel v-if="activeView === 'logs'" />
+    <div v-else class="report-list">
     <!-- 统计卡片 -->
     <div v-if="stats" class="card" style="margin-bottom:16px">
       <div class="card-title">检测统计</div>
@@ -54,20 +64,25 @@
         <div class="md-body" v-html="renderMd(r.summary)" />
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { marked } from 'marked'
 import { useClipboard } from '@vueuse/core'
 import { toast } from 'vue3-toastify'
+import { FileText, ShieldCheck } from 'lucide-vue-next'
+import AuditLogPanel from '../components/audit/AuditLogPanel.vue'
 
 const { copy } = useClipboard()
+const activeView = ref<'reports' | 'logs'>('logs')
 
 const reports = ref<any[]>([])
 const stats = ref<any>(null)
-const loading = ref(true)
+const loading = ref(false)
+const reportsLoaded = ref(false)
 
 function renderMd(md: string): string {
   return marked.parse(md) as string
@@ -78,7 +93,9 @@ const copyId = async (id: string) => {
   toast.success('报告ID已复制')
 }
 
-onMounted(async () => {
+async function loadReports() {
+  if (reportsLoaded.value || loading.value) return
+  loading.value = true
   try {
     const r = await fetch('/api/detect/history')
     if (r.ok) {
@@ -90,14 +107,18 @@ onMounted(async () => {
         )
       )
       reports.value = full.filter(Boolean)
+      reportsLoaded.value = true
     }
   } finally {
     loading.value = false
   }
-})
+}
+
+watch(activeView, view => { if (view === 'reports') loadReports() })
 </script>
 
 <style scoped>
+.report-page{width:100%;max-width:1500px;margin:0 auto}.report-list{max-width:1000px;margin:0 auto}.view-switcher{display:flex;align-items:flex-end;gap:18px;margin-bottom:18px}.view-switcher p{margin:0 0 5px;color:var(--primary);font:700 9px/1 ui-monospace,monospace}.view-switcher h1{margin:0;font-size:20px}.segmented{margin-left:auto;display:flex;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.segmented button{height:32px;display:flex;align-items:center;gap:7px;padding:0 12px;color:var(--muted);background:transparent;border:0;border-radius:5px;font-size:11px;cursor:pointer}.segmented button.active{color:#fff;background:var(--primary);font-weight:650}@media(max-width:560px){.view-switcher{align-items:flex-start;flex-direction:column}.segmented{width:100%;margin-left:0}.segmented button{flex:1;justify-content:center}}
 .stat-item { text-align:center; flex:1 }
 .stat-num { font-size:24px; font-weight:700; color:var(--text) }
 .stat-label { font-size:11px; color:var(--muted); margin-top:2px }
