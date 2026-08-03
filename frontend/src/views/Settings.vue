@@ -23,7 +23,7 @@
     <section class="card deployment-card">
       <div class="card-title">部署信息</div>
       <div class="info-rows">
-        <div><span>系统名称</span><b>AIGC 安全运营台</b></div>
+        <div><span>系统名称</span><b>面向 AIGC 伪造的跨域泛化检测与可解释性防御平台</b></div>
         <div><span>生成模型</span><b>{{ info.chat_model || '未配置' }}</b></div>
         <div><span>多模态模型</span><b>{{ info.mllm_model || '未配置' }}</b></div>
         <div><span>护栏架构</span><b>输入预检 / 模型执行 / 输出复检</b></div>

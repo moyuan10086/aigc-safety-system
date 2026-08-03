@@ -1,6 +1,6 @@
 <template>
   <div class="detect-page">
-    <title>图片与人脸审核 - AIGC安全运营台</title>
+    <title>图片与人脸审核 - 面向 AIGC 伪造的跨域泛化检测与可解释性防御平台</title>
 
     <!-- 顶部信息网格：仿 NapCat QQInfo + SystemInfo + SystemStatus -->
     <div class="top-grid">
