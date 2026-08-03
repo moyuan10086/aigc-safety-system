@@ -1,0 +1,26 @@
+<h4>工程与正式站验收结论</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>P3-2 已在正式站上线，补齐“执行前动作审批 → 工具执行 → 结果回传复检”的安全闭环。系统仍不执行工具；安全结果可以回传，可疑或高风险结果只返回安全处置说明，原始结果进入 AES-GCM 加密证据库。</p>
+</callout>
+<h4>正式站实际输入输出</h4>
+<table>
+  <thead><tr><th background-color="light-gray">场景</th><th background-color="light-gray">正式站决策</th><th background-color="light-gray">结果处置</th><th background-color="light-gray">可复现证据</th></tr></thead>
+  <tbody>
+    <tr><td>正常知识检索结果</td><td><b><span text-color="green">safe · 0.05</span></b></td><td>content_released=true；允许回传</td><td>AGENT-RESULT-ALLOW；事件 <code>9b71f1ebafc6</code>；结果摘要 <code>72d0c0c90eb4</code></td></tr>
+    <tr><td>文档型间接提示词注入</td><td><b><span text-color="red">unsafe · 0.93</span></b></td><td>content_released=false；隔离且不回显原文</td><td>AGENT-RESULT-BLOCK；事件 <code>73215f797acc</code>；结果摘要 <code>c7d99cf5b8d2</code></td></tr>
+    <tr><td>工具结果凭证泄漏</td><td><b><span text-color="red">unsafe · 0.98</span></b></td><td>content_released=false；阻断且不回显原文</td><td>AGENT-RESULT-BLOCK；事件 <code>8dd95c80e90e</code>；结果摘要 <code>98800600ab8b</code></td></tr>
+  </tbody>
+</table>
+<h4>模型、安全与发布证据</h4>
+<ul>
+  <li>三类正式站样例中，RAG、Qwen3Guard、SingGuard 和 XGBoost 均返回 <code>ok</code>；MLLM 在纯文本结果复检中按设计为 disabled，不属于本接口必需专家。</li>
+  <li>独立泄漏回归事件 <code>c42e5c7a0998</code>：HTTP 200、unsafe、content_released=false；普通响应不含测试凭证，普通审计事件不含测试凭证，SQLite 文件明文字节不含测试凭证；AES-GCM 证据可受控恢复原文，审计哈希链有效。</li>
+  <li>未带 API Key 的 <code>POST /api/v1/guardrail/agent/result/check</code> 返回 401；自动化同时验证缺少 <code>guardrail:agent</code> 作用域返回 403，合法 Key 调用进入独立用量账本。</li>
+  <li>本地与服务器全量后端均为 62/62（另含 2 个子场景）；服务器 P3-1 + P3-2 专项 12/12；前端生产构建、Ruff 和 diff check 通过。</li>
+  <li>代码、GitHub 与生产代码版本为 <code>1b24ac35e876de7dacaf15f8893b9ba861562cf9</code>；服务 active，HTTPS 健康检查 200。</li>
+  <li>发布前备份 <code>20260803T222738Z_pre-p3-2-agent-result_ea41899d</code>：565 条审计事件、205 条加密证据，审计库 SHA-256 为 <code>654dfe0167031c758a5e3d9f3055b81fba30d9d644254c564951a02d9bf57087</code>。</li>
+  <li>发布后备份 <code>20260803T223636Z_post-p3-2-agent-result_7458f529</code>：586 条审计事件、210 条加密证据，审计库 SHA-256 为 <code>659e64f7c3c724831b9a8a20e2e75ec17d9440830221ceae7b34980b6a0cb171</code>；两次独立 verify 均为 files_valid=true、audit_chain_valid=true。</li>
+</ul>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>仍待环境验收：</b>官方应用内浏览器继续因运行资产路径缺失而无法连接，P3-2 当前版本桌面与移动端截图尚未生成；未使用独立 Playwright、Chrome 或其他方式绕过。20 条真实人工试标、生产一次性审批真人点击和昇腾 910C 指定卡模型推理仍保持原有边界。</p>
+</callout>

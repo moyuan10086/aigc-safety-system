@@ -2,12 +2,12 @@
 <callout emoji="📌" background-color="light-blue" border-color="blue">
   <p><b>目标：</b>补齐 P3-1 执行前门禁之后的结果回传安全闭环。系统接收真实工具返回内容，在内容重新进入大模型上下文或返回调用方之前，识别间接提示词注入、凭证与隐私泄漏、危险指令和恶意代码，并给出放行、隔离复核或阻断决策。本阶段继续只审核内容，不连接或执行任何工具。</p>
 </callout>
-<checkbox done="false">P3-2.1 定义工具结果复检契约，绑定工具名、资源、原执行动作摘要和结果内容，并限制字段长度、结构与请求大小</checkbox>
-<checkbox done="false">P3-2.2 增加结果侧确定性策略，覆盖间接提示词注入、系统提示词窃取、API Key/Token/私钥、身份证号/手机号等隐私数据和危险命令回传</checkbox>
-<checkbox done="false">P3-2.3 真实调用 Qwen3Guard、SingGuard、RAG 与 XGBoost 专家链，融合确定性策略；任一专家不可用时显式降级，不伪造模型结果</checkbox>
-<checkbox done="false">P3-2.4 实现安全结果放行、可疑结果隔离复核、高风险结果阻断；被隔离或阻断的危险原文不得出现在普通 API 响应</checkbox>
-<checkbox done="false">P3-2.5 提供站内接口、v1 租户接口和护栏页可操作结果复检视图，复用 guardrail:agent 独立作用域、限流、配额和用量账本</checkbox>
-<checkbox done="false">P3-2.6 原始工具结果仅进入 AES-GCM 加密证据库，普通日志只保存 SHA-256 摘要、结构化分类和动作摘要；审核员主动查看必须再次留痕</checkbox>
+<checkbox done="true">P3-2.1 定义工具结果复检契约，绑定工具名、资源、原执行动作摘要和结果内容，并限制字段长度、结构与请求大小</checkbox>
+<checkbox done="true">P3-2.2 增加结果侧确定性策略，覆盖间接提示词注入、系统提示词窃取、API Key/Token/私钥、身份证号/手机号等隐私数据和危险命令回传</checkbox>
+<checkbox done="true">P3-2.3 真实调用 Qwen3Guard、SingGuard、RAG 与 XGBoost 专家链，融合确定性策略；任一专家不可用时显式降级，不伪造模型结果</checkbox>
+<checkbox done="true">P3-2.4 实现安全结果放行、可疑结果隔离复核、高风险结果阻断；被隔离或阻断的危险原文不得出现在普通 API 响应</checkbox>
+<checkbox done="true">P3-2.5 提供站内接口、v1 租户接口和护栏页可操作结果复检视图，复用 guardrail:agent 独立作用域、限流、配额和用量账本</checkbox>
+<checkbox done="true">P3-2.6 原始工具结果仅进入 AES-GCM 加密证据库，普通日志只保存 SHA-256 摘要、结构化分类和动作摘要；审核员主动查看必须再次留痕</checkbox>
 <p><b>验收：</b>至少覆盖正常知识检索结果放行、文档型间接提示词注入隔离、凭证泄漏阻断、危险命令结果阻断、普通响应不含危险原文、加密证据可由已登录审核员受控取证、v1 作用域隔离、用量计量、审计哈希链、后端全量测试、前端生产构建、发布前后备份、GitHub 与正式站实测。</p>
 <callout emoji="🔐" background-color="light-yellow" border-color="yellow">
   <p><b>不可回退边界：</b>系统不执行工具；不把危险工具结果明文回传给 Agent 或外部 API；原始结果只在 AES-GCM 证据库保留，且不因新增功能削弱原始提示词和模型危险输出的现有保全规则。人工试标、生产一次性审批和当前版本官方截图仍分别由真人或浏览器运行资产解除后验收。</p>
