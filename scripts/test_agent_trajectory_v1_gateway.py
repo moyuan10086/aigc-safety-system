@@ -96,7 +96,7 @@ def main() -> None:
         client = api_access_service.authenticate(agent_scope["key"])
         usage = api_access_service.usage(client, days=1) if client else {}
         operation_count = sum(
-            int(item.get("calls") or 0)
+            int(item.get("requests") or 0)
             for item in usage.get("by_operation", [])
             if item.get("operation") == "guardrail.agent_trajectory_check"
         )
