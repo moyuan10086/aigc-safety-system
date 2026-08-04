@@ -124,6 +124,9 @@ async def health_check():
 dist = Path(__file__).parent.parent / "frontend" / "dist"
 if dist.exists():
     app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
+    demo_samples = dist / "demo-samples"
+    if demo_samples.exists():
+        app.mount("/demo-samples", StaticFiles(directory=str(demo_samples)), name="demo-samples")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str):
