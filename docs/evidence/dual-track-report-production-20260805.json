@@ -1,0 +1,53 @@
+{
+  "schema": "aigc.dual-track-report.production-evidence.v1",
+  "observed_at": "2026-08-05T05:17:46+08:00",
+  "base_url": "https://aigc.49.51.248.227.sslip.io",
+  "deployment": {
+    "commit": "89ed6f2",
+    "service_active": true,
+    "health": "ok",
+    "readiness_passed": 13,
+    "readiness_total": 13
+  },
+  "verification": {
+    "ruff": "pass",
+    "backend_unittest_passed": 110,
+    "backend_unittest_failed": 0,
+    "frontend_production_build": "pass",
+    "focused_report_tests_passed": 2
+  },
+  "report_contract": {
+    "authenticity_fields": [
+      "deepfake_label",
+      "deepfake_score",
+      "mllm_verdict"
+    ],
+    "content_safety_fields": [
+      "content_safety_verdict",
+      "content_safety_risk",
+      "content_safety_categories",
+      "rag_safe",
+      "rag_risk"
+    ],
+    "markdown_sections": [
+      "真实性与来源",
+      "视觉内容安全",
+      "文本与红线内容安全"
+    ]
+  },
+  "production_history": {
+    "total": 14,
+    "fake_count": 9,
+    "risk_count": 2,
+    "clear_count": 4,
+    "counts_are_mutually_exclusive": false,
+    "fake_count_rule": "deepfake_label=fake OR mllm_verdict=fake",
+    "risk_count_rule": "rag_safe=false OR content_safety_verdict in review,unsafe"
+  },
+  "privacy": {
+    "raw_images_included": false,
+    "raw_prompts_included": false,
+    "dangerous_outputs_included": false,
+    "credentials_included": false
+  }
+}
