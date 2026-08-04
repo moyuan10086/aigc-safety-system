@@ -15,7 +15,9 @@
     "passed": 12,
     "failed": 0,
     "ruff": "passed",
-    "frontend_build": "passed"
+    "frontend_build": "passed",
+    "backend_full_command": "uv run python -m unittest discover -s tests",
+    "backend_full_passed": 91
   },
   "boundaries": [
     "The knowledge-base document upload route is intentionally separate because it accepts non-image documents.",
