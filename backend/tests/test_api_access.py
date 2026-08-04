@@ -202,6 +202,33 @@ class ApiAccessTests(unittest.TestCase):
         config.API_KEY_HASH_PREVIOUS_SECRET = ""
         self.assertEqual(api_access_service.authenticate(issued["key"])["key_id"], issued["key_id"])
 
+    def test_image_content_safety_api_requires_scope_and_returns_normalized_result(self):
+        fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-update-manifest.jpg"
+        denied = self._issue(scopes=["usage:read"])
+        response = self.client.post(
+            "/api/v1/images/content-safety",
+            headers={"X-API-Key": denied["key"]},
+            files={"image": (fixture.name, fixture.read_bytes(), "image/jpeg")},
+        )
+        self.assertEqual(response.status_code, 403)
+
+        result = {
+            "verdict": "review", "safe": False, "risk_score": 0.95,
+            "categories": [{"code": "weapon_display", "label": "疑似武器展示", "confidence": 0.95}],
+            "summary": "可见武器展示", "policy_version": "image-safety-v1",
+        }
+        issued = self._issue(scopes=["image:content-safety"])
+        with patch("services.mllm_service.analyze_content_safety", return_value=result):
+            response = self.client.post(
+                "/api/v1/images/content-safety",
+                headers={"Authorization": f"Bearer {issued['key']}"},
+                files={"image": (fixture.name, fixture.read_bytes(), "image/jpeg")},
+            )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["api_version"], "v1")
+        self.assertEqual(payload["data"], result)
+
     def test_provenance_external_api_requires_scope_and_returns_safe_summary(self):
         fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-update-manifest.jpg"
         denied = self._issue(scopes=["usage:read"])

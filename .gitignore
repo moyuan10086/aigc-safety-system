@@ -43,3 +43,6 @@ output/playwright/
 # Local evaluation output may contain exact synthetic attack prompts.
 evaluations/results/*.json
 evaluations/results/*.html
+
+# Curated demo originals stay local; only masked thumbnails and hashes are published.
+docs/evidence/demo-samples/raw/

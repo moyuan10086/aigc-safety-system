@@ -60,15 +60,18 @@ def analyze_image_content(image_path: str) -> dict:
     1. OCR 提取文字
     2. RAG 内容审核
     3. MLLM 判断是否 AI 生成
+    4. 视觉大模型执行多标签内容安全审核
     """
     from services import rag_service, mllm_service
 
     ocr_text = ocr_image(image_path)
     rag_result = rag_service.check_content(ocr_text) if ocr_text.strip() else None
     mllm_result = mllm_service.analyze(image_path)
+    content_safety = mllm_service.analyze_content_safety(image_path)
 
     return {
         "ocr_text": ocr_text,
         "rag": rag_result,
         "mllm": mllm_result,
+        "content_safety": content_safety,
     }

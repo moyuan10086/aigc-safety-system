@@ -113,6 +113,11 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
                     ml = await asyncio.to_thread(mllm_service.analyze, path)
                     yield _sse("mllm", ml)
 
+                if "content_safety" in mod_set:
+                    yield _sse("step", {"step": "content_safety", "status": "running"})
+                    content_safety = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
+                    yield _sse("content_safety", content_safety)
+
             if text and "rag" in mod_set:
                 yield _sse("step", {"step": "rag", "status": "running"})
                 rag = await asyncio.to_thread(rag_service.check_content, text)
@@ -191,6 +196,7 @@ async def save_report(
             else:
                 report["deepfake"] = await asyncio.to_thread(deepfake_service.detect, path)
             report["mllm"] = await asyncio.to_thread(mllm_service.analyze, path)
+            report["content_safety"] = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
         if text:
             report["text"] = text
             report["rag"] = await asyncio.to_thread(rag_service.check_content, text)
@@ -209,7 +215,7 @@ async def save_report(
 
 @router.post("/image-content")
 async def analyze_image_content(image: UploadFile = File(...)):
-    """OCR + RAG + MLLM 综合图片内容分析"""
+    """OCR + RAG + 真实性检测 + 视觉内容安全综合分析"""
     from services.ocr_service import analyze_image_content as _analyze
     path = await _save_upload(image)
     try:

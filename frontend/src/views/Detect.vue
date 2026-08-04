@@ -43,6 +43,11 @@
             <span class="sys-label">RAG 引擎</span>
             <span class="sys-val">ChromaDB</span>
           </div>
+          <div class="sys-row">
+            <span class="sys-dot"></span>
+            <span class="sys-label">内容安全</span>
+            <span class="sys-val">视觉多标签</span>
+          </div>
         </div>
       </div>
 
@@ -105,6 +110,12 @@
         </div>
         <div class="stat-label">RAG审核</div>
       </div>
+      <div class="stat-box" v-if="modules.includes('content_safety')">
+        <div class="stat-num" :class="results.content_safety ? 'num-done' : currentStep==='content_safety' ? 'num-running' : 'num-idle'">
+          {{ results.content_safety ? '完成' : currentStep==='content_safety' ? '运行中' : '—' }}
+        </div>
+        <div class="stat-label">图片内容安全</div>
+      </div>
       <div class="stat-box">
         <div class="stat-num" :class="loading ? 'num-running' : 'num-done'">{{ loading ? '运行中' : '就绪' }}</div>
         <div class="stat-label">系统状态</div>
@@ -149,6 +160,9 @@
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="checkbox" v-model="modules" value="rag" /> RAG内容审核
         </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" v-model="modules" value="content_safety" /> 图片内容安全
+        </label>
         <button class="source-btn" :disabled="!file || provenanceLoading" @click="runProvenance">
           {{ provenanceLoading ? '验证中...' : '验证 AI 来源' }}
         </button>
@@ -176,7 +190,7 @@
     </div>
 
     <!-- 检测结果 -->
-    <div v-if="results.face || results.deepfake || results.mllm || results.rag || results.provenance" class="results-grid">
+    <div v-if="results.face || results.deepfake || results.mllm || results.rag || results.content_safety || results.provenance" class="results-grid">
       <ProvenanceEvidencePanel v-if="results.provenance" :result="results.provenance" />
       <FaceEvidencePanel v-if="results.face" :evidence="results.face" />
       <div class="card result-card" v-if="results.deepfake"
@@ -217,6 +231,25 @@
           </div>
         </div>
       </div>
+
+      <div class="card result-card" v-if="results.content_safety"
+           v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400,delay:250}}">
+        <div class="card-title">图片内容安全</div>
+        <div class="result-body">
+          <span class="badge" :class="contentVerdictClass(results.content_safety.verdict)">
+            {{ contentVerdictLabel(results.content_safety.verdict) }}
+          </span>
+          <span class="result-meta">综合风险 {{ Math.round(results.content_safety.risk_score * 100) }}% · {{ results.content_safety.policy_version }}</span>
+          <p class="result-text">{{ results.content_safety.summary }}</p>
+          <div v-if="results.content_safety.categories?.length" class="safety-findings">
+            <div v-for="item in results.content_safety.categories" :key="item.code" class="safety-finding">
+              <span>{{ item.label }}</span><b>{{ Math.round(item.confidence * 100) }}%</b>
+              <p>{{ item.evidence || '模型未提供可见证据，需人工复核' }}</p>
+            </div>
+          </div>
+          <div v-else class="safe-note">未发现已定义的图片内容风险类别</div>
+        </div>
+      </div>
     </div>
 
     <!-- 一言卡片：仿 NapCat Hitokoto -->
@@ -253,7 +286,7 @@ const loading = ref(false)
 const results = reactive<Record<string, any>>({})
 const mllmModel = ref('GPT-4o')
 const auditText = ref('')
-const modules = ref(['deepfake', 'mllm', 'rag'])
+const modules = ref(['deepfake', 'mllm', 'rag', 'content_safety'])
 const currentStep = ref('')
 const provenanceLoading = ref(false)
 let lastProvenanceRun = 0
@@ -267,7 +300,7 @@ onMounted(async () => {
 })
 
 const doneCount = computed(() =>
-  [results.deepfake, results.mllm, results.rag].filter(Boolean).length
+  [results.deepfake, results.mllm, results.rag, results.content_safety].filter(Boolean).length
 )
 
 const quotes = [
@@ -311,6 +344,10 @@ const verdictClass = (v: string) =>
   v === 'fake' ? 'badge-danger' : v === 'real' ? 'badge-success' : 'badge-warn'
 const verdictLabel = (v: string) =>
   v === 'fake' ? '伪造' : v === 'real' ? '真实' : '不确定'
+const contentVerdictClass = (v: string) =>
+  v === 'unsafe' ? 'badge-danger' : v === 'safe' ? 'badge-success' : 'badge-warn'
+const contentVerdictLabel = (v: string) =>
+  v === 'unsafe' ? '阻断' : v === 'safe' ? '安全' : '人工复核'
 
 const onFileChange = (f: any) => {
   file.value = f.raw
@@ -386,6 +423,7 @@ const runAudit = async () => {
       if (event === 'deepfake') { results.deepfake = payload; currentStep.value = '' }
       if (event === 'mllm') { results.mllm = payload; currentStep.value = '' }
       if (event === 'rag') { results.rag = payload; currentStep.value = '' }
+      if (event === 'content_safety') { results.content_safety = payload; currentStep.value = '' }
       if (event === 'done') {
         loading.value = false
         // 保存报告
@@ -419,4 +457,5 @@ const runAudit = async () => {
 .scan-overlay{background:rgba(16,40,60,.48)}
 .scan-box{background:#fff;box-shadow:0 20px 56px rgba(16,40,60,.2)}
 .source-btn{min-height:34px;padding:0 14px;color:var(--primary);background:#fff;border:1px solid var(--primary);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.source-btn:disabled{opacity:.45;cursor:not-allowed}
+.sys-rows{gap:8px}.stats-row{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.safety-findings{display:flex;flex-direction:column;gap:7px}.safety-finding{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:9px 10px;background:#f7fafc;border-left:3px solid var(--danger)}.safety-finding span{color:var(--text);font-size:11px;font-weight:650}.safety-finding b{color:var(--danger);font:11px ui-monospace,monospace}.safety-finding p{grid-column:1/3;margin:0;color:var(--muted);font-size:10px;line-height:1.5}.safe-note{padding:9px 10px;color:var(--success);background:rgba(22,128,94,.06);border:1px solid rgba(22,128,94,.16);border-radius:5px;font-size:10px}
 </style>

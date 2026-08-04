@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
@@ -122,6 +123,7 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/face", "scope": "image:face"},
                 {"method": "POST", "path": "/api/v1/images/deepfake", "scope": "image:deepfake"},
                 {"method": "POST", "path": "/api/v1/images/mllm", "scope": "image:mllm"},
+                {"method": "POST", "path": "/api/v1/images/content-safety", "scope": "image:content-safety"},
                 {"method": "POST", "path": "/api/v1/images/provenance/verify", "scope": "image:provenance"},
                 {"method": "GET", "path": "/api/v1/usage", "scope": "usage:read"},
                 {"method": "POST", "path": "/api/v1/scans", "scope": "scan:run"},
@@ -230,9 +232,9 @@ async def content_check(body: ContentCheckRequest, request: Request):
 
 
 async def _run_image(file: UploadFile, detector: Callable[[str], Any]) -> Any:
-    from routers import detect as detect_router
+    from services import upload_service
 
-    path = await detect_router._save_upload(file)
+    path = await upload_service.save_image_upload(file, Path("uploads"))
     try:
         return await asyncio.to_thread(detector, path)
     finally:
@@ -242,10 +244,10 @@ async def _run_image(file: UploadFile, detector: Callable[[str], Any]) -> Any:
 
 @router.post("/images/face")
 async def image_face(request: Request, image: UploadFile = File(...)):
-    from routers import detect as detect_router
+    from services import face_service
 
     async def run():
-        return await _run_image(image, detect_router._inspect_faces)
+        return await _run_image(image, face_service.inspect)
 
     return await _metered(request, scope="image:face", operation="image.face", run=run)
 
@@ -268,6 +270,21 @@ async def image_mllm(request: Request, image: UploadFile = File(...)):
         return await _run_image(image, mllm_service.analyze)
 
     return await _metered(request, scope="image:mllm", operation="image.mllm", run=run)
+
+
+@router.post("/images/content-safety")
+async def image_content_safety(request: Request, image: UploadFile = File(...)):
+    from services import mllm_service
+
+    async def run():
+        return await _run_image(image, mllm_service.analyze_content_safety)
+
+    return await _metered(
+        request,
+        scope="image:content-safety",
+        operation="image.content_safety",
+        run=run,
+    )
 
 
 @router.post("/images/provenance/verify")

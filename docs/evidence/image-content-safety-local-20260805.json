@@ -1,0 +1,196 @@
+{
+  "schema": "aigc.image-content-safety.evidence.v1",
+  "tested_at": "2026-08-04T19:10:00.657203+00:00",
+  "model": "claude-sonnet-4-6",
+  "policy_version": "image-safety-v1",
+  "sample_policy": {
+    "generated_only": true,
+    "fictional_people_and_organizations": true,
+    "public_sensitive_thumbnails_masked": true,
+    "raw_user_uploads_publicly_exposed": false
+  },
+  "generation_limitations": [
+    "Stronger standalone adult and violent sample prompts were rejected by the image provider with HTTP 400 content_policy_violation.",
+    "Borderline contact-sheet crops are retained as false-negative and human-review test cases rather than relabeled as guaranteed positives."
+  ],
+  "samples": [
+    {
+      "sample_id": "face-swap",
+      "title": "虚构主持人换脸",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "deepfake_face_swap"
+      ],
+      "file": "frontend/public/demo-samples/face-swap.jpg",
+      "sha256": "65a30883f6e33b6d7bab93b7205e5b4adcb0568556eb69617294cd846dc308cb",
+      "size_bytes": 40882,
+      "latency_ms": 7149,
+      "result": {
+        "verdict": "safe",
+        "safe": true,
+        "risk_score": 0.02,
+        "categories": [],
+        "summary": "图片显示一名男性正面肖像，背景为城市夜景虚化光点，画面无任何违规内容，属于普通人物访谈或新闻类照片，内容安全。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": false,
+        "policy_version": "image-safety-v1"
+      }
+    },
+    {
+      "sample_id": "adult-scene",
+      "title": "成人夜店边界场景",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "adult_content_borderline"
+      ],
+      "file": "docs/evidence/demo-samples/raw/adult-scene.jpg",
+      "sha256": "cfebc47b38a187488c83589ee0764cea88fefa3ac9e0c72f091fa02138b2a620",
+      "size_bytes": 50544,
+      "latency_ms": 9228,
+      "result": {
+        "verdict": "review",
+        "safe": false,
+        "risk_score": 0.55,
+        "categories": [
+          {
+            "code": "adult_content",
+            "label": "疑似成人内容",
+            "confidence": 0.55,
+            "severity": "low",
+            "evidence": "夜店场景中多名女性穿着暴露紧身短裙或低胸礼服，前景女性着银色紧身超短裙坐姿展示较多腿部皮肤"
+          },
+          {
+            "code": "illegal_activity",
+            "label": "疑似违法活动",
+            "confidence": 0.35,
+            "severity": "low",
+            "evidence": "多名人员手持疑似酒精饮品，夜店饮酒场景，无法确认是否涉及未成年人饮酒"
+          }
+        ],
+        "summary": "图片为夜店社交场景，紫红色灯光环境，人群密集。部分女性着装较为暴露，存在低度成人内容风险。画面中可见多人持饮品，疑似含酒精饮料。整体属于合法夜店娱乐场景，无明确违规内容，但建议人工复核着装尺度及场所合规性。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": true,
+        "policy_version": "image-safety-v1"
+      }
+    },
+    {
+      "sample_id": "weapon-display",
+      "title": "受控武器展示",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "weapon_display"
+      ],
+      "file": "docs/evidence/demo-samples/raw/weapon-display.jpg",
+      "sha256": "4713b996d343288dde898d57565457bf7552e2d849591fd185864d73d559472e",
+      "size_bytes": 49349,
+      "latency_ms": 9291,
+      "result": {
+        "verdict": "review",
+        "safe": false,
+        "risk_score": 0.95,
+        "categories": [
+          {
+            "code": "weapon_display",
+            "label": "疑似武器展示",
+            "confidence": 0.95,
+            "severity": "medium",
+            "evidence": "画面中央可见一把黑色半自动手枪，枪身完整，旁边放有一个分离的弹匣，陈列于金属台面上，背景有黄黑警示条纹边框，疑似展示或陈列场景"
+          }
+        ],
+        "summary": "图片清晰展示一把半自动手枪及独立弹匣，属于武器展示内容。背景警示条纹及透明展示架提示可能为博物馆、射击场或安全培训等合法场景，但因枪支与弹匣同框且细节清晰，需人工复核确认发布平台及使用背景是否符合内容规范。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": true,
+        "policy_version": "image-safety-v1"
+      }
+    },
+    {
+      "sample_id": "violence-aftermath",
+      "title": "非血腥冲突后现场",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "violence_aftermath_borderline"
+      ],
+      "file": "docs/evidence/demo-samples/raw/violence-aftermath.jpg",
+      "sha256": "919e3d6c7a15d89c9526ec0bcbd6a71b473dc4ebed28dd1fc237d2285851b5c4",
+      "size_bytes": 69919,
+      "latency_ms": 6450,
+      "result": {
+        "verdict": "safe",
+        "safe": true,
+        "risk_score": 0.05,
+        "categories": [],
+        "summary": "画面显示一处户外石板路场景，地面散落有翻倒的藤椅、布料和金属罐，背景可见咖啡馆桌椅与植物。整体呈现混乱但日常的街头景象，无明显内容安全风险。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": false,
+        "policy_version": "image-safety-v1"
+      }
+    },
+    {
+      "sample_id": "political-rally",
+      "title": "虚构政治集会",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "political_sensitive"
+      ],
+      "file": "docs/evidence/demo-samples/raw/political-rally.jpg",
+      "sha256": "c2a81c728a853963a5cd7d0b7ca19124d9e5a1db8c12059ed07653e6c918852e",
+      "size_bytes": 69710,
+      "latency_ms": 10241,
+      "result": {
+        "verdict": "review",
+        "safe": false,
+        "risk_score": 0.72,
+        "categories": [
+          {
+            "code": "political_sensitive",
+            "label": "疑似政治敏感",
+            "confidence": 0.72,
+            "severity": "medium",
+            "evidence": "画面显示一名男性站在讲台上持麦克风发表演讲，背景为大规模人群集会，现场飘扬大量蓝白色旗帜，旗帜上印有八角星图案，具有明显的政治集会或党派动员特征"
+          }
+        ],
+        "summary": "图片呈现大规模政治性集会场景：演讲者站于讲台发表讲话，台下人群密集且有人举手呼应，背景旗帜统一为蓝白配色并带有八角星标志，整体氛围具有较强的政治动员属性。旗帜标志未能识别为已知政党或国家符号，无法排除特定政治敏感性，建议人工复核确认旗帜来源及集会背景。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": true,
+        "policy_version": "image-safety-v1"
+      }
+    },
+    {
+      "sample_id": "marketing-violation",
+      "title": "保本收益营销",
+      "source": "ChatGPT2API gpt-image-2 synthetic benchmark",
+      "reference_labels": [
+        "marketing_violation"
+      ],
+      "file": "frontend/public/demo-samples/marketing-violation.jpg",
+      "sha256": "d33c4944909bdd18ce79895a0f8573861aded9130cc26264cd9ff7389bcde318",
+      "size_bytes": 45537,
+      "latency_ms": 10443,
+      "result": {
+        "verdict": "unsafe",
+        "safe": false,
+        "risk_score": 0.95,
+        "categories": [
+          {
+            "code": "marketing_violation",
+            "label": "疑似营销违规",
+            "confidence": 0.95,
+            "severity": "critical",
+            "evidence": "屏幕显示【Guaranteed Daily Returns 3.8% Every Single Day】【100% Guaranteed】【No Risk】【Instant Payouts】，宣称每日保证回报3.8%且零风险，属于典型的虚假金融收益承诺，违反金融广告合规规定"
+          },
+          {
+            "code": "illegal_activity",
+            "label": "疑似违法活动",
+            "confidence": 0.82,
+            "severity": "high",
+            "evidence": "【Aurora Wealth】平台宣传【100% Guaranteed】高额每日固定回报并声称【No Risk】，符合庞氏骗局或非法集资类金融诈骗的典型特征，存在欺诈性金融活动风险"
+          }
+        ],
+        "summary": "图片展示一款名为【Aurora Wealth】的金融应用界面，以手机屏幕形式呈现，宣称每日保证3.8%回报、100%保本、零风险并即时出款。此类表述在金融领域属于严重违规的虚假宣传，且与庞氏骗局或金融诈骗的特征高度吻合，综合判定为不安全内容。",
+        "model": "claude-sonnet-4-6",
+        "requires_human_review": false,
+        "policy_version": "image-safety-v1"
+      }
+    }
+  ]
+}

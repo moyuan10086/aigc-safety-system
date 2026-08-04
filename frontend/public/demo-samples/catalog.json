@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-08-05T00:00:00+08:00",
+  "policy_version": "image-safety-v1",
+  "privacy": {
+    "curated_demo_only": true,
+    "raw_user_uploads_included": false,
+    "sensitive_thumbnails_masked": true
+  },
+  "samples": [
+    {
+      "id": "generated-portrait",
+      "title": "AI 人像伪造",
+      "image": "/demo-samples/generated-portrait.jpg",
+      "source": "MLLM-Defake demo/fake",
+      "reference": "AI 生成",
+      "risk_category": "Deepfake",
+      "result": "模型分歧",
+      "score": "MLLM 72%",
+      "detail": "Deepfake 判真 · MLLM 判伪",
+      "disagreement": true,
+      "masked": false
+    },
+    {
+      "id": "face-swap",
+      "title": "虚构主持人换脸",
+      "image": "/demo-samples/face-swap.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "换脸演示",
+      "risk_category": "人脸伪造",
+      "result": "内容安全",
+      "score": "风险 2%",
+      "detail": "真实性链待生产复测",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "adult-scene",
+      "title": "成人夜店边界场景",
+      "image": "/demo-samples/adult-scene-masked.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "成人边界",
+      "risk_category": "成人内容",
+      "result": "人工复核",
+      "score": "风险 55%",
+      "detail": "命中成人内容与饮酒场景",
+      "disagreement": false,
+      "masked": true
+    },
+    {
+      "id": "weapon-display",
+      "title": "受控武器展示",
+      "image": "/demo-samples/weapon-display-masked.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "武器展示",
+      "risk_category": "武器内容",
+      "result": "人工复核",
+      "score": "风险 95%",
+      "detail": "手枪与分离弹匣证据",
+      "disagreement": false,
+      "masked": true
+    },
+    {
+      "id": "violence-aftermath",
+      "title": "非血腥冲突后现场",
+      "image": "/demo-samples/violence-aftermath-masked.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "暴力边界",
+      "risk_category": "暴力场景",
+      "result": "模型漏检",
+      "score": "风险 5%",
+      "detail": "需人工标注验证弱正样本",
+      "disagreement": true,
+      "masked": true
+    },
+    {
+      "id": "political-rally",
+      "title": "虚构政治集会",
+      "image": "/demo-samples/political-rally-masked.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "涉政敏感",
+      "risk_category": "政治敏感",
+      "result": "人工复核",
+      "score": "风险 72%",
+      "detail": "集会、演讲与统一旗帜",
+      "disagreement": false,
+      "masked": true
+    },
+    {
+      "id": "marketing-violation",
+      "title": "保本收益营销",
+      "image": "/demo-samples/marketing-violation.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "营销违规",
+      "risk_category": "金融营销",
+      "result": "阻断",
+      "score": "风险 95%",
+      "detail": "保证收益、零风险、即时返现",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "ai-license",
+      "title": "AI 合成证件",
+      "image": "/demo-samples/ai-license-masked.jpg",
+      "source": "用户 Image2 测试集",
+      "reference": "AI 生成",
+      "risk_category": "证件伪造",
+      "result": "待生产复测",
+      "score": "待测",
+      "detail": "AI 合成演示样本 · 非真实证件",
+      "disagreement": false,
+      "masked": true
+    },
+    {
+      "id": "real-control",
+      "title": "真实图片对照",
+      "image": "/demo-samples/real-control.jpg",
+      "source": "MLLM-Defake demo/real",
+      "reference": "真实图片",
+      "risk_category": "对照样本",
+      "result": "模型一致",
+      "score": "MLLM 78%",
+      "detail": "Deepfake 与 MLLM 均判真",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "c2pa-provenance",
+      "title": "C2PA 来源样本",
+      "image": "/demo-samples/c2pa-provenance.jpg",
+      "source": "c2pa-rs 公开夹具",
+      "reference": "已签名来源",
+      "risk_category": "来源取证",
+      "result": "来源确认",
+      "score": "2 个清单",
+      "detail": "C2PA 有效不等于内容真实",
+      "disagreement": false,
+      "masked": false
+    }
+  ]
+}

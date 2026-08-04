@@ -193,6 +193,8 @@ curl https://aigc.49.51.248.227.sslip.io/api/v1/reports/<report-id>/download -H 
 - `POST /api/v1/images/face`：人脸与图像质量检查
 - `POST /api/v1/images/deepfake`：Deepfake 检测
 - `POST /api/v1/images/mllm`：多模态图片审核
+- `POST /api/v1/images/content-safety`：视觉大模型多标签内容安全审核；独立 `image:content-safety` 作用域
+- `POST /api/v1/images/provenance/verify`：C2PA / Content Credentials 来源验证
 - `GET /api/v1/catalog`：当前 Key 的作用域与配额
 - `GET /api/v1/usage`：当前 Key 的调用量与延迟
 - `POST /api/v1/scans`、`GET /api/v1/scans[/{id}]`：提交和查询租户隔离的异步 garak 扫描（仅 quick/standard）

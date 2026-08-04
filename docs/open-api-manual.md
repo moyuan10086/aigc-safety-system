@@ -1,6 +1,6 @@
 # AIGC 安全运营台开放 API 手册
 
-版本：2026-08-04
+版本：2026-08-05
 
 基础地址：`https://aigc.49.51.248.227.sslip.io`
 
@@ -38,6 +38,7 @@ X-API-Key: <api-key>
 | `POST /api/v1/images/face` | `image:face` | 非身份化人脸存在性、数量和质量 |
 | `POST /api/v1/images/deepfake` | `image:deepfake` | Deepfake 检测 |
 | `POST /api/v1/images/mllm` | `image:mllm` | 多模态图片解释 |
+| `POST /api/v1/images/content-safety` | `image:content-safety` | 图片成人、武器、暴力、涉政、营销等多标签审核 |
 | `POST /api/v1/images/provenance/verify` | `image:provenance` | C2PA / Content Credentials 来源验证 |
 | `GET /api/v1/catalog`、`GET /api/v1/usage` | `usage:read` | 能力、配额和调用统计 |
 | `/api/v1/scans` | `scan:run` / `scan:read` | 租户隔离主动扫描 |
@@ -109,6 +110,20 @@ C2PA 四态：
 | `invalid_or_tampered` | 验证失败、不可信或疑似篡改 | 提升风险并转人工复核 |
 
 后两种状态仍可能返回 HTTP 200，它们是业务结果，不是可忽略的接口失败。
+
+### 图片内容安全
+
+`POST /api/v1/images/content-safety` 实际调用视觉大模型，和 `/images/mllm` 的 AI 生成/Deepfake 解释是两个不同任务。请求字段同样为 `image`：
+
+```bash
+curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/images/content-safety \
+  -H "X-API-Key: ${AIGC_API_KEY}" \
+  -F "image=@synthetic-risk-sample.jpg;type=image/jpeg"
+```
+
+返回字段包括 `verdict`（`safe/review/unsafe`）、`risk_score`、`categories[]`、`summary`、`requires_human_review` 和 `policy_version`。当前类别白名单为成人内容、武器展示、暴力血腥、政治敏感、营销违规、违法活动、自伤风险、未成年人风险和个人敏感信息。模型生成的未知类别会被丢弃；JSON 无法解析时固定转 `review`，不得自动放行。
+
+2026-08-05 本地真实模型测试：成人夜店边界样本 `review/0.55`，武器展示 `review/0.95`，虚构政治集会 `review/0.72`，保证收益营销 `unsafe/0.95`；非血腥冲突后现场返回 `safe/0.05`，作为待人工复核的弱正/漏检案例保留。完整哈希、延迟和模型输出见 `docs/evidence/image-content-safety-local-20260805.json`。
 
 ## 6. Agent 护栏
 
