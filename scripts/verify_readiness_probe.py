@@ -32,18 +32,62 @@ def main() -> int:
     args = parser.parse_args()
 
     token = auth_service.create_session(auth_service.current_user())
-    response = httpx.post(
-        f"{args.base_url.rstrip('/')}/api/system/readiness/probe",
+    base_url = args.base_url.rstrip("/")
+    with httpx.Client(
         cookies={COOKIE_NAME: token},
         timeout=args.timeout,
-    )
+    ) as client:
+        response = client.post(f"{base_url}/api/system/readiness/probe")
+        stats_response = client.get(f"{base_url}/api/audit/stats")
+        logs_response = client.get(
+            f"{base_url}/api/audit/logs",
+            params={
+                "event_type": "system.readiness_probe",
+                "page": 1,
+                "page_size": 1,
+            },
+        )
     try:
         payload = response.json()
     except ValueError:
         payload = {"status": "invalid_json", "http_status": response.status_code}
 
-    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0 if response.is_success else 1
+    try:
+        stats = stats_response.json()
+    except ValueError:
+        stats = {"http_status": stats_response.status_code}
+    try:
+        logs = logs_response.json()
+    except ValueError:
+        logs = {"http_status": logs_response.status_code}
+
+    events = logs.get("items") or logs.get("events") or []
+    latest = events[0] if events else {}
+    metadata = latest.get("metadata") or {}
+    print(
+        json.dumps(
+            {
+                "probe": payload,
+                "audit": {
+                    "chain_valid": stats.get("chain_valid"),
+                    "event_count": stats.get("total", stats.get("event_count")),
+                    "evidence_count": stats.get("evidence_count"),
+                    "latest_probe": {
+                        "event_id": latest.get("id"),
+                        "outcome": latest.get("outcome"),
+                        "attempts": metadata.get("attempts"),
+                        "max_attempts": metadata.get("max_attempts"),
+                        "recovered_after_retry": metadata.get("recovered_after_retry"),
+                        "error_code": metadata.get("error_code"),
+                    },
+                },
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0 if response.is_success and stats_response.is_success and logs_response.is_success else 1
 
 
 if __name__ == "__main__":
