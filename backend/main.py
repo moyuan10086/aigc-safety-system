@@ -26,7 +26,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="AIGC 内容安全审核系统", lifespan=lifespan)
+app = FastAPI(title="多模态内容安全与真实性审核系统", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

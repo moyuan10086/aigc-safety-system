@@ -182,7 +182,7 @@ def _gen_summary(report: dict) -> str:
 
 
 def _call_summary(client, model: str, report: dict) -> str:
-    prompt = f"""你是一个AIGC内容安全审计专家。请根据以下检测结果生成一份综合分析报告（Markdown格式）：
+    prompt = f"""你是一个多模态真实性与内容安全审计专家。请根据以下检测结果生成一份综合分析报告（Markdown格式）：
 
 检测结果：
 {json.dumps(report, ensure_ascii=False, indent=2)}
@@ -191,8 +191,9 @@ def _call_summary(client, model: str, report: dict) -> str:
 1. 用 Markdown 格式输出，包含标题、列表、加粗等
 2. 分为"检测概览"、"详细分析"、"风险评估"、"建议措施"四个部分
 3. 语言简洁专业，适合技术报告
-4. 如果有 Deepfake/MLLM 结果，重点分析伪造证据
-5. 如果有 RAG 结果，说明内容安全风险
+4. 将真实性与来源结论、内容安全结论分开说明，不把 AI 生成等同于内容违规
+5. 如果有 Deepfake/MLLM/C2PA 结果，分析真实性、篡改与来源证据
+6. 如果有 RAG 或 content_safety 结果，说明内容安全类别、风险分数和人工复核要求
 """
     resp = client.chat.completions.create(
         model=model,
@@ -276,13 +277,38 @@ async def get_history():
                 "mllm_verdict": r.get("mllm", {}).get("verdict"),
                 "rag_safe": r.get("rag", {}).get("safe"),
                 "rag_risk": r.get("rag", {}).get("risk_level"),
+                "content_safety_verdict": r.get("content_safety", {}).get("verdict"),
+                "content_safety_risk": r.get("content_safety", {}).get("risk_score"),
+                "content_safety_categories": [
+                    item.get("code") for item in r.get("content_safety", {}).get("categories", [])
+                    if item.get("code")
+                ],
             })
         except Exception:
             pass
     total = len(reports)
     fake_count = sum(1 for r in reports if r["deepfake_label"] == "fake")
-    risk_count = sum(1 for r in reports if r["rag_safe"] is False)
-    return {"total": total, "fake_count": fake_count, "risk_count": risk_count, "reports": reports}
+    risk_count = sum(
+        1 for r in reports
+        if r["rag_safe"] is False or r["content_safety_verdict"] in {"review", "unsafe"}
+    )
+    clear_count = sum(
+        1 for r in reports
+        if r["deepfake_label"] != "fake"
+        and r["mllm_verdict"] != "fake"
+        and r["rag_safe"] is not False
+        and r["content_safety_verdict"] not in {"review", "unsafe"}
+        and any(value is not None for value in (
+            r["deepfake_label"], r["mllm_verdict"], r["rag_safe"], r["content_safety_verdict"]
+        ))
+    )
+    return {
+        "total": total,
+        "fake_count": fake_count,
+        "risk_count": risk_count,
+        "clear_count": clear_count,
+        "reports": reports,
+    }
 
 
 @router.get("/report/{report_id}")
@@ -304,7 +330,7 @@ async def download_report_md(report_id: str):
     summary = report.get("summary", "")
     # 生成完整 Markdown 文档
     lines = [
-        "# AIGC 内容安全审计报告\n",
+        "# 多模态内容安全与真实性审计报告\n",
         f"**报告ID**: {report_id}  \n",
         f"**生成时间**: {report.get('created_at','')}\n\n---\n",
     ]
@@ -312,10 +338,28 @@ async def download_report_md(report_id: str):
         lines.append(f"**检测文件**: {report['filename']}\n\n")
     if report.get("deepfake"):
         df = report["deepfake"]
-        lines.append(f"## Deepfake 检测\n- 结果: **{df.get('label')}**\n- 伪造得分: {df.get('score')}\n- 置信度: {df.get('confidence')}\n\n")
+        lines.append(f"## 真实性与来源\n### Deepfake 检测\n- 结果: **{df.get('label')}**\n- 伪造得分: {df.get('score')}\n- 置信度: {df.get('confidence')}\n\n")
+    if report.get("mllm"):
+        mllm = report["mllm"]
+        lines.append(f"### MLLM 真实性分析\n- 结果: **{mllm.get('verdict')}**\n- 置信度: {mllm.get('confidence')}\n\n")
+    if report.get("content_safety"):
+        content = report["content_safety"]
+        lines.append(
+            "## 视觉内容安全\n"
+            f"- 处置: **{content.get('verdict')}**\n"
+            f"- 综合风险: {content.get('risk_score')}\n"
+            f"- 模型: {content.get('model')}\n"
+        )
+        categories = content.get("categories") or []
+        if categories:
+            lines.append("- 命中类别:\n")
+            for item in categories:
+                label = item.get("label") or item.get("code") or "unknown"
+                lines.append(f"  - {label}: {item.get('confidence')} ({item.get('severity')})\n")
+        lines.append("\n")
     if report.get("rag"):
         rag = report["rag"]
-        lines.append(f"## RAG 内容审核\n- 安全: **{'是' if rag.get('safe') else '否'}**\n- 风险等级: {rag.get('risk_level')}\n\n")
+        lines.append(f"## 文本与红线内容安全\n- 安全: **{'是' if rag.get('safe') else '否'}**\n- 风险等级: {rag.get('risk_level')}\n\n")
     if summary:
         lines.append(f"---\n\n{summary}\n")
     md_content = "".join(lines)

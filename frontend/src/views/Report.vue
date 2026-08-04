@@ -16,8 +16,8 @@
       <div style="display:flex;gap:24px">
         <div class="stat-item"><div class="stat-num">{{ stats.total }}</div><div class="stat-label">总检测数</div></div>
         <div class="stat-item"><div class="stat-num" style="color:#dc2626">{{ stats.fake_count }}</div><div class="stat-label">伪造图像</div></div>
-        <div class="stat-item"><div class="stat-num" style="color:#f59e0b">{{ stats.risk_count }}</div><div class="stat-label">内容风险</div></div>
-        <div class="stat-item"><div class="stat-num" style="color:#16a34a">{{ stats.total - stats.fake_count - stats.risk_count }}</div><div class="stat-label">安全通过</div></div>
+        <div class="stat-item"><div class="stat-num" style="color:#f59e0b">{{ stats.risk_count }}</div><div class="stat-label">需复核/内容风险</div></div>
+        <div class="stat-item"><div class="stat-num" style="color:#16a34a">{{ stats.clear_count }}</div><div class="stat-label">无风险记录</div></div>
       </div>
     </div>
 
@@ -55,6 +55,12 @@
           <div class="section-label">RAG审核</div>
           <span class="badge" :class="r.rag.safe?'badge-success':'badge-danger'">{{ r.rag.safe?'安全':'风险' }}</span>
           <span style="font-size:12px;color:#64748b;margin-left:8px">{{ r.rag.risk_level?.toUpperCase() }}</span>
+        </div>
+        <div v-if="r.content_safety">
+          <div class="section-label">视觉内容安全</div>
+          <span class="badge" :class="contentSafetyClass(r.content_safety.verdict)">{{ contentSafetyLabel(r.content_safety.verdict) }}</span>
+          <span style="font-size:12px;color:#64748b;margin-left:8px">风险 {{ formatPercent(r.content_safety.risk_score) }}</span>
+          <span v-if="r.content_safety.categories?.length" class="category-summary">{{ categorySummary(r.content_safety.categories) }}</span>
         </div>
       </div>
 
@@ -100,7 +106,7 @@ async function loadReports() {
     const r = await fetch('/api/detect/history')
     if (r.ok) {
       const d = await r.json()
-      stats.value = { total: d.total, fake_count: d.fake_count, risk_count: d.risk_count }
+      stats.value = { total: d.total, fake_count: d.fake_count, risk_count: d.risk_count, clear_count: d.clear_count }
       const full = await Promise.all(
         d.reports.map((item: any) =>
           fetch(`/api/detect/report/${item.id}`).then(r => r.ok ? r.json() : null)
@@ -115,6 +121,10 @@ async function loadReports() {
 }
 
 watch(activeView, view => { if (view === 'reports') loadReports() })
+function contentSafetyClass(verdict: string) { return verdict === 'unsafe' ? 'badge-danger' : verdict === 'safe' ? 'badge-success' : 'badge-warn' }
+function contentSafetyLabel(verdict: string) { return ({ safe: '安全', review: '人工复核', unsafe: '阻断' } as Record<string, string>)[verdict] || '结论不足' }
+function formatPercent(value: unknown) { const score = Number(value); return Number.isFinite(score) ? `${(score * 100).toFixed(1)}%` : '未知' }
+function categorySummary(items: any[]) { return items.slice(0, 3).map(item => `${item.label || item.code} ${formatPercent(item.confidence)}`).join(' · ') }
 </script>
 
 <style scoped>
@@ -128,6 +138,7 @@ watch(activeView, view => { if (view === 'reports') loadReports() })
 .badge-danger { background:rgba(251,113,133,.1);color:var(--danger) }
 .badge-warn { background:rgba(245,158,11,.1);color:var(--warning) }
 .download-link{margin-left:8px;font-size:11px;color:var(--primary);text-decoration:none}.md-body { font-size:13px;line-height:1.7;color:var(--muted) }
+.category-summary{display:block;margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5}
 .md-body :deep(h1),.md-body :deep(h2),.md-body :deep(h3) { font-weight:700;margin:12px 0 6px;color:var(--text) }
 .md-body :deep(h2) { font-size:14px }
 .md-body :deep(h3) { font-size:13px }
