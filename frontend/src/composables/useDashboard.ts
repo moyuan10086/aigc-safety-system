@@ -13,12 +13,14 @@ export interface ShadowEvaluationSummary {
   pilot_target_labels: number
   pilot_remaining_count: number
   pilot_completed: boolean
+  target_completed: boolean
   eligible_samples: number
   pending_reviews: number
   reviewed_count: number
   reviewer_reviewed_count: number
   verified_review_count: number
   unverified_review_count: number
+  review_integrity_complete: boolean
   review_completion_rate: number
   active_claims: number
   claimed_by_me_count: number

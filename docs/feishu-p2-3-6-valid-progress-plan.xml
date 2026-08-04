@@ -1,0 +1,10 @@
+<h4>P2-3.6 有效试标进度与操作引导硬化（2026-08-04）</h4>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>实施依据：</b>飞书统一验收要求“已提交标签数与领取、证据访问双审计完整的有效标签数相等”。现有页面虽显示有效标签，但首批 20 条和总计 200 条的进度仍按已提交数量计算，理论上会让异常标签错误推进里程碑。</p>
+</callout>
+<checkbox done="false">P2-3.6a 将首批 20 条、总计 200 条、剩余数量和完成率统一改为按有效标签计算；里程碑同时要求已提交数等于有效数</checkbox>
+<checkbox done="false">P2-3.6b 页面增加“领取样本 → 查看加密证据 → 提交首次标签”三步引导，并在存在缺少双审计的标签时显示完整性告警</checkbox>
+<checkbox done="false">P2-3.6c 增加异常标签不能推进试标进度的确定性测试，完成 Dashboard 专项、后端全量、Ruff、前端构建和 GitHub 门禁</checkbox>
+<checkbox done="false">P2-3.6d 增加只读生产核验脚本；不得领取样本、写标签、解密证据或输出事件 ID、内容哈希、提示词与模型输出</checkbox>
+<checkbox done="false">P2-3.6e 完成发布前后备份、生产部署、真实聚合核验与飞书证据回写；人工标签仍只能由真实审核员本人提交</checkbox>
+<p><b>验收口径：</b>任何 <code>reviewed_count &gt; verified_review_count</code> 的状态都必须令 <code>pilot_completed=false</code>、<code>target_completed=false</code>，并按有效标签计算剩余数量；生产验证只读取脱敏统计，保持当前人工真值不变。</p>

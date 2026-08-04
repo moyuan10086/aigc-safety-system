@@ -3,6 +3,7 @@
 import json
 import tempfile
 import unittest
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -119,7 +120,9 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(data["shadow_evaluation"]["pilot_target_labels"], 20)
         self.assertEqual(data["shadow_evaluation"]["pilot_remaining_count"], 20)
         self.assertFalse(data["shadow_evaluation"]["pilot_completed"])
+        self.assertFalse(data["shadow_evaluation"]["target_completed"])
         self.assertEqual(data["shadow_evaluation"]["verified_review_count"], 0)
+        self.assertTrue(data["shadow_evaluation"]["review_integrity_complete"])
         self.assertEqual(data["shadow_reviews"][0]["event_id"], disagreement_id)
         self.assertNotIn("结构化复核测试原文", response.text)
 
@@ -278,6 +281,30 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn("这是不能出现在概览或导出里的原始提示词", exported.text)
         self.assertNotIn("这是不能出现在概览或导出里的危险模型输出", exported.text)
         self.assertTrue(audit_log_service.verify_chain())
+
+    def test_unverified_label_does_not_advance_valid_pilot_progress(self):
+        _, disagreement_id = self._seed()
+        with closing(audit_log_service._connect()) as connection:
+            connection.execute(
+                """
+                INSERT INTO guardrail_shadow_reviews
+                    (event_id, review_label, reason_code, reviewer, reviewed_at)
+                VALUES (?, 'safe', 'legacy_unverified', 'operator', ?)
+                """,
+                (disagreement_id, datetime.now(timezone.utc).isoformat()),
+            )
+            connection.commit()
+
+        summary = audit_log_service.shadow_review_statistics(reviewer="operator")
+
+        self.assertEqual(summary["reviewed_count"], 1)
+        self.assertEqual(summary["verified_review_count"], 0)
+        self.assertEqual(summary["unverified_review_count"], 1)
+        self.assertFalse(summary["review_integrity_complete"])
+        self.assertEqual(summary["pilot_remaining_count"], 20)
+        self.assertFalse(summary["pilot_completed"])
+        self.assertEqual(summary["remaining_count"], 200)
+        self.assertEqual(summary["review_completion_rate"], 0.0)
 
     def test_expired_claim_can_be_taken_over_without_exposing_evidence(self):
         _, disagreement_id = self._seed()

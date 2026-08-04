@@ -1,16 +1,24 @@
 <template>
   <div class="shadow-review">
     <div class="shadow-metrics">
-      <div><span>人工标签进度</span><strong>{{ summary.reviewed_count }} / {{ summary.target_labels }}</strong><small>{{ summary.review_completion_rate }}% · 还需 {{ summary.remaining_count }} 条</small></div>
-      <div :class="{ success: summary.pilot_completed }"><span>首批试标</span><strong>{{ Math.min(summary.reviewed_count, summary.pilot_target_labels) }} / {{ summary.pilot_target_labels }}</strong><small>{{ summary.pilot_completed ? '试标里程碑已完成' : `还需 ${summary.pilot_remaining_count} 条` }}</small></div>
-      <div><span>有效标签</span><strong>{{ summary.verified_review_count }}</strong><small>双审计完整 · 异常 {{ summary.unverified_review_count }}</small></div>
+      <div :class="{ success: summary.target_completed }"><span>有效标签进度</span><strong>{{ summary.verified_review_count }} / {{ summary.target_labels }}</strong><small>{{ summary.review_completion_rate }}% · 还需 {{ summary.remaining_count }} 条</small></div>
+      <div :class="{ success: summary.pilot_completed, danger: summary.unverified_review_count > 0 }"><span>首批有效试标</span><strong>{{ Math.min(summary.verified_review_count, summary.pilot_target_labels) }} / {{ summary.pilot_target_labels }}</strong><small>{{ pilotStatus }}</small></div>
+      <div :class="{ success: summary.reviewed_count > 0 && summary.review_integrity_complete, danger: summary.unverified_review_count > 0 }"><span>标签完整性</span><strong>{{ summary.verified_review_count }} / {{ summary.reviewed_count }}</strong><small>{{ integrityStatus }}</small></div>
       <div><span>我的复核</span><strong>{{ summary.reviewer_reviewed_count }}</strong><small>已领取 {{ summary.claimed_by_me_count }} 条</small></div>
       <div><span>可复核样本</span><strong>{{ summary.eligible_samples }}</strong><small>待复核 {{ summary.pending_reviews }} 条</small></div>
       <div class="danger"><span>模型分歧</span><strong>{{ summary.disagreement_count }}</strong><small>队列优先展示分歧</small></div>
       <div><span>活跃领取</span><strong>{{ summary.active_claims }}</strong><small>15 分钟无操作自动释放</small></div>
     </div>
-    <div class="progress-track" role="progressbar" :aria-valuenow="summary.reviewed_count" aria-valuemin="0" :aria-valuemax="summary.target_labels">
+    <div class="progress-track" role="progressbar" :aria-valuenow="summary.verified_review_count" aria-valuemin="0" :aria-valuemax="summary.target_labels">
       <i :style="{ width: `${progress}%` }"></i>
+    </div>
+    <ol class="review-guide" aria-label="人工试标操作步骤">
+      <li><b>1</b><span>领取样本</span><small>点击“开始复核”，获得 15 分钟独占租约</small></li>
+      <li><b>2</b><span>查看加密证据</span><small>在取证详情中查看原始提示词与模型输出，访问动作自动留痕</small></li>
+      <li><b>3</b><span>提交首次标签</span><small>选择安全、边界或危险；标签锁定后自动领取下一条</small></li>
+    </ol>
+    <div v-if="summary.unverified_review_count" class="integrity-alert" role="alert">
+      <CircleAlert :size="16" /><span>检测到 {{ summary.unverified_review_count }} 条标签缺少领取或证据访问审计，试标里程碑不会被标记为完成，请先核查审计记录。</span>
     </div>
     <div v-if="summary.reviewed_count" class="review-summary" aria-label="人工标签质量摘要">
       <span>标签分布</span>
@@ -79,7 +87,15 @@ defineEmits<{
 const verdictLabel = { safe: '安全', borderline: '边界', unsafe: '危险' }
 const shadowLabel = { pass: '通过', fail: '拦截' }
 const blindMode = ref(true)
-const progress = computed(() => props.summary.target_labels ? Math.min(100, props.summary.reviewed_count / props.summary.target_labels * 100) : 0)
+const progress = computed(() => props.summary.target_labels ? Math.min(100, props.summary.verified_review_count / props.summary.target_labels * 100) : 0)
+const pilotStatus = computed(() => {
+  if (props.summary.unverified_review_count) return `完整性异常 ${props.summary.unverified_review_count} 条`
+  return props.summary.pilot_completed ? '双审计完整，试标里程碑已完成' : `还需 ${props.summary.pilot_remaining_count} 条有效标签`
+})
+const integrityStatus = computed(() => {
+  if (!props.summary.reviewed_count) return '尚无人工标签'
+  return props.summary.review_integrity_complete ? '领取与证据访问审计完整' : `异常 ${props.summary.unverified_review_count} 条`
+})
 const choices: Array<{ value: 'safe' | 'borderline' | 'unsafe'; label: string; title: string; icon: Component }> = [
   { value: 'safe', label: '安全', title: '人工确认该样本应安全放行', icon: ShieldCheck },
   { value: 'borderline', label: '边界', title: '人工确认该样本需要进一步复核', icon: CircleAlert },
@@ -114,6 +130,7 @@ function labelTitle(item: ShadowReviewItem, choiceTitle: string) {
 <style scoped>
 .shadow-review{min-height:0}.shadow-metrics{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line)}.shadow-metrics>div{min-width:0;padding:13px 16px;border-right:1px solid var(--line)}.shadow-metrics>div:last-child{border-right:0}.shadow-metrics span,.shadow-metrics small{display:block;color:var(--faint);font-size:9px}.shadow-metrics strong{display:block;margin:5px 0 4px;color:var(--text);font:700 20px/1 ui-monospace,monospace}.shadow-metrics .danger strong{color:var(--danger)}.shadow-metrics .success strong{color:var(--success)}
 .progress-track{height:3px;background:var(--surface-3)}.progress-track i{display:block;height:100%;background:var(--primary);transition:width .25s ease}
+.review-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;padding:10px 16px;list-style:none;background:var(--surface);border-bottom:1px solid var(--line)}.review-guide li{min-width:0;display:grid;grid-template-columns:24px 1fr;column-gap:8px;padding:2px 14px;border-right:1px solid var(--line)}.review-guide li:first-child{padding-left:0}.review-guide li:last-child{padding-right:0;border-right:0}.review-guide b{grid-row:1/3;width:22px;height:22px;display:grid;place-items:center;color:#fff;background:var(--primary);border-radius:50%;font:700 9px/1 ui-monospace,monospace}.review-guide span{color:var(--text);font-size:10px;font-weight:650}.review-guide small{margin-top:3px;color:var(--faint);font-size:9px;line-height:1.45}.integrity-alert{display:flex;align-items:center;gap:8px;padding:8px 16px;color:var(--danger);background:rgba(207,63,79,.06);border-bottom:1px solid rgba(207,63,79,.16);font-size:9px}
 .review-summary{min-height:34px;display:flex;align-items:center;gap:7px;padding:5px 16px;color:var(--faint);background:var(--surface-2);border-bottom:1px solid var(--line);font-size:9px}.review-summary b{padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:4px;font-weight:650}.review-summary b.safe{color:var(--success)}.review-summary b.borderline{color:var(--warning)}.review-summary b.unsafe{color:var(--danger)}.review-summary i{width:1px;height:16px;margin:0 4px;background:var(--line)}
 .queue-head{min-height:48px;display:flex;align-items:center;gap:12px;padding:7px 16px;background:var(--surface-2);border-bottom:1px solid var(--line)}.queue-head>div:first-child{min-width:0;display:flex;align-items:baseline;gap:10px}.queue-head strong{font-size:11px}.queue-head span{color:var(--faint);font-size:9px}.queue-head>span{margin-left:auto;color:var(--muted)}
 .review-mode{height:28px;margin-left:auto;display:grid;grid-template-columns:repeat(2,76px);padding:2px;background:var(--surface-3);border:1px solid var(--line);border-radius:6px}.review-mode button{display:flex;align-items:center;justify-content:center;gap:5px;color:var(--muted);background:transparent;border:0;border-radius:4px;font-size:9px;cursor:pointer}.review-mode button.active{color:#fff;background:var(--primary);font-weight:650}.queue-head a{height:28px;display:flex;align-items:center;gap:6px;padding:0 9px;color:var(--primary);border:1px solid var(--line);border-radius:5px;font-size:9px;text-decoration:none}.queue-head a:hover{background:var(--surface);border-color:var(--line-bright)}
@@ -121,5 +138,5 @@ function labelTitle(item: ShadowReviewItem, choiceTitle: string) {
 .decision-pair{justify-content:center;color:var(--faint)}.decision-pair span{font-size:9px}.decision-pair b{margin-left:4px;padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:3px;font-size:9px}.decision-pair b.safe,.decision-pair b.pass{color:var(--success);background:rgba(22,128,94,.09)}.decision-pair b.borderline{color:var(--warning);background:rgba(184,111,18,.09)}.decision-pair b.unsafe,.decision-pair b.fail{color:var(--danger);background:rgba(207,63,79,.08)}
 .decision-pair em{padding:3px 5px;color:var(--danger);background:rgba(207,63,79,.08);border:1px solid rgba(207,63,79,.16);border-radius:3px;font-size:8px;font-style:normal}
 .blind-result{color:var(--muted)}.decision-pair.blind-result{gap:6px}.model-meta{justify-content:flex-end}.model-meta span{padding-right:8px;color:var(--faint);border-right:1px solid var(--line);font:9px/1 ui-monospace,monospace}.model-meta span:last-child{padding-right:0;border-right:0}.review-control{height:31px;display:grid;grid-template-columns:repeat(3,1fr);padding:2px;background:var(--surface-3);border:1px solid var(--line);border-radius:6px}.review-control button{display:flex;align-items:center;justify-content:center;gap:5px;color:var(--muted);background:transparent;border:0;border-radius:4px;font-size:9px;cursor:pointer}.review-control button:hover:not(:disabled){color:var(--primary);background:var(--surface)}.review-control button.active{color:#fff;background:var(--primary);font-weight:650}.review-control button.active.safe{background:var(--success)}.review-control button.active.borderline{background:var(--warning)}.review-control button.active.unsafe{background:var(--danger)}.review-control button:disabled{opacity:.55;cursor:not-allowed}.empty-state{height:150px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--faint);font-size:10px}
-@media(max-width:1380px){.shadow-metrics{grid-template-columns:repeat(4,1fr)}}@media(max-width:1200px){.shadow-metrics{grid-template-columns:repeat(3,1fr)}.review-row{grid-template-columns:1fr 1fr}.review-control{width:246px;justify-self:end}}@media(max-width:720px){.shadow-metrics{grid-template-columns:1fr 1fr}.shadow-metrics>div:nth-child(2n){border-right:0}.review-summary{align-items:flex-start;flex-wrap:wrap}.review-summary i{display:none}.review-summary span:nth-of-type(2){width:100%;margin-top:2px}.review-row{grid-template-columns:1fr}.decision-pair{justify-content:flex-start}.model-meta{justify-content:flex-start}.review-control{width:100%;justify-self:stretch}.queue-head{align-items:stretch;flex-wrap:wrap}.queue-head>div:first-child{width:100%}.queue-head>div:first-child span{display:none}.review-mode{margin-left:0;flex:1;grid-template-columns:repeat(2,minmax(64px,1fr))}.queue-head a{justify-content:center}}
+@media(max-width:1380px){.shadow-metrics{grid-template-columns:repeat(4,1fr)}}@media(max-width:1200px){.shadow-metrics{grid-template-columns:repeat(3,1fr)}.review-row{grid-template-columns:1fr 1fr}.review-control{width:246px;justify-self:end}}@media(max-width:720px){.shadow-metrics{grid-template-columns:1fr 1fr}.shadow-metrics>div:nth-child(2n){border-right:0}.review-guide{grid-template-columns:1fr;gap:9px}.review-guide li,.review-guide li:first-child,.review-guide li:last-child{padding:0;border-right:0}.review-summary{align-items:flex-start;flex-wrap:wrap}.review-summary i{display:none}.review-summary span:nth-of-type(2){width:100%;margin-top:2px}.review-row{grid-template-columns:1fr}.decision-pair{justify-content:flex-start}.model-meta{justify-content:flex-start}.review-control{width:100%;justify-self:stretch}.queue-head{align-items:stretch;flex-wrap:wrap}.queue-head>div:first-child{width:100%}.queue-head>div:first-child span{display:none}.review-mode{margin-left:0;flex:1;grid-template-columns:repeat(2,minmax(64px,1fr))}.queue-head a{justify-content:center}}
 </style>

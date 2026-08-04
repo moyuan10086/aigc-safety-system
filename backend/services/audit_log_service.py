@@ -980,6 +980,11 @@ def shadow_review_statistics(
             reviewer_counts[item["reviewer"]] = reviewer_counts.get(item["reviewer"], 0) + 1
     target_labels = HUMAN_REVIEW_TARGET
     pilot_target_labels = HUMAN_REVIEW_PILOT_TARGET
+    review_integrity_complete = reviewed == verified_reviews
+    pilot_completed = (
+        verified_reviews >= pilot_target_labels and review_integrity_complete
+    )
+    target_completed = verified_reviews >= target_labels and review_integrity_complete
 
     latency_sorted = sorted(latencies)
     p95_index = max(0, math.ceil(len(latency_sorted) * 0.95) - 1)
@@ -996,18 +1001,20 @@ def shadow_review_statistics(
         "false_negative_candidates": false_negative_candidates,
         "target_labels": target_labels,
         "pilot_target_labels": pilot_target_labels,
-        "pilot_remaining_count": max(0, pilot_target_labels - reviewed),
-        "pilot_completed": reviewed >= pilot_target_labels,
+        "pilot_remaining_count": max(0, pilot_target_labels - verified_reviews),
+        "pilot_completed": pilot_completed,
+        "target_completed": target_completed,
         "eligible_samples": len(review_items),
         "pending_reviews": max(0, len(review_items) - reviewed),
         "reviewed_count": reviewed,
         "reviewer_reviewed_count": reviewer_reviewed,
         "verified_review_count": verified_reviews,
         "unverified_review_count": max(0, reviewed - verified_reviews),
-        "review_completion_rate": round(reviewed / target_labels * 100, 1),
+        "review_integrity_complete": review_integrity_complete,
+        "review_completion_rate": round(verified_reviews / target_labels * 100, 1),
         "active_claims": active_claims,
         "claimed_by_me_count": claimed_by_me,
-        "remaining_count": max(0, target_labels - reviewed),
+        "remaining_count": max(0, target_labels - verified_reviews),
         "p95_latency_ms": round(latency_sorted[p95_index], 3) if latency_sorted else 0.0,
         "statuses": statuses,
         "review_labels": review_labels,
