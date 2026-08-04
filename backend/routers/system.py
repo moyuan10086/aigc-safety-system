@@ -1,12 +1,23 @@
 import secrets
 
-from fastapi import APIRouter, Header, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pathlib import Path
 import config
+from services import audit_log_service, auth_service, readiness_service
 
 router = APIRouter(prefix="/api/system")
+COOKIE_NAME = "aigc_operator_session"
+
+
+def _operator(request: Request) -> dict[str, Any]:
+    user = auth_service.verify_session(request.cookies.get(COOKIE_NAME))
+    if user is None:
+        raise HTTPException(status_code=401, detail="请先登录审核员账号")
+    return user
 
 @router.get("/info")
 async def system_info():
@@ -24,6 +35,52 @@ async def system_info():
         "lexicon_configured": bool(config.LEXICON_PATH),
         "config_writable": config.SYSTEM_CONFIG_WRITABLE,
     })
+
+
+@router.get("/readiness")
+async def system_readiness(refresh: bool = Query(default=False)):
+    return JSONResponse(
+        readiness_service.snapshot(refresh=refresh),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.post("/readiness/probe")
+async def probe_model_readiness(request: Request):
+    user = _operator(request)
+    if not config.AUDIT_STORE_RAW_CONTENT or not config.AUDIT_CONTENT_KEY:
+        raise HTTPException(status_code=503, detail="加密证据库未就绪，拒绝发起真实模型探测")
+    result, evidence = readiness_service.active_model_probe()
+    event_id = audit_log_service.record(
+        event_type="system.readiness_probe",
+        module="system",
+        action="probe_guarded_model",
+        severity="info" if result["status"] == "ready" else "warning",
+        outcome="success" if result["status"] == "ready" else "error",
+        actor=user["username"],
+        client_ip=request.client.host if request.client else "unknown",
+        summary=f"现场演示模型链路探测：{result['status']}",
+        resource_id=request.state.request_id if hasattr(request.state, "request_id") else None,
+        metadata={
+            "status": result["status"],
+            "cached": result["cached"],
+            "model_called": result["model_called"],
+            "model": result.get("model"),
+            "latency_ms": result.get("latency_ms"),
+            "input_verdict": result.get("input_verdict"),
+            "output_verdict": result.get("output_verdict"),
+            "output_sha256": result.get("output_sha256"),
+        },
+    )
+    if evidence:
+        audit_log_service.store_evidence(
+            event_id,
+            prompt=evidence["prompt"],
+            response=evidence["response"],
+            dangerous=bool(result.get("quarantined")),
+        )
+        result["evidence_event_id"] = event_id
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 class ConfigUpdate(BaseModel):

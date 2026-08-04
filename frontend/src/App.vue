@@ -20,7 +20,7 @@
       <SidebarAccount :expanded="sidebarOpen" />
 
       <div class="sidebar-foot">
-        <div v-show="sidebarOpen" class="engine-state"><i></i><span>防护引擎在线</span><b>v1.1</b></div>
+        <div v-show="sidebarOpen" class="engine-state"><i :class="readinessStatus"></i><span>{{ readinessLabel }}</span><b>v1.2</b></div>
         <button class="icon-command" title="关于系统" @click="showAbout = true"><InfoIcon :size="18" /></button>
       </div>
     </aside>
@@ -35,7 +35,7 @@
         <div class="breadcrumb">
           <strong>{{ currentTitle }}</strong>
         </div>
-        <div class="top-status"><i></i><span>实时防护已启用</span></div>
+        <div class="top-status"><i :class="readinessStatus"></i><span>{{ readinessLabel }}</span></div>
       </header>
       <div class="content"><router-view /></div>
     </main>
@@ -48,7 +48,7 @@
           <div class="about-row"><span>核心能力</span><b>伪造检测 / 红线审核 / 输入输出防护</b></div>
           <div class="about-row"><span>检测模型</span><b>CLIP ViT-L/14 + MLLM</b></div>
           <div class="about-row"><span>知识引擎</span><b>ChromaDB + SentenceTransformers</b></div>
-          <div class="about-row"><span>版本</span><b>Competition Demo 1.1</b></div>
+          <div class="about-row"><span>版本</span><b>Competition Demo 1.2</b></div>
         </div>
       </div>
     </div>
@@ -88,12 +88,28 @@ const route = useRoute()
 const isScreenLayout = computed(() => route.meta.layout === 'screen')
 const sidebarOpen = ref(window.innerWidth > 760)
 const showAbout = ref(false)
+const readinessStatus = ref('loading')
+const readinessLabel = computed(() => ({
+  ready: '系统就绪',
+  degraded: '安全降级',
+  not_ready: '需要检查',
+  loading: '状态检查中',
+} as Record<string, string>)[readinessStatus.value] || '需要检查')
 const currentTitle = computed(() => navItems.find(n => route.path.startsWith(n.to))?.label ?? PLATFORM_NAME)
 const sidebarStyle = computed(() => ({ '--sidebar-w': sidebarOpen.value ? '252px' : '68px' }))
 const onResize = () => { if (window.innerWidth <= 760) sidebarOpen.value = false }
+async function loadReadiness() {
+  try {
+    const response = await fetch('/api/system/readiness')
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    readinessStatus.value = data.status || 'not_ready'
+  } catch { readinessStatus.value = 'not_ready' }
+}
 onMounted(() => {
   window.addEventListener('resize', onResize)
   restoreSession()
+  loadReadiness()
 })
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 watch(currentTitle, (title) => { document.title = `${title} - ${PLATFORM_NAME}` }, { immediate: true })
@@ -130,6 +146,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sidebar-foot { height:52px; display:flex; align-items:center; gap:8px; border-top:1px solid var(--sidebar-line); padding:10px 4px 0; }
 .engine-state { flex:1; min-width:0; display:flex; align-items:center; gap:7px; font-size:11px; color:#a9bdcb; white-space:nowrap; }
 .engine-state i,.top-status i { width:7px; height:7px; background:var(--success); border-radius:50%; box-shadow:0 0 9px rgba(52,211,153,.65); }
+.engine-state i.degraded,.top-status i.degraded,.engine-state i.loading,.top-status i.loading { background:var(--warning); box-shadow:0 0 9px rgba(184,111,18,.45); }
+.engine-state i.not_ready,.top-status i.not_ready { background:var(--danger); box-shadow:0 0 9px rgba(207,63,79,.45); }
 .engine-state b { margin-left:auto; color:#8299aa; font:10px ui-monospace,monospace; }
 .main { min-width:0; flex:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
 .topbar { height:58px; flex:0 0 58px; display:flex; align-items:center; gap:12px; padding:0 22px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.94); backdrop-filter:blur(14px); box-shadow:var(--shadow-sm); z-index:30; }

@@ -20,6 +20,52 @@
       </article>
     </section>
 
+    <section class="card readiness-card">
+      <div class="readiness-heading">
+        <div>
+          <div class="card-title"><Activity :size="16" />现场演示自检</div>
+          <p>必需链路故障会阻止就绪；可选模型不可用时保留安全降级状态。</p>
+        </div>
+        <div class="readiness-actions">
+          <span class="overall-state" :class="readiness?.status || 'loading'">{{ readinessStatusLabel }}</span>
+          <button class="icon-button" title="刷新演示自检" :disabled="readinessLoading" @click="loadReadiness(true)">
+            <RefreshCw :size="16" :class="{ spinning: readinessLoading }" />
+          </button>
+        </div>
+      </div>
+
+      <div v-if="readiness" class="readiness-summary">
+        <div><span>检查项</span><b>{{ readiness.summary.total }}</b></div>
+        <div><span>通过</span><b class="success-text">{{ readiness.summary.passed }}</b></div>
+        <div><span>降级</span><b class="warning-text">{{ readiness.summary.degraded }}</b></div>
+        <div><span>失败</span><b class="danger-text">{{ readiness.summary.failed }}</b></div>
+      </div>
+
+      <div v-if="readiness" class="scenario-list">
+        <div v-for="item in readiness.scenarios" :key="item.id" class="scenario-row">
+          <span class="status-symbol" :class="item.status"><ShieldCheck v-if="item.status === 'ready'" :size="15" /><TriangleAlert v-else :size="15" /></span>
+          <div><b>{{ item.label }}</b><small>{{ item.message }}</small></div>
+          <strong :class="item.status">{{ scenarioStatusLabel(item.status) }}</strong>
+        </div>
+      </div>
+
+      <div v-if="readiness" class="check-list">
+        <div class="check-row check-head"><span>检查项</span><span>级别</span><span>状态与原因</span></div>
+        <div v-for="item in readiness.checks" :key="item.id" class="check-row">
+          <span><CircleCheck v-if="item.status === 'pass'" :size="15" /><CircleX v-else-if="item.status === 'fail'" :size="15" /><MinusCircle v-else :size="15" />{{ item.label }}</span>
+          <code>{{ item.required ? '必需' : '可选' }}</code>
+          <span><b :class="item.status">{{ checkStatusLabel(item.status) }}</b><small>{{ item.message }}</small></span>
+        </div>
+      </div>
+
+      <div class="probe-row">
+        <div><Wifi :size="17" /><span><b>真实模型链路探测</b><small>{{ probeSummary }}</small></span></div>
+        <button class="command-button" :disabled="!user || probeLoading || readiness?.active_probe?.available === false" @click="runModelProbe">
+          <Activity :size="15" />{{ probeLoading ? '探测中' : '执行探测' }}
+        </button>
+      </div>
+    </section>
+
     <section class="card deployment-card">
       <div class="card-title">部署信息</div>
       <div class="info-rows">
@@ -101,7 +147,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Ban, Bot, Copy, Database, Eye, KeyRound, LockKeyhole, Plus, RefreshCw, ScanFace, ShieldCheck } from 'lucide-vue-next'
+import { Activity, Ban, Bot, CircleCheck, CircleX, Copy, Database, Eye, KeyRound, LockKeyhole, MinusCircle, Plus, RefreshCw, ScanFace, ShieldCheck, TriangleAlert, Wifi } from 'lucide-vue-next'
 import { ElMessageBox } from 'element-plus'
 import { toast } from 'vue3-toastify'
 import { useAuth } from '../composables/useAuth'
@@ -113,6 +159,10 @@ const keysLoading = ref(false)
 const creating = ref(false)
 const showCreate = ref(false)
 const issuedKey = ref('')
+const readiness = ref<any>(null)
+const readinessLoading = ref(false)
+const probeLoading = ref(false)
+const probeResult = ref<any>(null)
 const usage = reactive({ totals:{ requests:0, tenants:0, keys:0, success_rate:0, failure_rate:0, p95_latency_ms:0 } })
 const scopeOptions = [
   { value:'guardrail:check', label:'输入输出护栏' },
@@ -141,6 +191,21 @@ const statusItems = computed(() => [
   { label:'红线知识库', value:info.rag_configured ? '检索引擎已就绪' : '待配置', ready:!!info.rag_configured, icon:Database },
 ])
 
+const readinessStatusLabel = computed(() => ({
+  ready:'演示就绪', degraded:'安全降级', not_ready:'不可演示', loading:'检查中',
+} as Record<string,string>)[readiness.value?.status || 'loading'])
+const probeSummary = computed(() => {
+  if (!user.value) return '登录审核员后可执行；探测会真实调用生成模型并经过输入、输出护栏。'
+  if (!probeResult.value) return '尚未执行主动探测。'
+  const item = probeResult.value
+  if (item.status === 'ready') return `${item.model} · ${item.latency_ms ?? 0}ms · 输入 ${item.input_verdict} / 输出 ${item.output_verdict}${item.cached ? ' · 缓存结果' : ''}`
+  if (item.status === 'not_configured') return '生成模型未配置。'
+  return `模型链路探测失败${item.error_code ? ` · ${item.error_code}` : ''}`
+})
+
+function scenarioStatusLabel(status: string) { return ({ ready:'就绪', degraded:'降级', not_ready:'不可用' } as Record<string,string>)[status] || status }
+function checkStatusLabel(status: string) { return ({ pass:'通过', warn:'降级', fail:'失败', disabled:'停用' } as Record<string,string>)[status] || status }
+
 async function apiJson(url: string, options?: RequestInit) {
   const response = await fetch(url, { credentials:'same-origin', ...options })
   const data = await response.json().catch(() => ({}))
@@ -164,6 +229,28 @@ async function loadKeys() {
   }
   catch (error) { toast.error(error instanceof Error ? error.message : '无法读取 API Key') }
   finally { keysLoading.value = false }
+}
+
+async function loadReadiness(refresh = false) {
+  readinessLoading.value = true
+  try {
+    readiness.value = await apiJson(`/api/system/readiness${refresh ? '?refresh=true' : ''}`)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : '无法读取演示自检')
+  } finally { readinessLoading.value = false }
+}
+
+async function runModelProbe() {
+  probeLoading.value = true
+  try {
+    probeResult.value = await apiJson('/api/system/readiness/probe', { method:'POST' })
+    toast[probeResult.value.status === 'ready' ? 'success' : 'warning'](
+      probeResult.value.status === 'ready' ? '真实模型链路探测通过' : '模型链路处于降级状态',
+    )
+    await loadReadiness(true)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : '模型链路探测失败')
+  } finally { probeLoading.value = false }
 }
 
 async function createKey() {
@@ -198,13 +285,10 @@ async function revokeKey(item: any) {
 }
 
 onMounted(async () => {
-  try {
-    const response = await fetch('/api/system/info')
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    Object.assign(info, await response.json())
-  } catch {
-    toast.error('无法读取系统运行状态')
-  }
+  await Promise.all([
+    apiJson('/api/system/info').then(data => Object.assign(info, data)).catch(() => toast.error('无法读取系统运行状态')),
+    loadReadiness(),
+  ])
 })
 watch(user, value => { if (value) loadKeys(); else apiKeys.value = [] }, { immediate:true })
 </script>
@@ -213,7 +297,9 @@ watch(user, value => { if (value) loadKeys(); else apiKeys.value = [] }, { immed
 .settings-page{max-width:1050px;margin:0 auto;display:flex;flex-direction:column;gap:18px}.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:4px 2px}.eyebrow{color:var(--primary);font:10px ui-monospace,monospace}.page-head h1{margin:7px 0;font-size:24px;letter-spacing:0}.page-head p{max-width:700px;margin:0;color:var(--muted);font-size:13px;line-height:1.7}.managed-badge{display:flex;align-items:center;gap:7px;padding:8px 11px;color:var(--primary);border:1px solid rgba(45,212,191,.22);border-radius:5px;background:rgba(45,212,191,.06);font-size:11px;white-space:nowrap}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status-card{position:relative;display:flex;align-items:center;gap:12px;min-width:0;padding:15px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2)}.status-icon{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;color:var(--primary);border:1px solid rgba(45,212,191,.18);border-radius:5px;background:rgba(45,212,191,.05)}.status-card span{display:block;margin-bottom:4px;color:var(--faint);font-size:9px}.status-card b{display:block;max-width:320px;overflow:hidden;color:var(--text);font-size:12px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}.status-card>i{position:absolute;top:13px;right:13px;width:6px;height:6px;border-radius:50%}.status-card>i.online{background:var(--success);box-shadow:0 0 8px rgba(52,211,153,.6)}.status-card>i.offline{background:var(--warning)}.deployment-card{padding:18px}.info-rows{margin-top:12px}.info-rows div{display:grid;grid-template-columns:145px minmax(0,1fr);gap:15px;padding:11px 2px;border-bottom:1px solid var(--line)}.info-rows div:last-child{border-bottom:0}.info-rows span{color:var(--faint);font-size:11px}.info-rows b{color:var(--text);font-size:12px;font-weight:500;word-break:break-word}.security-note{display:flex;align-items:flex-start;gap:11px;padding:14px 16px;color:var(--success);border:1px solid rgba(52,211,153,.2);border-radius:7px;background:rgba(52,211,153,.05)}.security-note svg{flex:0 0 auto}.security-note b{font-size:11px}.security-note p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.6}@media(max-width:720px){.page-head{align-items:flex-start;flex-direction:column}.status-grid{grid-template-columns:1fr}.info-rows div{grid-template-columns:1fr;gap:5px}.page-head h1{font-size:20px}}
 .api-card{padding:18px}.api-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.api-heading .card-title{margin-bottom:6px}.api-heading p{margin:0;color:var(--muted);font-size:11px;line-height:1.6}.api-actions,.form-actions{display:flex;align-items:center;gap:8px}.icon-button,.command-button,.text-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}.icon-button{width:34px}.command-button{padding:0 12px;border-color:var(--primary);background:var(--primary);color:#fff}.text-button{padding:0 12px}.icon-button:disabled,.command-button:disabled{opacity:.45;cursor:not-allowed}.danger-button:not(:disabled){color:var(--danger)}.api-empty{display:flex;align-items:center;justify-content:center;gap:8px;min-height:82px;color:var(--faint);font-size:12px}.key-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:16px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.key-form>label{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:11px}.key-form input:not([type=checkbox]){width:100%;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--text)}.key-form fieldset{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 16px;margin:0;padding:12px;border:1px solid var(--line);border-radius:6px}.key-form legend{padding:0 5px;color:var(--muted);font-size:11px}.scope-option{display:flex;align-items:center;gap:6px;color:var(--text);font-size:11px}.form-actions{grid-column:1/-1;justify-content:flex-end}.issued-key{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:14px;padding:13px;border:1px solid rgba(22,128,94,.22);border-radius:6px;background:rgba(22,128,94,.05)}.issued-key>div{grid-column:1/-1;display:flex;align-items:center;gap:7px;color:var(--success);font-size:11px}.issued-key code{min-width:0;padding:8px;overflow:auto;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--text);font-size:11px;white-space:nowrap}.key-list{margin-top:15px;border-top:1px solid var(--line)}.key-row{display:grid;grid-template-columns:minmax(160px,1.35fr) minmax(130px,1fr) minmax(145px,1fr) 65px 36px;align-items:center;gap:12px;min-height:58px;padding:8px 2px;border-bottom:1px solid var(--line);color:var(--muted);font-size:11px}.key-row>span:first-child b,.key-row>span:first-child small{display:block}.key-row>span:first-child b{color:var(--text);font-size:11px}.key-row>span:first-child small{margin-top:3px;color:var(--faint)}.key-row code{overflow:hidden;color:var(--primary);font-size:11px;text-overflow:ellipsis}.key-head{min-height:34px;color:var(--faint);font-size:10px}.key-active{color:var(--success)}.key-revoked{color:var(--faint)}
 .api-metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;margin-top:15px;border:1px solid var(--line);border-radius:6px;background:var(--line);overflow:hidden}.api-metrics>div{padding:11px 13px;background:var(--surface-2)}.api-metrics span,.api-metrics b{display:block}.api-metrics span{color:var(--faint);font-size:9px}.api-metrics b{margin-top:5px;color:var(--text);font:600 16px ui-monospace,monospace}
+.readiness-card{padding:18px}.readiness-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.readiness-heading .card-title{margin-bottom:6px}.readiness-heading p{margin:0;color:var(--muted);font-size:11px;line-height:1.6}.readiness-actions{display:flex;align-items:center;gap:8px}.overall-state{height:28px;display:inline-flex;align-items:center;padding:0 9px;border-radius:4px;font-size:10px;font-weight:650}.overall-state.ready{color:var(--success);background:rgba(22,128,94,.1)}.overall-state.degraded,.overall-state.loading{color:var(--warning);background:rgba(184,111,18,.1)}.overall-state.not_ready{color:var(--danger);background:rgba(207,63,79,.1)}.readiness-summary{display:grid;grid-template-columns:repeat(4,1fr);margin-top:14px;border:1px solid var(--line);border-radius:6px;overflow:hidden}.readiness-summary>div{padding:10px 12px;border-right:1px solid var(--line);background:var(--surface-2)}.readiness-summary>div:last-child{border-right:0}.readiness-summary span,.readiness-summary b{display:block}.readiness-summary span{color:var(--faint);font-size:9px}.readiness-summary b{margin-top:4px;font:650 16px ui-monospace,monospace}.success-text{color:var(--success)}.warning-text{color:var(--warning)}.danger-text{color:var(--danger)}.scenario-list{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.scenario-row{min-width:0;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:12px;border-right:1px solid var(--line)}.scenario-row:last-child{border-right:0}.status-symbol{width:28px;height:28px;display:grid;place-items:center;border-radius:5px}.status-symbol.ready{color:var(--success);background:rgba(22,128,94,.08)}.status-symbol.degraded{color:var(--warning);background:rgba(184,111,18,.08)}.status-symbol.not_ready{color:var(--danger);background:rgba(207,63,79,.08)}.scenario-row div{min-width:0}.scenario-row b,.scenario-row small{display:block}.scenario-row b{font-size:11px}.scenario-row small{margin-top:3px;overflow:hidden;color:var(--faint);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.scenario-row>strong{font-size:9px}.scenario-row>strong.ready{color:var(--success)}.scenario-row>strong.degraded{color:var(--warning)}.scenario-row>strong.not_ready{color:var(--danger)}.check-list{margin-top:12px}.check-row{display:grid;grid-template-columns:minmax(150px,.8fr) 54px minmax(260px,1.5fr);align-items:center;gap:12px;min-height:43px;border-bottom:1px solid var(--line);font-size:10px}.check-row>span:first-child{display:flex;align-items:center;gap:7px;color:var(--text)}.check-row>span:first-child svg{color:var(--faint);flex:0 0 auto}.check-row>code{color:var(--muted);font-size:9px}.check-row>span:last-child{display:flex;align-items:center;gap:9px;min-width:0}.check-row>span:last-child b{min-width:28px;font-size:9px}.check-row>span:last-child b.pass{color:var(--success)}.check-row>span:last-child b.warn,.check-row>span:last-child b.disabled{color:var(--warning)}.check-row>span:last-child b.fail{color:var(--danger)}.check-row>span:last-child small{overflow:hidden;color:var(--faint);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.check-head{min-height:30px;color:var(--faint);font-size:9px}.check-head>span:first-child{color:var(--faint)}.probe-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.probe-row>div{min-width:0;display:flex;align-items:center;gap:10px;color:var(--primary)}.probe-row span{min-width:0}.probe-row b,.probe-row small{display:block}.probe-row b{color:var(--text);font-size:11px}.probe-row small{margin-top:3px;overflow:hidden;color:var(--faint);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.spinning{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.api-heading{flex-direction:column}.key-row{grid-template-columns:1fr auto}.key-head{display:none}.key-row>span,.key-row>code{grid-column:1}.key-row>button{grid-column:2;grid-row:1}.key-form{grid-template-columns:1fr}.key-form fieldset,.form-actions{grid-column:1}}
 @media(max-width:900px){.api-metrics{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:560px){.api-metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.scenario-list{grid-template-columns:1fr}.scenario-row{border-right:0;border-bottom:1px solid var(--line)}.scenario-row:last-child{border-bottom:0}.check-row{grid-template-columns:1fr 48px}.check-row>span:last-child{grid-column:1/-1;padding:0 0 9px 22px}.check-head>span:last-child{display:none}.probe-row{align-items:flex-start;flex-direction:column}.probe-row .command-button{width:100%}}
+@media(max-width:560px){.api-metrics,.readiness-summary{grid-template-columns:1fr 1fr}.readiness-summary>div:nth-child(2){border-right:0}.readiness-heading{align-items:flex-start;flex-direction:column}.readiness-actions{width:100%;justify-content:space-between}}
 </style>

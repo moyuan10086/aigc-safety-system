@@ -1,0 +1,14 @@
+<h3>P4-3 比赛现场演示自检与安全降级（2026-08-04）</h3>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>目标：</b>把当前分散的健康状态、模型配置和审计完整性汇总为可复现的“演示就绪”判定，使现场人员能在开场前识别必需能力故障、可选模型降级和真实大模型链路状态。自检必须使用真实运行数据，不制造在线状态。</p>
+</callout>
+<checkbox done="false">P4-3.1 新增独立 readiness 服务和 <code>GET /api/system/readiness</code>，聚合 API、审核员身份、审计链、AES-GCM 证据库、前端构建、红线数据和模型配置状态</checkbox>
+<checkbox done="false">P4-3.2 区分 required、optional 与 disabled，输出 ready、degraded、not_ready 三级结论、计数摘要、场景能力和中文原因</checkbox>
+<checkbox done="false">P4-3.3 新增审核员鉴权的 <code>POST /api/system/readiness/probe</code>，实际调用安全生成提示并走输入/输出护栏；只返回脱敏状态、模型、延迟和专家执行摘要</checkbox>
+<checkbox done="false">P4-3.4 为被动自检和主动探测增加线程安全短缓存、防重复模型调用和审计留痕；刷新不得泄漏密钥、内部地址、文件路径或原始提示词/模型输出</checkbox>
+<checkbox done="false">P4-3.5 在系统设置增加浅色“现场演示自检”视图，支持状态刷新、必需/可选标记、异常原因、移动端布局和登录后的真实模型探测</checkbox>
+<checkbox done="false">P4-3.6 补齐确定性测试，完成 Ruff、后端全量、前端生产构建、GitHub 门禁、服务器部署、正式站被动自检与真实模型探测，并记录飞书证据</checkbox>
+<p><b>验收口径：</b>必需项失败时整体必须为 <code>not_ready</code>；只有可选模型缺失时整体为 <code>degraded</code>，不得伪装为全量就绪；主动探测必须确认 <code>model_called=true</code> 且输入、输出护栏均产生结构化判定；所有响应均明确 <code>secrets_exposed=false</code>、<code>paths_exposed=false</code>、<code>raw_content_included=false</code>。</p>
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>不可回退边界：</b>现有原始提示词与危险模型输出继续只保存在 AES-GCM 加密证据库；自检接口、普通日志、页面和飞书仅记录脱敏状态与哈希/统计摘要。主动探测只允许已登录审核员触发，并通过缓存避免重复产生模型费用。</p>
+</callout>
