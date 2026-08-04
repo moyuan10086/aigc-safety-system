@@ -17,7 +17,7 @@
     <tr><td>Agent 安全</td><td><span text-color="green">工程完成</span></td><td>工具执行前审批、精确一次性授权、结果回传复检、间接注入隔离与多步轨迹风险账本已上线</td><td>继续用 Promptfoo 与轨迹用例做 CI 回归</td></tr>
     <tr><td>比赛现场 readiness</td><td><span text-color="green">13/13 ready</span></td><td>普通、自检与真实模型探针场景就绪；设置页显示规则、RAG、MLLM、Qwen3Guard、SingGuard、XGBoost Shadow 状态及不确定组件；证据进入 AES-GCM 库</td><td>官方浏览器恢复后补当前设置页与专家链截图</td></tr>
     <tr><td>昇腾 910C 国产化</td><td><span text-color="yellow">真实验证完成，专用模型待部署</span></td><td>16 卡健康；物理卡 2/3/4/5 四卡基准和 Qwen3-0.6B 四路生成已留证；复用现有 Qwen3-235B vLLM 完成 safe/borderline/unsafe 三类真实分类，平均 2949 ms</td><td>当前结果是通用 Qwen3-235B，不冒充 Qwen3Guard；专用护栏权重需在磁盘治理和安全窗口后另测</td></tr>
-    <tr><td>GitHub、生产与飞书证据</td><td><span text-color="green">持续执行</span></td><td>当前生产 HEAD <code>a0a1994</code>，服务 active，health 正常；最近后端 102/102、Ruff、前端构建通过；每阶段均留结构化证据和飞书记录</td><td>后续每个里程碑继续执行“实现→测试→GitHub→部署→公网验证→证据→飞书”闭环</td></tr>
+    <tr><td>GitHub、生产与飞书证据</td><td><span text-color="green">持续执行</span></td><td>GitHub main 与正式服务器 fast-forward 对齐，服务 active，health 正常；最近后端 102/102、Ruff、前端构建通过；每阶段均留结构化证据和飞书记录</td><td>后续每个里程碑继续执行“实现→测试→GitHub→部署→公网验证→证据→飞书”闭环</td></tr>
   </tbody>
 </table>
 
