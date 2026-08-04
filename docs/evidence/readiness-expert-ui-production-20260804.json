@@ -1,0 +1,53 @@
+{
+  "evidence_type": "readiness_expert_status_ui_release",
+  "captured_at": "2026-08-04T10:15:43Z",
+  "production_url": "https://aigc.49.51.248.227.sslip.io/settings",
+  "implementation_commit": "b061d41",
+  "ui": {
+    "location": "系统设置 -> 现场演示自检 -> 执行探测",
+    "shows": [
+      "真实生成模型名称与延迟",
+      "输入与输出判定",
+      "rules/RAG/MLLM/Qwen3Guard/SingGuard/XGBoost Shadow 专家状态",
+      "输入、输出、最终不确定组件",
+      "AES-GCM 原始证据留存提示"
+    ],
+    "raw_content_exposed": false
+  },
+  "production_probe": {
+    "status": "ready",
+    "model_called": true,
+    "model": "gpt-5.6-sol",
+    "latency_ms": 1166,
+    "input_verdict": "safe",
+    "output_verdict": "safe",
+    "final_verdict": "safe",
+    "experts": {
+      "rules": "ok",
+      "rag": "ok",
+      "mllm": "disabled",
+      "qwen3guard": "ok",
+      "singguard": "ok",
+      "xgboost_shadow": "ok"
+    },
+    "inconclusive_components": {
+      "input": [],
+      "output": [],
+      "final": []
+    },
+    "audit_event_id": "bf20c57573914892be5fa3e43761a77f",
+    "audit_chain_valid": true,
+    "audit_event_count": 726
+  },
+  "verification": {
+    "frontend_build_local": "passed",
+    "frontend_build_server": "passed",
+    "https_health": "ok",
+    "systemd": "active"
+  },
+  "browser_screenshot": {
+    "status": "pending",
+    "reason": "official in-app browser failed to write kernel assets (os error 3)",
+    "bypass_used": false
+  }
+}
