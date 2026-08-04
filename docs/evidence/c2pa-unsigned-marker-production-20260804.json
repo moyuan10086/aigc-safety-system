@@ -1,0 +1,24 @@
+{
+  "tested_at": "2026-08-04",
+  "environment": "production",
+  "endpoint": "https://aigc.49.51.248.227.sslip.io/api/detect/provenance",
+  "sample": {
+    "description": "PNG containing an unsigned aigc_safety_provenance declaration",
+    "sha256": "643bcde764549a985eaaa3102bce6776f9d7cfa8c9bce984bfd72e052aa62617",
+    "size_bytes": 278,
+    "retained": false
+  },
+  "result": {
+    "overall_state": "inconclusive",
+    "local_marker_status": "inconclusive",
+    "local_marker_error": "declared_local_marker_unsigned",
+    "local_marker_trust_verified": false,
+    "content_credentials_status": "not_found",
+    "raw_image_retained": false
+  },
+  "acceptance": {
+    "unsigned_marker_cannot_confirm_source": true,
+    "requires_human_review": true,
+    "passed": true
+  }
+}

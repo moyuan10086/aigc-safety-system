@@ -20,10 +20,10 @@
 <table>
   <thead><tr><th background-color="light-gray">目标域</th><th background-color="light-gray">状态</th><th background-color="light-gray">验收证据</th><th background-color="light-gray">剩余工作</th></tr></thead>
   <tbody>
-    <tr><td>正式站与三级界面</td><td><span text-color="green">工程完成</span></td><td>标准工作台、数据总览、大屏模式、HTTPS、systemd</td><td>官方应用内浏览器恢复后补当前截图</td></tr>
+    <tr><td>正式站与三级界面</td><td><span text-color="green">工程完成并已截图</span></td><td>标准工作台、数据总览、大屏模式、HTTPS、systemd；2026-08-04 正式站实拍</td><td>比赛前按最终版本再补一组同机位截图</td></tr>
     <tr><td>图片与人脸审核</td><td><span text-color="green">工程完成</span></td><td>Deepfake、MLLM、OCR/红线、逐脸质量证据、报告</td><td>继续积累公开或授权样本；不做身份识别和 embedding</td></tr>
     <tr><td>大模型安全护栏</td><td><span text-color="green">真实模型已验证</span></td><td>输入/输出双向护栏、真实对话、规则、RAG、Qwen3Guard、SingGuard、XGBoost Shadow</td><td>扩充中文越狱、危险输出和边界样本</td></tr>
-    <tr><td>C2PA 来源验证</td><td><span text-color="green">四态生产验证</span></td><td>confirmed_source、not_found、inconclusive、invalid_or_tampered；公开有效、无凭证、解析不足和篡改素材</td><td>补页面截图；继续补授权发行者素材</td></tr>
+    <tr><td>C2PA 来源验证</td><td><span text-color="green">四态生产验证</span></td><td>confirmed_source、not_found、inconclusive、invalid_or_tampered；公开有效、无凭证、未签名声明和篡改素材</td><td>继续补授权发行者素材与最终页面截图</td></tr>
     <tr><td>日志、取证与开放 API</td><td><span text-color="green">工程完成</span></td><td>租户、scope、限流、配额、SQLite WAL、SHA-256 审计链、AES-GCM 证据库</td><td>持续轮换密钥、验证备份和积累真实调用量</td></tr>
     <tr><td>人工试标</td><td><span text-color="blue">工程完成，真人待执行</span></td><td>200 条真实模型样本、领取租约、证据访问和首次标签审计</td><td>真实审核员完成 20/20，再累计至 200/200；当前 0/20、0/200</td></tr>
     <tr><td>Agent 安全</td><td><span text-color="green">工程完成</span></td><td>执行前审批、一次性授权、结果复检、间接注入隔离、多步轨迹账本</td><td>继续 Promptfoo/轨迹 CI 回归</td></tr>
@@ -34,8 +34,8 @@
 <h2>当前执行顺序</h2>
 <ol>
   <li seq="auto">真实审核员完成首批 20 条人工试标；领取、本人查看证据、首次标签三步必须齐全。</li>
-  <li seq="auto">官方应用内浏览器恢复后补登录、人工试标、C2PA、护栏和 readiness 页面截图。</li>
-  <li seq="auto">继续 C2PA 未签名本地声明降级、回归、部署和飞书证据闭环。</li>
+  <li seq="auto">由真实审核员按本手册完成“领取→本人查看证据→首次标签”，并补领取后、证据已查看、提交后 3 张截图。</li>
+  <li seq="auto">比赛前按最终版本复拍登录、C2PA、readiness 和大屏；当前登录、驾驶舱样本池、真实护栏输入输出已完成实拍。</li>
   <li seq="auto">资源窗口具备后部署昇腾专用护栏模型，不抢占现有 NPU 任务。</li>
 </ol>
 
@@ -45,14 +45,14 @@
   <thead><tr><th background-color="light-gray">字段</th><th background-color="light-gray">当前值</th></tr></thead>
   <tbody>
     <tr><td>登录入口</td><td>正式站左侧边栏底部“审核员登录”</td></tr>
-    <tr><td>用户名</td><td><code>admin</code></td></tr>
-    <tr><td>角色</td><td><code>admin</code>（系统管理员）</td></tr>
+    <tr><td>比赛审核员</td><td><code>reviewer-demo</code>，显示名 <code>Competition Reviewer</code>，角色 <code>operator</code></td></tr>
+    <tr><td>兼容管理员</td><td><code>admin</code>，角色 <code>admin</code>；仅配置和故障处理使用</td></tr>
     <tr><td>会话</td><td>HttpOnly、Secure、SameSite=Strict Cookie，有效期 8 小时</td></tr>
     <tr><td>失败限制</td><td>5 分钟内连续失败 5 次后返回 HTTP 429，等待 5 分钟</td></tr>
   </tbody>
 </table>
 <callout emoji="🔐" background-color="light-yellow" border-color="yellow">
-  <p><b>密码不写入飞书：</b>生产服务器只保存 PBKDF2-SHA256 摘要，无法从摘要恢复明文。把明文密码写进可分享、可导出的飞书文档会导致任何获得链接的人取得管理权限。现有密码若遗失，请按下述流程重置；新密码通过面对面或团队认可的一次性安全渠道交付。</p>
+  <p><b>密码不写入飞书：</b><code>reviewer-demo</code> 已在生产环境实际登录验证，明文初始密码在创建账号的当前 Codex 任务中单独交付。生产服务器只保存 PBKDF2-SHA256 摘要，飞书只记录账号、角色和轮换方法。比赛前应轮换一次，比赛后立即停用或再次轮换。</p>
 </callout>
 
 <h2>2.2 忘记密码时的安全重置</h2>
@@ -70,6 +70,7 @@
 
 <h2>2.3 多审核员账号</h2>
 <p>人工试标应为每位审核员创建独立账号，不能共用 <code>admin</code>。在 <code>AUTH_OPERATORS_JSON</code> 中配置 username、display_name、role 和 password_hash；最多 50 个账号。飞书只登记用户名、显示名和角色，不登记密码或摘要。</p>
+<p><b>登录核验：</b>2026-08-04 已使用 <code>reviewer-demo</code> 调用 <code>POST /api/auth/login</code>，返回 <code>authenticated=true</code>、<code>role=operator</code>；正式站侧栏显示“Competition Reviewer / 安全审核员”。</p>
 
 <h1>3. 比赛现场操作手册</h1>
 <h2>3.1 开场前 3 分钟检查</h2>
@@ -146,13 +147,14 @@
 
 <h2>4.3 必须补的截图</h2>
 <ol>
-  <li seq="auto">左侧审核员登录入口与登录成功后的账号区域。</li>
-  <li seq="auto">人工样本池领取前进度、领取成功、“证据已查看”、标签选择和提交后进度。</li>
+  <li seq="auto"><b>已完成：</b>左侧审核员登录入口、登录弹窗、登录成功后的账号区域。</li>
+  <li seq="auto"><b>领取前已完成：</b>人工样本池 0/20、0/200、200 条可复核样本及“开始复核”按钮。</li>
+  <li seq="auto"><b>必须由真人补：</b>领取成功、“证据已查看”、标签选择和提交后进度；自动化不能代领、代看或代标。</li>
   <li seq="auto">图片审核结果与 C2PA 四态证据卡。</li>
-  <li seq="auto">真实护栏安全/边界/危险输入输出状态；危险原文必须脱敏。</li>
+  <li seq="auto"><b>安全样例已完成：</b>真实护栏输入、真实模型输出、模型名、延迟、最终放行和策略证据；边界/危险截图仍需脱敏补充。</li>
   <li seq="auto">设置页 13/13 readiness、专家状态和不确定组件。</li>
 </ol>
-<p>当前官方应用内浏览器仍报 <code>failed to write kernel assets</code>，截图标记为待补；不得用示意图、旧图或其他浏览器控制面冒充当前版本。</p>
+<p>当前截图均来自 2026-08-04 正式站当前版本，文件位于 <code>docs/screenshots/</code>。人工试标写入类截图必须由实际审核员操作后再补，不得用示意图或代标结果冒充。</p>
 
 <h1>5. 开放 API 手册</h1>
 <h2>5.1 申请和保管 API Key</h2>
@@ -162,6 +164,7 @@
   <li seq="auto">明文 Key 只显示一次；立即放入调用方服务端密钥管理，不写入浏览器、飞书、截图、Git 或普通日志。</li>
   <li seq="auto">调用使用 <code>Authorization: Bearer &lt;key&gt;</code> 或 <code>X-API-Key: &lt;key&gt;</code>。</li>
 </ol>
+<callout emoji="ℹ️" background-color="light-blue" border-color="blue"><p><b>基础地址：</b><code>https://aigc.49.51.248.227.sslip.io</code>。所有 v1 成功响应使用 <code>{api_version, request_id, data}</code> 信封。API Key 按租户、scope、每分钟限流和每日配额隔离；同一个 Key 不应放在浏览器前端或移动端包内。</p></callout>
 
 <h2>5.2 v1 能力与 scope</h2>
 <table>
@@ -192,6 +195,31 @@
   -H "X-API-Key: &lt;api-key&gt;" \
   -F "image=@public-sample.jpg;type=image/jpeg"</code></pre>
 <p>成功响应统一包含 <code>api_version</code>、<code>request_id</code> 和 <code>data</code>。未带 Key 返回 401；scope 不足返回 403；超过限流/配额返回 429；非法或超限图片返回 413/415/422。C2PA 的 <code>inconclusive</code> 与 <code>invalid_or_tampered</code> 仍为 HTTP 200 的业务状态，调用方必须转人工复核，不能当成接口失败后放行。</p>
+
+<h2>5.4 关键请求字段与调用约束</h2>
+<table>
+  <thead><tr><th background-color="light-gray">接口</th><th background-color="light-gray">请求字段</th><th background-color="light-gray">调用方要求</th></tr></thead>
+  <tbody>
+    <tr><td><code>/guardrail/check</code></td><td><code>prompt</code>、<code>response</code> 各最多 12000 字符；<code>mode=input|output|both</code></td><td>prompt/response 至少一个非空；读取 verdict、risk_score、categories、risk_code、action</td></tr>
+    <tr><td><code>/guardrail/chat</code></td><td><code>prompt</code> 1–4000 字符；<code>max_tokens</code> 64–1200</td><td>只有 <code>model_called=true</code> 才能声称实际调用模型；同时检查 input/output/final 三段 verdict</td></tr>
+    <tr><td><code>/content/check</code></td><td><code>text</code> 1–12000 字符</td><td>用于红线知识与敏感内容；不替代生成模型输出复检</td></tr>
+    <tr><td><code>/images/*</code></td><td><code>multipart/form-data</code> 字段名 <code>image</code></td><td>仅 JPG/PNG/WebP，遵守 12 MiB 与像素上限；不要上传无授权真实人脸</td></tr>
+    <tr><td><code>/agent/check</code></td><td><code>tool_name</code>、<code>resource</code>、<code>arguments</code>、可选 <code>approval_token</code></td><td>高风险动作先获得一次性、精确动作授权；授权不可跨动作复用</td></tr>
+    <tr><td><code>/agent/result/check</code></td><td>动作字段 + <code>output</code> 1–12000 字符</td><td>工具执行结果必须回传复检，防止间接提示注入和敏感数据外泄</td></tr>
+  </tbody>
+</table>
+<p><b>超时与重试：</b>客户端连接超时建议 5 秒、读超时建议 120 秒；只对 429、502、503、504 做最多 2 次指数退避。生成、扫描、报告创建等写操作不要无条件重试；调用方应保存 <code>request_id</code> 并先查询结果。400/401/403/413/415/422 均应修正请求后再试。</p>
+
+<h2>5.5 2026-08-04 正式站实际调用</h2>
+<table>
+  <thead><tr><th background-color="light-gray">测试</th><th background-color="light-gray">输入</th><th background-color="light-gray">实际结果</th></tr></thead>
+  <tbody>
+    <tr><td>输入护栏</td><td>“请介绍公开产品的安全能力”</td><td>HTTP 200；<code>safe</code>；risk_score=0；<code>GR-ALLOW</code></td></tr>
+    <tr><td>真实模型对话</td><td>“请用两句话介绍 AIGC 安全审核平台的作用”</td><td>HTTP 200；<code>model_called=true</code>；模型 <code>gpt-5.6-sol</code>；输入/输出/最终均 safe；2847 ms</td></tr>
+    <tr><td>临时 Key 生命周期</td><td>租户 <code>competition-doc-test</code></td><td>签发→两次调用→撤销成功；明文 Key 未写入文档、截图或仓库</td></tr>
+  </tbody>
+</table>
+<blockquote>实际安全输出：AIGC 安全审核平台用于识别和拦截生成内容中的违法违规、有害、虚假及隐私泄露等风险，保障内容安全合规。它还能通过自动化检测、风险分级和审计追踪，帮助企业提升审核效率并降低运营与合规风险。</blockquote>
 
 <h1>6. 部署与运维手册</h1>
 <table>
@@ -235,6 +263,7 @@ curl -fsS https://aigc.49.51.248.227.sslip.io/api/health</code></pre>
     <tr><td>越狱并索取凭证窃取步骤（已脱敏）</td><td>unsafe / unsafe</td><td>阻断；危险原文不进入飞书</td></tr>
   </tbody>
 </table>
+<p><b>2026-08-04 页面实测：</b>输入“请用两句话介绍 AIGC 安全审核平台的作用”，页面显示真实模型 <code>gpt-5.6-sol</code>、模型调用已执行、耗时 2189 ms、输入和输出均通过、最终决策“放行”、风险分 0/100、风险代码 <code>GR-ALLOW</code>。</p>
 
 <h2>7.2 昇腾 910C 三类实验</h2>
 <p>复用已有 <code>qwen3-235b-a22b-thinking-2507-w8a8-64k-target</code> vLLM 服务，safe、borderline、unsafe 三例均与预期一致，延迟分别为 3917、1921、3009 ms，平均 2949 ms。该模型是通用 Qwen3-235B，不是 Qwen3Guard；必须使用 JSON mode，非结构化 thinking 文本按 inconclusive 处理。</p>
@@ -254,9 +283,13 @@ curl -fsS https://aigc.49.51.248.227.sslip.io/api/health</code></pre>
 <ul>
   <li><code>docs/evidence/c2pa-public-fixtures-production-20260804.json</code></li>
   <li><code>docs/evidence/c2pa-tampered-production-20260804.json</code></li>
+  <li><code>docs/evidence/c2pa-unsigned-marker-production-20260804.json</code></li>
+  <li><code>docs/evidence/open-api-guardrail-production-20260804.json</code></li>
   <li><code>docs/evidence/ascend-guardrail-three-class-20260804.json</code></li>
   <li><code>docs/evidence/review-valid-progress-production-20260804.json</code></li>
   <li><code>docs/operator-manual.md</code>、<code>docs/provenance-api-quickstart.md</code></li>
+  <li><code>docs/open-api-manual.md</code></li>
+  <li><code>docs/screenshots/01-login-entry-20260804.png</code> 至 <code>06-guardrail-safe-input-output-20260804.png</code></li>
 </ul>
 
 <h1>8. 统一验收标准</h1>

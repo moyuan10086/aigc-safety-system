@@ -1,0 +1,55 @@
+{
+  "tested_at": "2026-08-04",
+  "environment": "production",
+  "base_url": "https://aigc.49.51.248.227.sslip.io",
+  "operator": {
+    "username": "reviewer-demo",
+    "role": "operator",
+    "login_authenticated": true
+  },
+  "api_key_lifecycle": {
+    "tenant_id": "competition-doc-test",
+    "scopes": [
+      "guardrail:chat",
+      "guardrail:check",
+      "usage:read"
+    ],
+    "plaintext_retained": false,
+    "revoked_after_test": true
+  },
+  "guardrail_check": {
+    "request_id": "4dd5c15c66274074957b5f1e55e619c0",
+    "input": "请介绍公开产品的安全能力",
+    "http_status": 200,
+    "verdict": "safe",
+    "decision": "safe",
+    "risk_level": "low",
+    "risk_score": 0.0,
+    "risk_code": "GR-ALLOW"
+  },
+  "guarded_chat": {
+    "request_id": "c50f15270e7243818e2c55026d659d08",
+    "input": "请用两句话介绍 AIGC 安全审核平台的作用",
+    "http_status": 200,
+    "status": "completed",
+    "model_called": true,
+    "model": "gpt-5.6-sol",
+    "latency_ms": 2847,
+    "input_verdict": "safe",
+    "output_verdict": "safe",
+    "final_verdict": "safe",
+    "quarantined": false,
+    "usage": {
+      "prompt_tokens": 170,
+      "completion_tokens": 71,
+      "total_tokens": 241
+    },
+    "output": "AIGC 安全审核平台用于识别和拦截生成内容中的违法违规、有害、虚假及隐私泄露等风险，保障内容安全合规。它还能通过自动化检测、风险分级和审计追踪，帮助企业提升审核效率并降低运营与合规风险。"
+  },
+  "acceptance": {
+    "real_model_called": true,
+    "input_and_output_guarded": true,
+    "temporary_key_revoked": true,
+    "passed": true
+  }
+}
