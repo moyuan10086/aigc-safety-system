@@ -22,6 +22,29 @@ async def _save_upload(file: UploadFile) -> str:
     return await upload_service.save_image_upload(file, UPLOAD_DIR)
 
 
+def _record_content_safety(result: dict) -> None:
+    verdict = result.get("verdict", "review")
+    categories = result.get("categories") or []
+    first_code = categories[0].get("code") if categories else result.get("error_code")
+    audit_log_service.record_safe(
+        event_type="image.content_safety",
+        module="image_content_safety",
+        action="analyze",
+        severity="high" if verdict == "unsafe" else "warning" if verdict == "review" else "info",
+        outcome="blocked" if verdict == "unsafe" else "review" if verdict == "review" else "allowed",
+        summary=f"图片内容安全审核：{verdict}",
+        risk_code=first_code,
+        risk_score=result.get("risk_score"),
+        content_hash=result.get("content_hash"),
+        metadata={
+            "category_codes": [item.get("code") for item in categories if item.get("code")],
+            "model": result.get("model"),
+            "policy_version": result.get("policy_version"),
+            "status": result.get("status"),
+        },
+    )
+
+
 @router.post("/deepfake")
 async def detect_deepfake(image: UploadFile = File(...)):
     path = await _save_upload(image)
@@ -116,6 +139,7 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
                 if "content_safety" in mod_set:
                     yield _sse("step", {"step": "content_safety", "status": "running"})
                     content_safety = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
+                    _record_content_safety(content_safety)
                     yield _sse("content_safety", content_safety)
 
             if text and "rag" in mod_set:
@@ -220,6 +244,7 @@ async def analyze_image_content(image: UploadFile = File(...)):
     path = await _save_upload(image)
     try:
         result = await asyncio.to_thread(_analyze, path)
+        _record_content_safety(result["content_safety"])
     finally:
         os.unlink(path)
     return result

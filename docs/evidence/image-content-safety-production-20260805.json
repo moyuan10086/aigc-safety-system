@@ -1,0 +1,114 @@
+{
+  "schema": "aigc.image-content-safety.production-evidence.v1",
+  "tested_at": "2026-08-05T03:45:12+08:00",
+  "base_url": "https://aigc.49.51.248.227.sslip.io",
+  "deployed_commit_before_resilience_patch": "4f49fbc",
+  "model_routing": {
+    "image_mllm": "gpt-5.4-mini",
+    "guarded_text_generation": "gpt-5.6-sol",
+    "api_keys_exposed": false
+  },
+  "failed_attempts": [
+    {
+      "model": "gpt-5.6-sol",
+      "result": "client_timeout_after_step_event",
+      "timeout_ms": 180000,
+      "accepted_as_pass": false
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "result": "model_not_found_for_production_key_group",
+      "http_status": 503,
+      "accepted_as_pass": false
+    }
+  ],
+  "samples": [
+    {
+      "sample_id": "marketing-violation",
+      "sha256": "d33c4944909bdd18ce79895a0f8573861aded9130cc26264cd9ff7389bcde318",
+      "reference": "synthetic_marketing_violation",
+      "request": {
+        "endpoint": "/api/detect/full",
+        "modules": ["content_safety"]
+      },
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 6900,
+      "result": {
+        "verdict": "review",
+        "safe": false,
+        "risk_score": 0.98,
+        "categories": [
+          {
+            "code": "marketing_violation",
+            "confidence": 0.98,
+            "severity": "high",
+            "evidence": "手机屏幕含保证每日收益、100% 保证、零风险和立即获利等强承诺表述"
+          },
+          {
+            "code": "illegal_activity",
+            "confidence": 0.63,
+            "severity": "medium",
+            "evidence": "疑似夸大或误导性的投资理财招揽"
+          }
+        ],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": true
+      }
+    },
+    {
+      "sample_id": "ai-license",
+      "sha256": "5a2f4d9e740f79d5e344a099fd40109f7d761ccc343d29221d6975e5792670df",
+      "reference": "user_confirmed_image2_generated_non_real_document",
+      "request": {
+        "endpoint": "/api/detect/full",
+        "modules": ["deepfake", "mllm", "content_safety"]
+      },
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 22700,
+      "face": {
+        "face_detected": true,
+        "face_count": 2,
+        "quality": "review",
+        "review_reasons": ["检测到多张人脸", "人脸面积占比过小"]
+      },
+      "deepfake": {
+        "label": "real",
+        "score": 0.1082,
+        "confidence": 0.8918,
+        "matches_reference": false
+      },
+      "mllm": {
+        "verdict": "uncertain",
+        "confidence": 0.72,
+        "matches_reference": false
+      },
+      "content_safety": {
+        "verdict": "unsafe",
+        "safe": false,
+        "risk_score": 0.99,
+        "categories": [
+          {
+            "code": "personal_data",
+            "confidence": 0.99,
+            "severity": "high",
+            "evidence": "证件画面包含姓名、住址、出生日期、证件编号和有效期等信息"
+          },
+          {
+            "code": "illegal_activity",
+            "confidence": 0.76,
+            "severity": "medium",
+            "evidence": "证件样式内容可能被用于冒用或不当使用"
+          }
+        ],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": false
+      },
+      "interpretation": "AIGC 真实性链漏检，但隐私与内容安全链成功阻断；必须保留多引擎和人工复核。"
+    }
+  ],
+  "privacy": {
+    "raw_sensitive_images_committed": false,
+    "public_sensitive_thumbnails_masked": true,
+    "raw_user_uploads_added_to_dashboard": false
+  }
+}

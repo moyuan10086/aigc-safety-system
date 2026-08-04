@@ -1,4 +1,7 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from services import mllm_service
 
@@ -52,6 +55,18 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
 
         self.assertEqual(result["verdict"], "review")
         self.assertEqual(result["risk_score"], 0.62)
+
+    def test_model_failure_fails_closed_to_human_review(self):
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with patch.object(mllm_service, "_request_content_safety", side_effect=RuntimeError("upstream failed")):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        self.assertEqual(result["verdict"], "review")
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["error_code"], "model_unavailable")
+        self.assertEqual(len(result["content_hash"]), 64)
 
 
 if __name__ == "__main__":

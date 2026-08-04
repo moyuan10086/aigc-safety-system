@@ -9,6 +9,7 @@ load_dotenv(Path(__file__).parent / ".env")
 MLLM_API_KEY = os.getenv("MLLM_API_KEY", "")
 MLLM_BASE_URL = os.getenv("MLLM_BASE_URL", "https://api.openai.com/v1")
 MLLM_MODEL = os.getenv("MLLM_MODEL", "gpt-4o")
+MLLM_TIMEOUT_SECONDS = float(os.getenv("MLLM_TIMEOUT_SECONDS", "90"))
 
 # Text generation model. It can point to a dedicated local vLLM service while
 # image analysis continues to use the MLLM settings above.

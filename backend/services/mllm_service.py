@@ -2,6 +2,7 @@
 MLLM 可解释性检测服务 — 复用 mllm-defake，图片自动压缩
 """
 import base64
+import hashlib
 import io
 import json
 import re
@@ -11,7 +12,7 @@ from pathlib import Path
 import httpx
 from PIL import Image
 from openai import OpenAI
-from config import MLLM_API_KEY, MLLM_BASE_URL, MLLM_MODEL, PROXY_URL
+from config import MLLM_API_KEY, MLLM_BASE_URL, MLLM_MODEL, MLLM_TIMEOUT_SECONDS, PROXY_URL
 
 MLLM_ROOT = Path(__file__).parents[2] / "mllm-defake"
 sys.path.insert(0, str(MLLM_ROOT))
@@ -32,8 +33,10 @@ CONTENT_SAFETY_CATEGORIES = {
 def _make_client() -> OpenAI:
     if PROXY_URL:
         return OpenAI(api_key=MLLM_API_KEY, base_url=MLLM_BASE_URL,
-                      http_client=httpx.Client(proxy=PROXY_URL, timeout=60))
-    return OpenAI(api_key=MLLM_API_KEY, base_url=MLLM_BASE_URL)
+                      timeout=MLLM_TIMEOUT_SECONDS, max_retries=1,
+                      http_client=httpx.Client(proxy=PROXY_URL, timeout=MLLM_TIMEOUT_SECONDS))
+    return OpenAI(api_key=MLLM_API_KEY, base_url=MLLM_BASE_URL,
+                  timeout=MLLM_TIMEOUT_SECONDS, max_retries=1)
 
 
 def _encode_compressed(path: str, max_bytes: int = 4 * 1024 * 1024) -> str:
@@ -190,7 +193,23 @@ def _request_content_safety(image_path: str) -> str:
 
 def analyze_content_safety(image_path: str) -> dict:
     """Run an actual multimodal content-safety classification call."""
-    raw = _request_content_safety(image_path)
+    content_hash = hashlib.sha256(Path(image_path).read_bytes()).hexdigest()
+    try:
+        raw = _request_content_safety(image_path)
+    except Exception:
+        return {
+            "verdict": "review",
+            "safe": False,
+            "risk_score": 0.0,
+            "categories": [],
+            "summary": "视觉内容安全模型暂时不可用，已转人工复核",
+            "model": MLLM_MODEL,
+            "requires_human_review": True,
+            "policy_version": "image-safety-v1",
+            "status": "degraded",
+            "error_code": "model_unavailable",
+            "content_hash": content_hash,
+        }
     payload = _json_object(raw)
     normalized = normalize_content_safety(payload)
     if not payload:
@@ -200,4 +219,7 @@ def analyze_content_safety(image_path: str) -> dict:
             "requires_human_review": True,
             "summary": "模型输出无法结构化解析，已转人工复核",
         })
+    normalized["status"] = "completed" if payload else "degraded"
+    normalized["error_code"] = None if payload else "invalid_model_output"
+    normalized["content_hash"] = content_hash
     return normalized

@@ -125,6 +125,8 @@ curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/images/content-safety \
 
 2026-08-05 本地真实模型测试：成人夜店边界样本 `review/0.55`，武器展示 `review/0.95`，虚构政治集会 `review/0.72`，保证收益营销 `unsafe/0.95`；非血腥冲突后现场返回 `safe/0.05`，作为待人工复核的弱正/漏检案例保留。完整哈希、延迟和模型输出见 `docs/evidence/image-content-safety-local-20260805.json`。
 
+同日生产实测使用独立图片模型 `gpt-5.4-mini`：保证收益营销图返回 `review/0.98` 并完整结束 SSE；Image2 合成证件被 Deepfake 误判为真实、MLLM 判不确定，但内容安全链以个人敏感信息 `0.99` 阻断。生产输入输出与失败尝试见 `docs/evidence/image-content-safety-production-20260805.json`。文本生成模型仍为 `gpt-5.6-sol`，不能把两条模型链混写成同一个模型。
+
 ## 6. Agent 护栏
 
 `agent/check` 的核心字段为 `tool_name`、`resource`、`arguments` 和可选 `approval_token`。高风险动作必须先取得短时、一次性、精确动作授权，授权不得跨工具、资源或参数复用。

@@ -105,10 +105,10 @@
       "source": "用户 Image2 测试集",
       "reference": "AI 生成",
       "risk_category": "证件伪造",
-      "result": "待生产复测",
-      "score": "待测",
-      "detail": "AI 合成演示样本 · 非真实证件",
-      "disagreement": false,
+      "result": "隐私阻断",
+      "score": "风险 99%",
+      "detail": "Deepfake 判真 · MLLM 不确定 · 隐私阻断",
+      "disagreement": true,
       "masked": true
     },
     {
