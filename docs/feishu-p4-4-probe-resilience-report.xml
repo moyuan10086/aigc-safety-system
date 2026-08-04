@@ -40,6 +40,8 @@
   <li>审计元数据中的 <code>attempts=1</code>、<code>max_attempts=2</code>、<code>recovered_after_retry=false</code> 与探针响应一致。</li>
   <li>公共响应隐私三项均为 false；不包含会话令牌、API Key、内部模型地址、路径、原始提示词或模型输出。</li>
   <li>原始提示词和模型输出已通过同一事件 ID 进入 AES-GCM 加密证据库；飞书和普通日志只记录状态、类别、哈希与统计。</li>
+  <li>发布后归档 <code>20260804T063201Z_post-p4-4-resilience_7ccb69dd</code> 已复验：<code>valid=true</code>、<code>files_valid=true</code>、<code>audit_chain_valid=true</code>；包含 684 条审计事件和 219 条加密证据。归档只含 AES-GCM 密文与 nonce，不含明文。</li>
+  <li>备份哈希：<code>audit.db=e2839fd19249a345da6890bb1ad29e4fa4c23d42db27b4decf2a46b094812b56</code>；<code>api_keys.db=55fae1a61d1b4ebf907cddfa0f71945a6bcc94ffbecd4bf8b63d76d53f1d512f</code>。</li>
 </ul>
 
 <callout emoji="📌" background-color="light-blue" border-color="blue">

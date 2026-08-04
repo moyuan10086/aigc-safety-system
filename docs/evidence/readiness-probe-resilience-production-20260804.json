@@ -59,6 +59,18 @@
     "recovered_after_retry": false,
     "error_code": null
   },
+  "post_release_backup": {
+    "archive": "20260804T063201Z_post-p4-4-resilience_7ccb69dd",
+    "created_at": "2026-08-04T06:32:01Z",
+    "valid": true,
+    "files_valid": true,
+    "audit_chain_valid": true,
+    "audit_events": 684,
+    "encrypted_evidence": 219,
+    "audit_db_sha256": "e2839fd19249a345da6890bb1ad29e4fa4c23d42db27b4decf2a46b094812b56",
+    "api_keys_db_sha256": "55fae1a61d1b4ebf907cddfa0f71945a6bcc94ffbecd4bf8b63d76d53f1d512f",
+    "raw_evidence_policy": "The archive contains AES-GCM ciphertext and nonce, not plaintext evidence."
+  },
   "deterministic_retry_tests": {
     "transient_gateway_failure_then_success": {
       "status": "ready",
