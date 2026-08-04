@@ -1,0 +1,63 @@
+{
+  "schema": "aigc.competition-seal.v1",
+  "sealed_at": "2026-08-05T04:59:28+08:00",
+  "repository": {
+    "commit": "d4c05b6",
+    "github": "https://github.com/moyuan10086/aigc-safety-system",
+    "server_path": "/root/CH/aigc-safety-system"
+  },
+  "local_verification": {
+    "ruff": {"passed": true},
+    "backend_unittest": {"passed": 108, "failed": 0, "duration_seconds": 16.651},
+    "frontend_build": {"passed": true, "warning": "existing chunks exceed 500 kB"},
+    "promptfoo_guardrail": {"passed": 12, "failed": 0, "errors": 0},
+    "promptfoo_agent_trajectory": {"passed": 4, "failed": 0, "errors": 0}
+  },
+  "backup": {
+    "archive": "20260804T205118Z_competition-seal-20260805_f457802f",
+    "valid": true,
+    "audit_chain_valid": true,
+    "files": [
+      {"name": "audit.db", "size": 778240, "sha256": "f43a4888440429e170f07190fd7300ca4ad0b3d9d330613e528cc0a1b379a211", "matches": true},
+      {"name": "api_keys.db", "size": 61440, "sha256": "812b88000ddc919dbf2a17b22e917a4dee1550a0cf031bb6e3dc73e7b5c2f644", "matches": true}
+    ],
+    "counts": {
+      "audit_events": 915,
+      "audit_evidence": 226,
+      "api_keys": 11,
+      "api_usage": 17,
+      "tenant_scan_jobs": 1,
+      "tenant_reports": 1
+    },
+    "restore_performed": false,
+    "note": "Verification was non-destructive; production data was not restored or pruned."
+  },
+  "production": {
+    "base_url": "https://aigc.49.51.248.227.sslip.io",
+    "deployed_commit": "d4c05b6",
+    "service_active": true,
+    "health": {"status": "ok", "service": "aigc-safety-system"},
+    "readiness": {"status": "ready", "passed": 13, "total": 13, "audit_chain": "pass", "evidence_vault": "pass"},
+    "demo_sample_catalog": {"count": 14, "failed_images": 0},
+    "model_probe": {
+      "status": "ready",
+      "model": "gpt-5.6-sol",
+      "model_called": true,
+      "attempts": 1,
+      "latency_ms": 3962,
+      "input_verdict": "safe",
+      "output_verdict": "safe",
+      "output_sha256": "c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526",
+      "evidence_event_id": "9acb92a33d1740a2a96ea026dfe67930",
+      "evidence_captured": true,
+      "audit_chain_valid": true,
+      "audit_event_count_after_probe": 922,
+      "inconclusive_components": []
+    }
+  },
+  "open_items": {
+    "human_pilot_labels": "0/20",
+    "human_target_labels": "0/200",
+    "status": "engineering seal passed; human labeling remains incomplete"
+  }
+}
