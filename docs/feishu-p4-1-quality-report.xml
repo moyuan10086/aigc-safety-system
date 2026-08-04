@@ -1,0 +1,52 @@
+<h4>P4-1 实测报告与质量门禁证据（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>P4-1 已完成。全仓 Python 稳定规则集由 17 项历史 Ruff 告警降至 <b>0</b>，Ruff 0.16.1 已进入锁文件和 GitHub Actions 强制门禁；最终云端运行 <code>30865747823</code> 全绿，后端 <b>68/68</b>、中文护栏 <b>12/12</b>、Agent 轨迹 <b>4/4</b> 全部通过。</p>
+</callout>
+<h5>一、改动范围</h5>
+<ul>
+  <li>修复 detect、kb、system、deepfake、ocr、rag 六个模块中的无占位符 f-string、未使用导入/变量、单行复合语句、歧义变量名和延迟导入标注。</li>
+  <li>在 <code>backend/pyproject.toml</code> 与 <code>backend/uv.lock</code> 锁定 <code>ruff==0.16.1</code>，规则显式固定为 E4、E7、E9、F，避免工具默认规则升级造成未评估的行为敏感改写。</li>
+  <li>GitHub Actions 调整为先执行 Ruff，再执行后端测试和两套 Promptfoo 回归；Promptfoo 固定 npm 11.6.2，并在评测后回收离线 Uvicorn 进程。</li>
+  <li>修复 API 用量测试对机器速度的脆弱假设：合成延迟始终高于首条实测延迟，继续验证 p95 聚合但不再依赖 CI 性能。</li>
+</ul>
+<h5>二、验收矩阵</h5>
+<table>
+  <thead><tr><th background-color="light-gray">环境</th><th background-color="light-gray">检查项</th><th background-color="light-gray">实际结果</th><th background-color="light-gray">结论</th></tr></thead>
+  <tbody>
+    <tr><td>本地</td><td><code>uv run ruff check .</code></td><td>All checks passed</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>本地</td><td>后端全量单测</td><td>68/68</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>本地</td><td>前端生产构建</td><td>Vite build 成功</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>本地</td><td>干净 npm 安装与 Promptfoo</td><td><code>npm ci</code> 成功；12/12 + 4/4</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>GitHub</td><td>Guardrail Evaluation</td><td>运行 30865747823；全部步骤成功</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>服务器</td><td>冻结依赖、Ruff、后端、前端</td><td>Ruff 0 告警；68/68；build 成功</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>生产</td><td>服务与公网健康</td><td>systemd active；HTTPS <code>/api/health</code> = ok</td><td><span text-color="green">通过</span></td></tr>
+  </tbody>
+</table>
+<h5>三、CI 故障闭环</h5>
+<table>
+  <thead><tr><th background-color="light-gray">运行</th><th background-color="light-gray">真实失败点</th><th background-color="light-gray">处理</th></tr></thead>
+  <tbody>
+    <tr><td><code>30863534661</code></td><td>Promptfoo package-lock 不同步</td><td>重新生成并验证锁文件</td></tr>
+    <tr><td><code>30864443718</code></td><td>npm 10 与本地 npm 11 解析差异</td><td>固定 <code>npm@11.6.2</code></td></tr>
+    <tr><td><code>30865040134</code></td><td>真实请求延迟 539 ms，高于测试硬编码 400 ms</td><td>改为与首条实测延迟相关的确定性断言</td></tr>
+    <tr><td><code>30865273539</code></td><td>所有测试通过，但离线 API 占用 uv 缓存锁，收尾超时</td><td>增加 <code>always()</code> 进程回收步骤</td></tr>
+    <tr><td><code>30865747823</code></td><td>无</td><td>2 分 17 秒全绿，评测产物保留 14 天</td></tr>
+  </tbody>
+</table>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30865747823">GitHub Actions 最终绿色运行 30865747823</a></p>
+<h5>四、提交、部署与备份</h5>
+<ul>
+  <li><code>c9dddbc</code>：修复 17 项告警、锁定 Ruff 并建立后端质量门禁。</li>
+  <li><code>5e28f4e</code>：同步 Promptfoo dependency lock。</li>
+  <li><code>255555f</code>：固定 npm 11.6.2。</li>
+  <li><code>d3ca7f4</code>：移除 API 延迟测试的机器性能波动。</li>
+  <li><code>361ae46</code>：评测结束后回收离线护栏进程，解除 uv 缓存锁。</li>
+  <li>生产仓库、GitHub 与本地已同步至 <code>361ae460cfed5e7c4066b1f540b7b8e080b91b98</code>。</li>
+  <li>发布前备份：<code>20260803T234806Z_pre-p4-1-quality-gate_8d786b1f</code>；发布后备份：<code>20260803T235109Z_post-p4-1-quality-gate_0101b31a</code>。两份校验和与审计链均有效，证据记录数保持 216。</li>
+</ul>
+<callout emoji="🔐" background-color="light-blue" border-color="blue">
+  <p><b>安全边界：</b>本轮未修改审核阈值、模型推理、API 契约或用户子模块。原始提示词、危险模型输出、工具结果和轨迹原文继续只进入 AES-GCM 加密证据库；普通日志、统计接口、CSV 与 Promptfoo 产物均不保存生产原文。</p>
+</callout>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>剩余外部前置条件：</b>20 条真实人工试标必须由审核员本人完成；正式页面截图仍等待 Codex 应用内浏览器内核资产问题恢复；昇腾 910C 模型推理仍需明确安全卡号和工作目录。本轮未绕过浏览器限制，也未擅自占用 NPU。</p>
+</callout>
