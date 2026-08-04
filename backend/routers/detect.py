@@ -8,11 +8,10 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import aiofiles
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from services import audit_log_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service
+from services import audit_log_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service, upload_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -20,11 +19,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 async def _save_upload(file: UploadFile) -> str:
-    ext = Path(file.filename).suffix
-    path = UPLOAD_DIR / f"{uuid.uuid4()}{ext}"
-    async with aiofiles.open(path, "wb") as f:
-        await f.write(await file.read())
-    return str(path)
+    return await upload_service.save_image_upload(file, UPLOAD_DIR)
 
 
 @router.post("/deepfake")

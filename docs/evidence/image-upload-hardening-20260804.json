@@ -1,0 +1,25 @@
+{
+  "evidence_type": "image_upload_hardening",
+  "date": "2026-08-04",
+  "scope": ["/api/detect/*", "/api/v1/images/*"],
+  "controls": {
+    "max_bytes": 12582912,
+    "max_pixels": 40000000,
+    "chunk_bytes": 1048576,
+    "format_validation": "Pillow verify plus allowlist",
+    "filename_trust": false,
+    "temporary_file_cleanup": true
+  },
+  "tests": {
+    "command": "python -m pytest tests/test_provenance.py tests/test_upload_validation.py tests/test_api_access.py -q",
+    "passed": 12,
+    "failed": 0,
+    "ruff": "passed",
+    "frontend_build": "passed"
+  },
+  "boundaries": [
+    "The knowledge-base document upload route is intentionally separate because it accepts non-image documents.",
+    "Raw image bytes are not written to audit logs.",
+    "Human review labels and encrypted prompt/response evidence are unchanged."
+  ]
+}
