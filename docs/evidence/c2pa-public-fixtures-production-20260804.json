@@ -1,0 +1,42 @@
+{
+  "evidence_type": "c2pa_public_fixtures_production_probe",
+  "captured_at": "2026-08-04",
+  "endpoint": "POST https://aigc.49.51.248.227.sslip.io/api/detect/provenance",
+  "policy": {
+    "local_only": true,
+    "remote_manifest_fetch": false,
+    "raw_image_retained": false,
+    "interpretation": "Content Credentials 只提供来源与编辑历史，不单独证明内容一定由 AI 生成；not_found 不等于非 AI。"
+  },
+  "cases": [
+    {
+      "fixture": "c2pa-rs-update-manifest.jpg",
+      "sha256": "c855bbce1e2ea50bfc1da939f55b7d1bce97a9afa5a0e671ed05d59dc7950b3b",
+      "http_status": 200,
+      "overall_state": "confirmed_source",
+      "c2pa_status": "valid",
+      "manifest_count": 2,
+      "validation_state": "valid",
+      "trust_verified": true,
+      "assertion_labels": ["c2pa.actions.v2", "c2pa.time-stamp"]
+    },
+    {
+      "fixture": "c2pa-rs-ocsp.jpg",
+      "sha256": "210fb95c6a766d3cd89ef0583898ec7248fe60f0ed651af216fb270cd9cbe17a",
+      "http_status": 200,
+      "overall_state": "inconclusive",
+      "c2pa_status": "inconclusive",
+      "error": "manifest_parse_failed",
+      "operator_action": "转人工复核，不解释为无来源"
+    },
+    {
+      "fixture": "c2pa-rs-sample1.png",
+      "sha256": "0bd72c972c14e5fd27d8473c5599e801031576e1398f384c40c3394696a2619a",
+      "http_status": 200,
+      "overall_state": "not_found",
+      "c2pa_status": "not_found",
+      "manifest_count": 0,
+      "operator_action": "继续运行 Deepfake/MLLM/红线审核，不解释为非 AI"
+    }
+  ]
+}
