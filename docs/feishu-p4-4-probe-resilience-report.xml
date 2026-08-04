@@ -17,10 +17,10 @@
 <h5>二、本地与 GitHub 门禁</h5>
 <ul>
   <li>readiness 专项 8/8；后端全量 83/83；Ruff 通过；前端 Vite production build 成功。</li>
-  <li>GitHub Actions 运行 <code>30875949799</code> 全绿：后端测试、Promptfoo 中文输入输出 12/12、Agent trajectory 4/4 均通过。</li>
+  <li>GitHub Actions 代码变更运行 <code>30875949799</code> 与最终 main 手动运行 <code>30876802828</code> 均全绿：后端测试、Promptfoo 中文输入输出 12/12、Agent trajectory 4/4 均通过；最终运行的 HEAD 为 <code>41adc5c</code>。</li>
   <li>隐私回归证明连续故障中的内部错误文本、URL 和令牌不会进入公共响应。</li>
 </ul>
-<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30875949799">GitHub Actions P4-4 绿色运行</a></p>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30876802828">GitHub Actions P4-4 最终 main 绿色运行</a></p>
 
 <h5>三、正式站真实输入输出</h5>
 <table>

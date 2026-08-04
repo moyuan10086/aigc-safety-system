@@ -5,9 +5,12 @@
   "production_url": "https://aigc.49.51.248.227.sslip.io",
   "implementation_commit": "bc9719793d8168228f599cdf9c5aa5e31df9dc14",
   "github_actions": {
-    "run_id": 30875949799,
-    "status": "success",
-    "url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30875949799",
+    "code_change_run_id": 30875949799,
+    "code_change_run_url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30875949799",
+    "final_main_run_id": 30876802828,
+    "final_main_run_status": "success",
+    "final_main_run_url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30876802828",
+    "final_main_head_sha": "41adc5ce676b7eb421795efe8c598a956edc5f2b",
     "backend_tests": 83,
     "promptfoo_cases": 12,
     "agent_trajectory_cases": 4
