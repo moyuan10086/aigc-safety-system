@@ -1,0 +1,10 @@
+<h3>P4-4 模型探针瞬态故障恢复（2026-08-04）</h3>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>触发依据：</b>P4-3 正式验证期间真实模型探针成功，但额外专家采样曾出现 1 次上游瞬态失败，随后重试恢复。当前接口会把一次网关抖动直接显示为 failed，不利于比赛现场判断。</p>
+</callout>
+<checkbox done="false">P4-4.1 只对 <code>ModelGatewayError</code> 执行最多 1 次有界重试；未配置、输入阻断、护栏异常和其他错误不盲目重试</checkbox>
+<checkbox done="false">P4-4.2 公共响应增加 attempts、max_attempts、recovered_after_retry；仍不返回错误原文、密钥、URL、路径、提示词或模型输出</checkbox>
+<checkbox done="false">P4-4.3 成功结果继续进入 30 秒缓存，缓存命中不得再次调用模型；失败结果保留结构化 error_code 和实际尝试次数</checkbox>
+<checkbox done="false">P4-4.4 审计元数据记录 attempts 与 recovered_after_retry；真实提示词和模型输出仍仅进入 AES-GCM 加密证据库</checkbox>
+<checkbox done="false">P4-4.5 补齐首次成功、瞬态失败后恢复、连续失败、不配置、缓存和隐私测试，完成 Ruff、全量后端、前端构建、CI、部署和正式站真实探针</checkbox>
+<p><b>验收口径：</b>测试中的第一次网关异常、第二次成功必须返回 <code>status=ready</code>、<code>attempts=2</code>、<code>recovered_after_retry=true</code>；连续两次异常必须返回 <code>status=failed</code>、<code>model_called=false</code> 和安全错误码；所有路径均保持隐私三项为 false。</p>

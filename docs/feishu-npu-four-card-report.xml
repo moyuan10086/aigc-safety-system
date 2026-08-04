@@ -1,0 +1,49 @@
+<h3>国产昇腾四卡并行算力与轻量推理验证（2026-08-04）</h3>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>已在 100.121.203.95 的物理卡 2、3、4、5 上完成两次四卡并行实验。四张卡均为 Ascend 910、Health=OK；实验同时执行 FP16 4096×4096 矩阵乘和两层 MLP 批量推理，第二次运行输出 status=ok。实验未停止既有进程，结束后临时容器自动删除，四卡 AICore 回到 0。</p>
+</callout>
+
+<h4>一、选卡与隔离边界</h4>
+<table>
+  <thead><tr><th background-color="light-gray">范围</th><th background-color="light-gray">实测状态</th><th background-color="light-gray">决策</th></tr></thead>
+  <tbody>
+    <tr><td>物理卡 2–5</td><td>实验前 AICore=0；每卡仅有既存 118 MB Python 进程；HBM 使用约 4–5%</td><td><span text-color="green">用于短时四卡实验</span></td></tr>
+    <tr><td>物理卡 0</td><td>长期 RAG 进程占用约 33 GB</td><td>不使用</td></tr>
+    <tr><td>物理卡 8–15</td><td>8 卡 vLLMWorker_TP，AICore=100%，每卡约 57.5 GB</td><td>不使用、不停止</td></tr>
+    <tr><td>服务器磁盘</td><td>根分区 445 GB，已用 415 GB，使用率 94%</td><td>不下载模型或新镜像</td></tr>
+  </tbody>
+</table>
+
+<h4>二、运行环境与实验负载</h4>
+<ul>
+  <li>容器：<code>quay.io/ascend/vllm-ascend:v0.18.0-a3</code>；CANN 8.5.1；torch 2.9.0+cpu；torch_npu 2.9.0.post1+gitee7ba04。</li>
+  <li>通过 <code>ASCEND_RT_VISIBLE_DEVICES=2,3,4,5</code> 映射为逻辑 <code>npu:0..3</code>，四个独立进程同时启动。</li>
+  <li>算力负载：每卡 FP16 4096×4096 矩阵乘 5 次；推理负载：每卡批量 32 的 <code>Linear(4096,4096)-GELU-Linear(4096,4096)</code>，热身后执行 20 次。</li>
+</ul>
+
+<h4>三、第二次实测结果</h4>
+<table>
+  <thead><tr><th background-color="light-gray">物理卡</th><th background-color="light-gray">矩阵 TFLOPS</th><th background-color="light-gray">MLP 平均 / P95 延迟</th><th background-color="light-gray">样本/秒</th><th background-color="light-gray">分配显存</th></tr></thead>
+  <tbody>
+    <tr><td>2</td><td>307.999</td><td>0.108 / 0.144 ms</td><td>296,036.08</td><td>160.5 MB</td></tr>
+    <tr><td>3</td><td>297.271</td><td>0.098 / 0.116 ms</td><td>324,964.87</td><td>160.5 MB</td></tr>
+    <tr><td>4</td><td>306.148</td><td>0.108 / 0.119 ms</td><td>296,394.49</td><td>160.5 MB</td></tr>
+    <tr><td>5</td><td>306.116</td><td>0.110 / 0.127 ms</td><td>290,301.14</td><td>160.5 MB</td></tr>
+    <tr><td><b>四卡合计</b></td><td><b>1217.534</b></td><td>总墙钟时间 11,652.747 ms（含进程启动与编译）</td><td><b>1,207,696.58</b></td><td>约 642 MB</td></tr>
+  </tbody>
+</table>
+
+<h4>四、退出与完整性检查</h4>
+<ul>
+  <li>临时容器使用 <code>--rm</code>，运行完成后不存在残留容器。</li>
+  <li>实验前后的既有 PID 保持一致；没有停止、重启或抢占其他用户任务。</li>
+  <li>物理卡 2–5 运行后 Health=OK、AICore=0、HBM 使用 4–5%；stderr 仅有 IPv4 forwarding disabled 提示，本实验不依赖网络。</li>
+  <li>原始结果 1936 字节，SHA-256：<code>0c66ffdd578bbb90abeb072421c605bca42d57d2377a8aecad4385bd4066e9a2</code>。</li>
+</ul>
+
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>scripts/npu_four_card_benchmark.py</code>、汇总结果 <code>docs/evidence/npu-four-card-benchmark-20260804.json</code>、原始结果 <code>docs/evidence/npu-four-card-raw-20260804.json</code>（SHA-256：<code>0c66ffdd578bbb90abeb072421c605bca42d57d2377a8aecad4385bd4066e9a2</code>）。该结果是合成热态微基准，用于证明四卡运行时、设备隔离和并行执行能力，不代表 Qwen3Guard、LLM token 生成或比赛业务数据上的模型精度。</p>
+</callout>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>下一步：</b>先治理根盘空间并建立独立模型目录，再在明确预约窗口内用四卡部署一个兼容的小规格护栏模型，补齐模型权重来源、许可证、真实输入输出、首 token/总延迟、token 吞吐、峰值 HBM、精度与主系统降级行为。</p>
+</callout>

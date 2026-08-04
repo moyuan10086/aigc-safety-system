@@ -1,0 +1,54 @@
+<h1>执行总览 v4.2（唯一当前基线，2026-08-04）</h1>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>总目标：</b>把跨域 AIGC 伪造检测平台建设为可在比赛现场稳定演示、可供外部系统通过 API 调用、可追溯审核和可持续扩展的 AIGC 安全运营台。主链路覆盖图片与人脸审核、实时大模型安全护栏、主动安全扫描、红线知识库、审计与取证、数据驾驶舱及开放 API；增强路线覆盖多专家评测、Agent 安全与国产昇腾推理验证。</p>
+</callout>
+
+<h2>一、全部目标与当前状态</h2>
+<table>
+  <thead><tr><th background-color="light-gray">目标域</th><th background-color="light-gray">状态</th><th background-color="light-gray">已证明的成果</th><th background-color="light-gray">剩余验收</th></tr></thead>
+  <tbody>
+    <tr><td>视觉、交互与生产基线</td><td><span text-color="green">已完成</span></td><td>浅色管理后台、藏蓝安全侧栏、三级驾驶舱、响应式布局、HTTPS 与服务自启动均已上线</td><td>当前版本官方桌面/移动端截图仍待浏览器运行资产恢复</td></tr>
+    <tr><td>图片与人脸审核</td><td><span text-color="green">已完成</span></td><td>Deepfake、MLLM、OCR/红线联动、逐脸质量证据和报告链路已完成；明确 <code>identity_analysis=false</code></td><td>继续积累真实样本，不引入身份识别或 embedding</td></tr>
+    <tr><td>实时大模型安全护栏</td><td><span text-color="green">已完成</span></td><td>真实生成模型、输入/输出双向护栏、三态判定、Qwen3Guard、SingGuard、RAG、规则与 XGBoost shadow 已接入</td><td>P4-4 增加上游瞬态故障的有界重试与可审计恢复状态</td></tr>
+    <tr><td>红线知识库与主动扫描</td><td><span text-color="green">已完成</span></td><td>敏感词、规则、来源、分类、关键词/RAG 检索和 garak 主动扫描均已上线</td><td>后续按比赛样本维护红线数据，不把 garak 放入实时请求路径</td></tr>
+    <tr><td>登录、日志、取证与开放 API</td><td><span text-color="green">已完成</span></td><td>侧栏审核员登录、API Key/租户/限流/配额、SQLite WAL、SHA-256 审计链、CSV、AES-GCM 原始证据库和数据驾驶舱已上线</td><td>保持密钥轮换、备份校验和最小权限</td></tr>
+    <tr><td>模型评测与人工复核</td><td><span text-color="blue">工程完成，真人验收待执行</span></td><td>200 条真实模型样本、盲审门禁、多人租约、独立审核员身份、20/200 进度和有效标签判定均已上线</td><td>生产当前仍为 0/20、0/200；必须由真实审核员本人领取、查看证据并提交标签</td></tr>
+    <tr><td>Agent 安全</td><td><span text-color="green">已完成</span></td><td>工具执行前审批、精确一次性授权、结果回传复检、间接注入隔离和多步轨迹风险账本已上线</td><td>继续用 Promptfoo/轨迹用例做 CI 回归</td></tr>
+    <tr><td>比赛现场演示自检</td><td><span text-color="green">已完成 P4-3</span></td><td>readiness 13/13、三场景 ready、真实模型探针、短缓存、审计留痕和设置页状态视图已上线</td><td>P4-4 处理已观测到的一次上游瞬态失败</td></tr>
+    <tr><td>昇腾 910 国产化</td><td><span text-color="yellow">部分完成</span></td><td>16 卡健康、CANN 8.5.1、Ascend 容器和 2048×2048 FP32 NPU 矩阵计算均有真实证据</td><td>8–15 正在跑 vLLM、0 有长期任务、根盘 94%；需指定安全卡与隔离目录后做小模型真实推理</td></tr>
+    <tr><td>GitHub、部署与飞书证据</td><td><span text-color="green">持续执行</span></td><td>每阶段均有提交、CI、服务器部署、备份和飞书报告；主站为 <code>aigc.49.51.248.227.sslip.io</code></td><td>每个后续里程碑继续执行“计划→实现→测试→部署→证据→飞书”闭环</td></tr>
+  </tbody>
+</table>
+
+<h2>二、当前优先级与实施计划</h2>
+<checkbox done="true">P4-3：比赛现场演示自检与安全降级已完成，正式站 13/13 ready，真实模型探针和 AES-GCM 证据均已验证</checkbox>
+<checkbox done="false">P4-4：模型探针瞬态故障恢复。仅对模型网关异常执行最多 1 次有界重试，返回 attempts/recovered_after_retry，缓存防重复调用，并将恢复状态写入审计元数据</checkbox>
+<checkbox done="false">P2-3.6 人工试标：由真实审核员完成首批 20 条，要求已提交标签数与双审计完整的有效标签数相等，再累计到 200 条</checkbox>
+<checkbox done="false">页面证据：官方应用内浏览器恢复后补录当前版本桌面、移动端、登录、人工复核和现场自检截图；不得用其他浏览器控制面绕过</checkbox>
+<checkbox done="false">昇腾模型推理：先确认物理卡 2–7 中的安全卡和隔离目录；不使用 8–15，不占用物理卡 0，不在 94% 的根盘下载大模型</checkbox>
+
+<h2>三、统一验收标准</h2>
+<table>
+  <thead><tr><th background-color="light-gray">维度</th><th background-color="light-gray">必须满足</th><th background-color="light-gray">权威证据</th></tr></thead>
+  <tbody>
+    <tr><td>功能正确性</td><td>正常、边界、危险样例分别放行、复核、阻断；图片、人脸、知识库、Agent 与报告字段完整</td><td>自动化测试 + 正式站结构化输入输出</td></tr>
+    <tr><td>真实模型</td><td>需要模型的能力必须证明 <code>model_called=true</code>；不得用模拟输出冒充模型结果</td><td>脱敏响应、模型名、延迟、输出 SHA-256 与加密证据事件</td></tr>
+    <tr><td>隐私与安全</td><td>密钥、内部地址、路径、原始提示词和危险输出不进入公共响应、普通日志或飞书</td><td>隐私字段、测试、AES-GCM 证据库和审计访问记录</td></tr>
+    <tr><td>人工复核</td><td>人工真值只能由真实审核员提交；领取、证据访问、标签三步身份一致</td><td>有效标签统计、审核员贡献和脱敏 CSV</td></tr>
+    <tr><td>稳定与降级</td><td>模型增强失败时规则/RAG 主链可用；必需项故障必须显示 not_ready，不伪装在线</td><td>readiness 场景、降级测试、systemd 与 HTTPS health</td></tr>
+    <tr><td>工程质量</td><td>Ruff、后端全量、前端构建、Promptfoo 和 Agent 轨迹门禁通过</td><td>本地结果 + GitHub Actions 绿色运行</td></tr>
+    <tr><td>部署与追溯</td><td>本地、GitHub、服务器提交一致；发布前后备份文件哈希和审计链有效</td><td>Git HEAD、备份 manifest、files_valid 与 audit_chain_valid</td></tr>
+    <tr><td>NPU 国产化</td><td>不得抢占现有进程；真实推理需记录模型、运行时、卡号、输入输出、延迟、吞吐、显存和降级边界</td><td>npu-smi、容器版本、推理 JSON 与飞书报告</td></tr>
+  </tbody>
+</table>
+
+<h2>四、执行顺序</h2>
+<ol>
+  <li seq="auto"><b>当前执行 P4-4：</b>根据生产已观测瞬态失败补齐探针有界重试、恢复标记、测试、CI、部署和正式站证据。</li>
+  <li seq="auto"><b>外部并行项：</b>真实审核员完成 P2-3.6 首批 20 条；这项不能由开发代理代填。</li>
+  <li seq="auto"><b>环境恢复项：</b>官方应用内浏览器恢复后补齐当前版本截图。</li>
+  <li seq="auto"><b>国产化项：</b>确认安全卡和隔离目录后，复用现有 Ascend 环境做小模型推理；根盘空间未治理前不下载大权重。</li>
+</ol>
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>不可回退边界：</b>原始提示词与模型危险输出继续完整保存在 AES-GCM 加密证据库；普通接口、驾驶舱、CSV、日志和飞书只记录哈希、类别、状态和统计。人脸能力保持非身份化；人工标签不伪造；外部 GPU/NPU 现有任务不停止、不抢占。</p>
+</callout>

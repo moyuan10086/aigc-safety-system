@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "verified_at": "2026-08-04",
+  "server": "100.121.203.95",
+  "hostname": "atlas-42",
+  "experiment": "four-card Ascend compute and lightweight MLP inference microbenchmark",
+  "status": "ok",
+  "safety_boundary": {
+    "selected_physical_devices": [2, 3, 4, 5],
+    "selection_reason": "all four devices were healthy, AICore utilization was 0%, and each had only a pre-existing 118 MB Python process",
+    "excluded_devices": {
+      "0": "long-running RAG process using about 33 GB",
+      "8-15": "active eight-card VLLMWorker_TP workload using about 57.5 GB per device"
+    },
+    "root_filesystem_usage_percent": 94,
+    "downloaded_new_model_or_image": false,
+    "stopped_existing_process": false,
+    "temporary_container_removed": true
+  },
+  "runtime": {
+    "npu_smi_version": "25.5.2",
+    "cann_version": "8.5.1",
+    "container_image": "quay.io/ascend/vllm-ascend:v0.18.0-a3",
+    "torch_version": "2.9.0+cpu",
+    "torch_npu_version": "2.9.0.post1+gitee7ba04",
+    "visible_devices": "2,3,4,5",
+    "world_size": 4
+  },
+  "aggregate": {
+    "wall_time_ms_including_process_startup_and_compilation": 11652.747,
+    "matrix_tflops": 1217.534,
+    "mlp_samples_per_second": 1207696.58
+  },
+  "workload": {
+    "matrix": {
+      "operation": "FP16 matrix multiplication",
+      "shape": [4096, 4096],
+      "iterations_per_device": 5
+    },
+    "mlp_inference": {
+      "architecture": "Linear(4096,4096)-GELU-Linear(4096,4096)",
+      "dtype": "float16",
+      "batch_size_per_device": 32,
+      "iterations_per_device": 20
+    }
+  },
+  "devices": [
+    {
+      "physical_device": 2,
+      "logical_device": "npu:0",
+      "matrix_elapsed_ms": 2.231,
+      "matrix_tflops": 307.999,
+      "mlp_mean_latency_ms": 0.108,
+      "mlp_p95_latency_ms": 0.144,
+      "mlp_samples_per_second": 296036.08,
+      "memory_allocated_mb": 160.5
+    },
+    {
+      "physical_device": 3,
+      "logical_device": "npu:1",
+      "matrix_elapsed_ms": 2.312,
+      "matrix_tflops": 297.271,
+      "mlp_mean_latency_ms": 0.098,
+      "mlp_p95_latency_ms": 0.116,
+      "mlp_samples_per_second": 324964.87,
+      "memory_allocated_mb": 160.5
+    },
+    {
+      "physical_device": 4,
+      "logical_device": "npu:2",
+      "matrix_elapsed_ms": 2.245,
+      "matrix_tflops": 306.148,
+      "mlp_mean_latency_ms": 0.108,
+      "mlp_p95_latency_ms": 0.119,
+      "mlp_samples_per_second": 296394.49,
+      "memory_allocated_mb": 160.5
+    },
+    {
+      "physical_device": 5,
+      "logical_device": "npu:3",
+      "matrix_elapsed_ms": 2.245,
+      "matrix_tflops": 306.116,
+      "mlp_mean_latency_ms": 0.11,
+      "mlp_p95_latency_ms": 0.127,
+      "mlp_samples_per_second": 290301.14,
+      "memory_allocated_mb": 160.5
+    }
+  ],
+  "post_run": {
+    "selected_devices_health": "OK",
+    "selected_devices_aicore_percent": 0,
+    "selected_devices_hbm_usage_percent": "4-5",
+    "pre_existing_processes_preserved": true,
+    "stderr": "IPv4 forwarding disabled warning only; experiment required no network"
+  },
+  "raw_result": {
+    "artifact_path": "docs/evidence/npu-four-card-raw-20260804.json",
+    "capture_path": "/tmp/aigc-npu-four-card-result.json",
+    "size_bytes": 1936,
+    "sha256": "0c66ffdd578bbb90abeb072421c605bca42d57d2377a8aecad4385bd4066e9a2"
+  },
+  "limitations": [
+    "This is a synthetic hot-kernel microbenchmark, not pretrained LLM token throughput.",
+    "No Qwen3Guard or other pretrained model weights were downloaded because the root filesystem was 94% full.",
+    "A real model deployment still requires a dedicated directory, capacity cleanup, and an agreed device reservation window."
+  ]
+}
