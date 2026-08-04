@@ -287,7 +287,10 @@ async def get_history():
         except Exception:
             pass
     total = len(reports)
-    fake_count = sum(1 for r in reports if r["deepfake_label"] == "fake")
+    fake_count = sum(
+        1 for r in reports
+        if r["deepfake_label"] == "fake" or r["mllm_verdict"] == "fake"
+    )
     risk_count = sum(
         1 for r in reports
         if r["rag_safe"] is False or r["content_safety_verdict"] in {"review", "unsafe"}

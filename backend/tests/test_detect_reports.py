@@ -44,14 +44,15 @@ class DetectReportTests(unittest.TestCase):
             },
         )
         self._write_report("safe-text", {"rag": {"safe": True, "risk_level": "low"}})
+        self._write_report("mllm-fake", {"mllm": {"verdict": "fake", "confidence": 0.82}})
         self._write_report("no-result", {})
 
         response = self.client.get("/api/detect/history")
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
-        self.assertEqual(body["total"], 3)
-        self.assertEqual(body["fake_count"], 1)
+        self.assertEqual(body["total"], 4)
+        self.assertEqual(body["fake_count"], 2)
         self.assertEqual(body["risk_count"], 1)
         self.assertEqual(body["clear_count"], 1)
         risky = next(item for item in body["reports"] if item["id"] == "both-risk-tracks")
