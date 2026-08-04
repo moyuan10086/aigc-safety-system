@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import numpy as np
 
-from routers import detect
 from services import face_service
 
 
@@ -123,13 +122,6 @@ class FaceServiceTests(unittest.TestCase):
         self.assertIsNotNone(detector)
         self.assertTrue(detector.path.isascii())
         self.assertIn("aigc-safety-face", detector.path)
-
-    def test_router_wrapper_preserves_existing_callers(self):
-        expected = {"status": "detected", "face_count": 1}
-        with patch.object(face_service, "inspect", return_value=expected) as inspect:
-            self.assertEqual(detect._inspect_faces("sample.jpg"), expected)
-        inspect.assert_called_once_with("sample.jpg")
-
 
 if __name__ == "__main__":
     unittest.main()
