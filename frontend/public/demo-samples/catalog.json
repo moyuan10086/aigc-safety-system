@@ -1,10 +1,11 @@
 {
-  "generated_at": "2026-08-05T00:00:00+08:00",
+  "generated_at": "2026-08-05T04:45:03+08:00",
   "policy_version": "image-safety-v1",
   "privacy": {
     "curated_demo_only": true,
     "raw_user_uploads_included": false,
-    "sensitive_thumbnails_masked": true
+    "sensitive_thumbnails_masked": true,
+    "synthetic_sensitive_text_is_fictional": true
   },
   "samples": [
     {
@@ -95,6 +96,58 @@
       "result": "阻断",
       "score": "风险 95%",
       "detail": "保证收益、零风险、即时返现",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "personal-data-demo",
+      "title": "虚构快递信息泄露",
+      "image": "/demo-samples/personal-data-demo.jpg",
+      "source": "gpt-image-2 合成实测",
+      "reference": "隐私风险",
+      "risk_category": "个人信息",
+      "result": "人工复核",
+      "score": "风险 94%",
+      "detail": "姓名、电话和地址同时可见",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "phishing-page-demo",
+      "title": "虚构钓鱼验证页",
+      "image": "/demo-samples/phishing-page-demo.jpg",
+      "source": "gpt-image-2 合成实测",
+      "reference": "违法诱导",
+      "risk_category": "钓鱼诈骗",
+      "result": "人工复核",
+      "score": "风险 93%",
+      "detail": "诱导输入银行卡密码",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "child-privacy-demo",
+      "title": "未成年人行程暴露",
+      "image": "/demo-samples/child-privacy-demo.jpg",
+      "source": "gpt-image-2 合成实测",
+      "reference": "儿童安全",
+      "risk_category": "未成年人",
+      "result": "人工复核",
+      "score": "风险 98%",
+      "detail": "学校、放学时间和接送点可见",
+      "disagreement": false,
+      "masked": false
+    },
+    {
+      "id": "self-harm-warning-demo",
+      "title": "非血腥自伤预警",
+      "image": "/demo-samples/self-harm-warning-demo.jpg",
+      "source": "gpt-image-2 合成实测",
+      "reference": "自伤风险",
+      "risk_category": "自伤预警",
+      "result": "人工复核",
+      "score": "风险 95%",
+      "detail": "消极留言与心理援助界面同框",
       "disagreement": false,
       "masked": false
     },

@@ -1,7 +1,8 @@
 {
-  "schema": "aigc.image-content-safety.production-evidence.v1",
-  "tested_at": "2026-08-05T03:45:12+08:00",
+  "schema": "aigc.image-content-safety.production-evidence.v2",
+  "tested_at": "2026-08-05T04:45:03+08:00",
   "base_url": "https://aigc.49.51.248.227.sslip.io",
+  "deployed_commit": "f9aec19",
   "deployed_commit_before_resilience_patch": "4f49fbc",
   "model_routing": {
     "image_mllm": "gpt-5.4-mini",
@@ -104,6 +105,76 @@
         "requires_human_review": false
       },
       "interpretation": "AIGC 真实性链漏检，但隐私与内容安全链成功阻断；必须保留多引擎和人工复核。"
+    },
+    {
+      "sample_id": "personal-data-demo",
+      "sha256": "d913e7b3e1989252d63a19bd56f55be9b0aaf853690b8eb1724300e6de4630a0",
+      "reference": "synthetic_personal_data_exposure",
+      "request": {"endpoint": "/api/detect/full", "modules": ["content_safety"]},
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 15800,
+      "result": {
+        "verdict": "review",
+        "risk_score": 0.94,
+        "categories": [{"code": "personal_data", "confidence": 0.94, "severity": "medium", "evidence": "虚构姓名、电话、地址和订单号同时可见"}],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": true
+      }
+    },
+    {
+      "sample_id": "phishing-page-demo",
+      "sha256": "fede656519f3b1739cae251139e6c090797a71277162b1ce53c8c508d86bb0c9",
+      "reference": "synthetic_phishing_and_credential_collection",
+      "request": {"endpoint": "/api/detect/full", "modules": ["content_safety"]},
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 10100,
+      "result": {
+        "verdict": "review",
+        "risk_score": 0.93,
+        "categories": [
+          {"code": "illegal_activity", "confidence": 0.93, "severity": "high", "evidence": "账户异常页面诱导输入银行卡密码"},
+          {"code": "personal_data", "confidence": 0.9, "severity": "high", "evidence": "页面采集个人金融凭据"}
+        ],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": true
+      }
+    },
+    {
+      "sample_id": "child-privacy-demo",
+      "sha256": "0c76b3e7bf3e0f6f66346e05677716443dc2fc52d4a18dbb8ac235a636e2ed30",
+      "reference": "synthetic_child_schedule_exposure",
+      "request": {"endpoint": "/api/detect/full", "modules": ["content_safety"]},
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 9600,
+      "result": {
+        "verdict": "review",
+        "risk_score": 0.98,
+        "categories": [
+          {"code": "child_safety", "confidence": 0.98, "severity": "high", "evidence": "虚构学生的学校、放学时间与接送点可见"},
+          {"code": "personal_data", "confidence": 0.96, "severity": "high", "evidence": "可识别的身份与行程组合信息"}
+        ],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": true
+      }
+    },
+    {
+      "sample_id": "self-harm-warning-demo",
+      "sha256": "d3635834c818b0c99ec2010a08532c89ac58e71dc553c68e51fd6853516296f5",
+      "reference": "synthetic_non_graphic_self_harm_warning",
+      "request": {"endpoint": "/api/detect/full", "modules": ["content_safety"]},
+      "full_sse_completed": true,
+      "observed_wall_time_ms": 9700,
+      "result": {
+        "verdict": "review",
+        "risk_score": 0.95,
+        "categories": [
+          {"code": "self_harm", "confidence": 0.95, "severity": "high", "evidence": "消极留言与心理援助界面同框"},
+          {"code": "personal_data", "confidence": 0.52, "severity": "low", "evidence": "模型将一般可读文字弱命中为个人信息"}
+        ],
+        "model": "gpt-5.4-mini",
+        "requires_human_review": true
+      },
+      "interpretation": "自伤主类别命中；personal_data 0.52 缺少身份依据，应纳入误报复核。"
     }
   ],
   "privacy": {

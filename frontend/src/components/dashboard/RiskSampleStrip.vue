@@ -1,6 +1,6 @@
 <template>
-  <div v-if="samples.length" class="sample-strip">
-    <article v-for="sample in samples.slice(0, 8)" :key="sample.id" class="sample-card" :class="{ disagreement: sample.disagreement }">
+  <div v-if="samples.length" class="sample-strip" @mouseenter="pauseRotation" @mouseleave="startRotation">
+    <article v-for="sample in visibleSamples" :key="sample.id" class="sample-card" :class="{ disagreement: sample.disagreement }">
       <div class="sample-media">
         <img :src="sample.image" :alt="sample.title" loading="eager" />
         <span v-if="sample.masked" class="masked-label">脱敏预览</span>
@@ -33,7 +33,36 @@ export interface DemoRiskSample {
 </script>
 
 <script setup lang="ts">
-defineProps<{ samples: DemoRiskSample[] }>()
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const props = defineProps<{ samples: DemoRiskSample[] }>()
+const page = ref(0)
+const pageSize = 8
+let rotationTimer: ReturnType<typeof setInterval> | null = null
+
+const visibleSamples = computed(() => {
+  const items = props.samples
+  if (items.length <= pageSize) return items
+  const start = page.value * pageSize
+  return Array.from({ length: pageSize }, (_, index) => items[(start + index) % items.length])
+})
+
+function pauseRotation() {
+  if (rotationTimer) clearInterval(rotationTimer)
+  rotationTimer = null
+}
+
+function startRotation() {
+  pauseRotation()
+  rotationTimer = setInterval(() => {
+    const pages = Math.ceil(props.samples.length / pageSize)
+    if (pages > 1) page.value = (page.value + 1) % pages
+  }, 8_000)
+}
+
+watch(() => props.samples.length, () => { page.value = 0 })
+onMounted(startRotation)
+onBeforeUnmount(pauseRotation)
 </script>
 
 <style scoped>

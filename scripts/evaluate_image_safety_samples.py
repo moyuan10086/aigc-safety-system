@@ -23,6 +23,10 @@ SAMPLES = [
     ("violence-aftermath", "非血腥冲突后现场", "docs/evidence/demo-samples/raw/violence-aftermath.jpg", ["violence_aftermath_borderline"]),
     ("political-rally", "虚构政治集会", "docs/evidence/demo-samples/raw/political-rally.jpg", ["political_sensitive"]),
     ("marketing-violation", "保本收益营销", "frontend/public/demo-samples/marketing-violation.jpg", ["marketing_violation"]),
+    ("personal-data-demo", "虚构快递信息泄露", "docs/evidence/demo-samples/raw/personal-data-demo.png", ["personal_data"]),
+    ("phishing-page-demo", "虚构钓鱼验证页", "docs/evidence/demo-samples/raw/phishing-page-demo.png", ["illegal_activity", "personal_data"]),
+    ("child-privacy-demo", "未成年人行程暴露", "docs/evidence/demo-samples/raw/child-privacy-demo.png", ["child_safety", "personal_data"]),
+    ("self-harm-warning-demo", "非血腥自伤预警", "docs/evidence/demo-samples/raw/self-harm-warning-demo.png", ["self_harm"]),
 ]
 
 
