@@ -292,6 +292,9 @@ curl -fsS https://aigc.49.51.248.227.sslip.io/api/health</code></pre>
   <li><code>docs/screenshots/01-login-entry-20260804.png</code> 至 <code>06-guardrail-safe-input-output-20260804.png</code></li>
 </ul>
 
+<h2>7.5 正式站截图（2026-08-04）</h2>
+<p>飞书在线文档此节已插入 6 张正式站图片，依次为：登录入口、登录弹窗、审核员登录成功、数据驾驶舱总览、人工复核样本池领取前状态、真实模型安全输入输出。图片源文件见 <code>docs/screenshots/</code>；人工领取后、证据已查看和提交后截图仍必须由真人审核员操作后补充。</p>
+
 <h1>8. 统一验收标准</h1>
 <table>
   <thead><tr><th background-color="light-gray">维度</th><th background-color="light-gray">必须满足</th></tr></thead>
