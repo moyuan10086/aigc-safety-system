@@ -118,6 +118,8 @@ def verify(path: str | Path) -> dict[str, Any]:
     state = marker_state
     if marker_state == "not_found" and content_credentials["status"] == "valid":
         state = "confirmed_source"
+    elif marker_state == "not_found" and content_credentials["status"] == "inconclusive":
+        state = "inconclusive"
     elif marker_state == "not_found" and content_credentials["status"] == "invalid_or_tampered":
         state = "invalid_or_tampered"
     if state == "not_found" and (metadata["width"] < 16 or metadata["height"] < 16):

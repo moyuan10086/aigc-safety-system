@@ -41,6 +41,23 @@ class ProvenanceServiceTests(unittest.TestCase):
         result = verify(self._write("not-json"))
         self.assertEqual(result["overall_state"], "invalid_or_tampered")
 
+    def test_valid_c2pa_fixture_is_confirmed_source(self):
+        fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-update-manifest.jpg"
+        result = verify(fixture)
+        credentials = result["source_evidence"]["content_credentials"]
+        self.assertEqual(result["overall_state"], "confirmed_source")
+        self.assertEqual(credentials["status"], "valid")
+        self.assertGreaterEqual(credentials["manifest_count"], 1)
+        self.assertTrue(credentials["trust_verified"])
+        self.assertFalse(credentials["remote_manifest_fetch"])
+
+    def test_c2pa_parse_failure_is_inconclusive(self):
+        fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-ocsp.jpg"
+        result = verify(fixture)
+        credentials = result["source_evidence"]["content_credentials"]
+        self.assertEqual(credentials["status"], "inconclusive")
+        self.assertEqual(result["overall_state"], "inconclusive")
+
 
 if __name__ == "__main__":
     unittest.main()

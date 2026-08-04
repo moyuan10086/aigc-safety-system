@@ -21,6 +21,23 @@
     "raw_manifest_logged": false,
     "real_user_image_uploaded": false
   },
+  "fixture_regression": {
+    "valid_fixture": {
+      "source": "contentauth/c2pa-rs sdk/tests/fixtures/update_manifest.jpg",
+      "local_file": "docs/evidence/c2pa-fixtures/c2pa-rs-update-manifest.jpg",
+      "sha256": "c855bbce1e2ea50bfc1da939f55b7d1bce97a9afa5a0e671ed05d59dc7950b3b",
+      "api_http_status": 200,
+      "overall_state": "confirmed_source",
+      "content_credentials": {"status": "valid", "manifest_count": 2, "validation_state": "valid", "trust_verified": true, "remote_manifest_fetch": false}
+    },
+    "inconclusive_fixture": {
+      "source": "contentauth/c2pa-rs sdk/tests/fixtures/ocsp_with_assertion.jpg",
+      "local_file": "docs/evidence/c2pa-fixtures/c2pa-rs-ocsp.jpg",
+      "content_credentials": {"status": "inconclusive", "error": "manifest_parse_failed"},
+      "overall_state": "inconclusive"
+    },
+    "note": "Public upstream fixtures verify parser branches only. A valid self-signed or test fixture credential is not equivalent to a production issuer trust decision and does not prove AI generation."
+  },
   "browser_screenshot": {
     "status": "blocked",
     "reason": "in-app browser failed to write kernel assets",
