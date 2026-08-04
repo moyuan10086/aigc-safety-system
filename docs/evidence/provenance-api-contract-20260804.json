@@ -1,0 +1,27 @@
+{
+  "evidence_type": "provenance_external_api_contract",
+  "date": "2026-08-04",
+  "commit": "b1ea669",
+  "endpoint": "POST /api/v1/images/provenance/verify",
+  "required_scope": "image:provenance",
+  "local_contract_tests": {
+    "without_scope_http_status": 403,
+    "with_scope_http_status": 200,
+    "api_version": "v1",
+    "valid_fixture_overall_state": "confirmed_source",
+    "content_credentials_status": "valid",
+    "raw_image_retained": false,
+    "manifest_bytes_exposed": false
+  },
+  "production_public_boundary": {
+    "health": "ok",
+    "without_api_key_http_status": 401,
+    "api_key_not_created_or_disclosed": true,
+    "service": "active"
+  },
+  "security": {
+    "key_storage": "server-side only",
+    "ordinary_logs": "safe summary only",
+    "raw_prompts_and_dangerous_outputs": "AES-GCM evidence vault only"
+  }
+}

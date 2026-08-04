@@ -10,6 +10,7 @@
 | 日志、审计、取证、开放 API | 已完成工程验收 | SQLite WAL、SHA-256 链、CSV、AES-GCM 证据库、租户/API Key/限流/配额 | 保持轮换、备份、最小权限；危险原文只留加密证据库 |
 | 三层驾驶舱与现场自检 | 已完成工程验收 | 标准工作台/数据总览/大屏、readiness 13/13、HTTPS health | 当前版本官方应用内浏览器截图待运行资产恢复 |
 | C2PA / Content Credentials | 已完成本轮工程验收 | `c2pa-python==0.37.2`；生产 valid fixture=`confirmed_source`；解析异常=`inconclusive`；无 manifest=`not_found`；93/93 测试 | 继续补充经过授权的生产发行者样本；不把 fixture 或 valid 当作 AI 生成结论 |
+| C2PA 对外 API | 已完成工程验收 | `/api/v1/images/provenance/verify` 无 scope=403，有 `image:provenance` scope=200；公网无 API Key=401；不暴露 manifest 原文 | 由管理员按租户策略签发 Key 后再做授权调用，不在文档或前端保存 Key |
 | 人工试标 P2-3.6 | 工程完成，真人验收未完成 | 200 条样本池、领取/证据查看/首次标签三步审计和只读 verifier | 真实审核员完成首批 20 条，再累计 200 条；当前 0/20、0/200，开发不得代填 |
 | 昇腾 910 国产化 | 部分完成 | 16 卡健康、CANN、物理卡 2/3/4/5 四卡矩阵/MLP 微基准 | 根盘治理、卡号与隔离目录确认后再做护栏模型真实推理；不抢占现有任务 |
 
