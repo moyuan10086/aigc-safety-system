@@ -420,7 +420,15 @@ def _run_mllm(prompt: str, response: str) -> tuple[dict[str, float], list[dict[s
         )
         if normalized["status"] != "ok":
             return {}, [], "inconclusive"
-        scores = normalized["scores"]
+        scores = dict(normalized["scores"])
+        verdict = normalized.get("verdict")
+        # General-purpose/OpenAI-compatible classifiers sometimes return a
+        # correct verdict but invent category labels outside our taxonomy.
+        # Do not silently turn an unsafe verdict into an empty/safe signal.
+        if not scores and verdict in {"unsafe", "borderline"}:
+            categories = normalized.get("categories") or ["policy_violation"]
+            fallback_score = 0.86 if verdict == "unsafe" else 0.52
+            scores = {category: fallback_score for category in categories}
         reason = normalized["reason"] or "MLLM safety classifier signal"
         evidence = [{
             "source": "mllm",

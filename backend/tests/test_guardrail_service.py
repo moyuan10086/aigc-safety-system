@@ -249,6 +249,28 @@ class GuardrailServiceTests(unittest.TestCase):
             scores, evidence, status = guardrail_service._run_mllm("prompt", "response")
         self.assertEqual((scores, evidence, status), ({}, [], "inconclusive"))
 
+    def test_mllm_unsafe_verdict_with_unknown_categories_keeps_risk_signal(self):
+        class FakeHTTPClient:
+            def __init__(self, **_kwargs): pass
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        raw = '{"verdict":"unsafe","categories":["invented-risk"],"scores":{"invented-risk":0.98},"reason":"unsafe request"}'
+
+        class FakeOpenAI:
+            def __init__(self, **_kwargs):
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=lambda **_kwargs: SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=raw))]
+                )))
+
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_MLLM", True), patch.object(
+            guardrail_service, "MLLM_API_KEY", "test-key"
+        ), patch.dict(sys.modules, {"httpx": SimpleNamespace(Client=FakeHTTPClient), "openai": SimpleNamespace(OpenAI=FakeOpenAI)}):
+            scores, evidence, status = guardrail_service._run_mllm("prompt", "response")
+        self.assertEqual(status, "ok")
+        self.assertEqual(scores, {"policy_violation": 0.86})
+        self.assertEqual(evidence[0]["category"], "policy_violation")
+
     def test_inconclusive_component_is_visible_without_changing_rule_verdict(self):
         def fake_component(*_args):
             return {}, [], "inconclusive"
