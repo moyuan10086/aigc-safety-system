@@ -1,0 +1,45 @@
+<h4>P4-2 实测报告与发布证据（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>P4-2 已完成开发、自动化、GitHub 门禁、服务器回归和正式站真实输入输出。系统从“人脸框 + 全图质量”升级为逐脸可解释质量审核；无人脸不再误报质量良好，且全链路明确 <code>identity_analysis=false</code>，不生成或保存人脸 embedding。</p>
+</callout>
+<h5>一、正式站真实输入输出</h5>
+<table>
+  <thead><tr><th background-color="light-gray">案例</th><th background-color="light-gray">脱敏输入</th><th background-color="light-gray">正式站输出</th><th background-color="light-gray">审核结论</th></tr></thead>
+  <tbody>
+    <tr><td>无人脸图片</td><td>848×560<br/>SHA-256 <code>d01d7bdc…e8b5</code></td><td>HTTP 200；face_count=0；quality=review；no_face</td><td>“未检测到可审核的正面人脸”；不再返回 good</td></tr>
+    <tr><td>单张 AIGC 人脸</td><td>450×619<br/>SHA-256 <code>b638dca0…79b5</code></td><td>HTTP 200；face_count=1；primary=0；主脸面积 32.53%</td><td>逐脸质量良好；整图因短边低于 480px 建议复核</td></tr>
+  </tbody>
+</table>
+<p><b>单脸证据：</b>框位置 (112,127,301,301)，中心偏移 13.87%，边缘余量 8.22%，局部清晰度 231.2，局部亮度 118.8，逐脸 review_reasons 为空。测试上传文件在请求结束后删除，飞书只记录哈希与结构化摘要。</p>
+<h5>二、能力与兼容性</h5>
+<ul>
+  <li>新增 <code>faces</code>、<code>primary_face_index</code>、<code>review_recommended</code>、<code>review_reasons</code>、<code>identity_analysis</code> 和证据版本；保留旧有 status、face_count、boxes、sharpness、brightness、largest_face_ratio、quality 和 quality_flags。</li>
+  <li>覆盖无人脸、多脸、主脸过小、贴边/截断、局部模糊、局部曝光异常、低分辨率、解码失败和检测器缺失降级。</li>
+  <li>修复 Windows 中文工作区下 OpenCV 无法读取 Haar XML 的真实缺陷：分类器只读复制到 ASCII 临时缓存后加载，上传图片本身仍不持久化。</li>
+  <li>前端使用独立 <code>FaceEvidencePanel</code> 组件展示主脸、逐脸指标和中文原因；桌面四列、平板两列、窄屏单列，不在卡片内嵌套卡片。</li>
+</ul>
+<h5>三、v1 租户链与隐私</h5>
+<table>
+  <thead><tr><th background-color="light-gray">验证项</th><th background-color="light-gray">实际结果</th><th background-color="light-gray">结论</th></tr></thead>
+  <tbody>
+    <tr><td><code>/api/v1/images/face</code></td><td>HTTP 200；api_version=v1；face_count=1</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>租户用量</td><td>image.face 请求计量 1 次</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>临时 API Key</td><td>1 把测试 Key 已撤销；active=0</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>身份与特征</td><td>identity_analysis=false；无 embedding 字段或持久化</td><td><span text-color="green">通过</span></td></tr>
+  </tbody>
+</table>
+<h5>四、工程、CI 与发布</h5>
+<ul>
+  <li>本地：人脸专项 7/7；后端 75/75；Ruff All checks passed；前端 Vite production build 成功。</li>
+  <li>GitHub：运行 <code>30868966072</code> 全绿；后端、Ruff、Promptfoo 12/12、Agent 轨迹 4/4 和清理步骤全部成功。</li>
+  <li>服务器：frozen 依赖、Ruff、75/75、前端构建均通过；systemd active；HTTPS <code>/api/health</code> = ok；生产 HEAD <code>9bb8923</code>。</li>
+  <li>功能提交：<code>03bcda9</code>；CI 隔离修正：<code>9bb8923</code>。</li>
+  <li>发布前备份：<code>20260804T013313Z_pre-p4-2-face-evidence_4390b28d</code>；发布后备份：<code>20260804T013957Z_post-p4-2-face-evidence_dd4539e0</code>。两份 files_valid、audit_chain_valid 均为 true，加密证据数保持 216。</li>
+</ul>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30868966072">GitHub Actions P4-2 最终绿色运行</a></p>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>docs/evidence/face-quality-production-20260804.json</code>；自动化位于 <code>backend/tests/test_face_service.py</code>。证据文件只含样本哈希、尺寸与结构化输出，不含原始图片或 API Key。</p>
+</callout>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>页面截图状态：</b>官方应用内浏览器仍返回 failed to write kernel assets: 系统找不到指定的路径 (os error 3)。未使用独立 Playwright、Chrome 或 CDP 绕过；当前以正式站 API、前端生产构建、CI、服务器回归和结构化证据作为验收，浏览器恢复后补录桌面与移动端截图。</p>
+</callout>

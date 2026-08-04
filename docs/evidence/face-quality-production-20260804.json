@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-08-04T01:40:00Z",
+  "production_url": "https://aigc.49.51.248.227.sslip.io",
+  "production_commit": "9bb89231d716ca442a92a9c9d0c2d0eaecf5aa10",
+  "ci": {
+    "run_id": 30868966072,
+    "url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30868966072",
+    "conclusion": "success",
+    "backend_tests": "75/75",
+    "guardrail_regression": "12/12",
+    "agent_trajectory_regression": "4/4"
+  },
+  "cases": [
+    {
+      "name": "no_frontal_face",
+      "input": {
+        "sha256": "d01d7bdcbb5d9852bd41ff214c164e1b6dfcbf99dee692af41834956b737e8b5",
+        "image_width": 848,
+        "image_height": 560,
+        "raw_image_persisted": false
+      },
+      "output": {
+        "http_status": 200,
+        "status": "not_detected",
+        "face_count": 0,
+        "primary_face_index": null,
+        "quality": "review",
+        "quality_flags": ["no_face"],
+        "review_reasons": ["未检测到可审核的正面人脸"],
+        "identity_analysis": false,
+        "evidence_version": "2.0"
+      }
+    },
+    {
+      "name": "single_aigc_face",
+      "input": {
+        "sha256": "b638dca087a6b95d70199c164c3e074fee3c69d29653ddc58d101142f03d79b5",
+        "image_width": 450,
+        "image_height": 619,
+        "raw_image_persisted": false
+      },
+      "output": {
+        "http_status": 200,
+        "status": "detected",
+        "face_count": 1,
+        "primary_face_index": 0,
+        "largest_face_ratio": 0.3253,
+        "quality": "review",
+        "quality_flags": ["low_resolution"],
+        "review_reasons": ["图像短边低于 480 像素"],
+        "identity_analysis": false,
+        "evidence_version": "2.0",
+        "primary_face": {
+          "box": {"x": 112, "y": 127, "width": 301, "height": 301},
+          "area_ratio": 0.3253,
+          "center_offset": 0.1387,
+          "edge_margin_ratio": 0.0822,
+          "sharpness": 231.2,
+          "brightness": 118.8,
+          "quality": "good",
+          "review_reasons": []
+        }
+      }
+    }
+  ],
+  "v1_gateway": {
+    "http_status": 200,
+    "api_version": "v1",
+    "face_count": 1,
+    "primary_face_index": 0,
+    "identity_analysis": false,
+    "usage_requests": 1,
+    "temporary_keys": 1,
+    "active_temporary_keys_after_test": 0
+  },
+  "deployment": {
+    "systemd": "active",
+    "https_health": "ok",
+    "server_backend_tests": "75/75",
+    "server_ruff": "all_checks_passed",
+    "server_frontend_build": "passed"
+  },
+  "backups": {
+    "pre": {
+      "archive": "20260804T013313Z_pre-p4-2-face-evidence_4390b28d",
+      "files_valid": true,
+      "audit_chain_valid": true,
+      "audit_evidence": 216
+    },
+    "post": {
+      "archive": "20260804T013957Z_post-p4-2-face-evidence_dd4539e0",
+      "files_valid": true,
+      "audit_chain_valid": true,
+      "audit_evidence": 216
+    }
+  },
+  "privacy": {
+    "identity_recognition": false,
+    "embedding_generated": false,
+    "embedding_persisted": false,
+    "raw_image_in_report": false,
+    "temporary_upload_deleted_after_request": true
+  },
+  "browser_screenshot": {
+    "status": "blocked",
+    "surface": "official_in_app_browser",
+    "error": "failed to write kernel assets: 系统找不到指定的路径。 (os error 3)",
+    "workaround_used": false
+  }
+}
