@@ -1,6 +1,7 @@
 {
   "name": "aigc-safety-evaluations",
   "private": true,
+  "packageManager": "npm@11.6.2",
   "scripts": {
     "eval:guardrail": "promptfoo eval --config promptfooconfig.yaml --no-cache --no-table --output results/latest.json",
     "eval:trajectory": "promptfoo eval --config promptfoo-agent-trajectory.yaml --no-cache --no-table --output results/trajectory-latest.json"

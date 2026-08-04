@@ -54,9 +54,11 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         run: uv run python -m unittest discover -s tests
+      - name: Use pinned npm
+        run: npm install --global npm@11.6.2
       - name: Install promptfoo
         working-directory: evaluations
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Start offline guardrail API
         working-directory: backend
         run: |
