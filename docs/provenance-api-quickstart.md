@@ -25,5 +25,7 @@ curl -X POST \
 - C2PA 解析失败：HTTP 200，但 `overall_state=inconclusive`，不能当成“无来源”。
 - 没有 manifest：`overall_state=not_found`，不能推断“不是 AI”。
 - 有效凭证：`confirmed_source` 只说明存在可验证来源/编辑历史，不单独证明 AI 生成。
+- 验证失败、资产绑定无效或不可信：`overall_state=invalid_or_tampered`，必须提升风险并转人工复核。
+- 平台历史兼容的 `aigc_safety_provenance` 本地标记是未签名声明，只返回 `inconclusive` 和 `trust_verified=false`，不能伪装成 C2PA 来源确认。
 
 本接口只做来源证据核验，不替代 Deepfake、MLLM、RAG 或人工审核。

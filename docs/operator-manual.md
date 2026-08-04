@@ -4,6 +4,8 @@
 
 正式站：[https://aigc.49.51.248.227.sslip.io](https://aigc.49.51.248.227.sslip.io)
 
+当前兼容管理员账号：用户名 `admin`，角色 `admin`。生产服务器只保存 PBKDF2-SHA256 密码摘要，明文密码不会写入仓库、飞书或日志；遗失密码时按飞书总手册“2.2 忘记密码时的安全重置”重新生成摘要并更新 `backend/.env`。
+
 ## 一、现场演示前检查
 
 1. 打开正式站，确认左侧账户区域显示“审核员登录”。
@@ -42,6 +44,8 @@
 | `invalid_or_tampered` | 声明存在但验证失败、资产绑定无效或不可信 | 提升风险并转人工复核 |
 
 即使 SDK 同时报告“容器可读”，只要 `validation_state` 为 `invalid/error/untrusted`，平台必须优先返回 `invalid_or_tampered`，且 `trust_verified=false`。
+
+平台兼容的 `aigc_safety_provenance` PNG 本地字段只是未签名声明，任何图片编辑器都可能写入。它只作为审核线索并返回 `inconclusive`、`trust_verified=false`；只有验证通过的 C2PA 来源链才能进入 `confirmed_source`。
 
 ## 四、人工试标（P2-3.6）逐步操作
 

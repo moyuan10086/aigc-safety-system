@@ -1,6 +1,6 @@
 # 总目标验收审计（2026-08-04）
 
-以飞书总文档 `Z1OndNtyzoTk6WxyjjccOX0hnXc` revision 259 为唯一基线。本文件只记录当前可由代码、测试、生产响应或人工记录证明的状态。
+以飞书总文档 `Z1OndNtyzoTk6WxyjjccOX0hnXc` revision 273 的 v4.3 执行总览为唯一基线。本文件只记录当前可由代码、测试、生产响应或人工记录证明的状态。
 
 | 目标域 | 当前状态 | 可核验证据 | 剩余动作 |
 |---|---|---|---|
@@ -9,18 +9,20 @@
 | 红线知识库与主动扫描 | 已完成工程验收 | 规则/RAG/来源分类与 garak 主动扫描链路 | 维护比赛红线样本；garak 不进入实时请求路径 |
 | 日志、审计、取证、开放 API | 已完成工程验收 | SQLite WAL、SHA-256 链、CSV、AES-GCM 证据库、租户/API Key/限流/配额 | 保持轮换、备份、最小权限；危险原文只留加密证据库 |
 | 三层驾驶舱与现场自检 | 已完成工程验收 | 标准工作台/数据总览/大屏、readiness 13/13、HTTPS health | 当前版本官方应用内浏览器截图待运行资产恢复 |
-| C2PA / Content Credentials | 已完成本轮工程验收 | `c2pa-python==0.37.2`；生产 valid fixture=`confirmed_source`；解析异常=`inconclusive`；无 manifest=`not_found`；93/93 测试 | 继续补充经过授权的生产发行者样本；不把 fixture 或 valid 当作 AI 生成结论 |
+| C2PA / Content Credentials | 已完成四态工程验收 | `c2pa-python==0.37.2`；生产 valid fixture=`confirmed_source`；解析异常=`inconclusive`；无 manifest=`not_found`；篡改资产=`invalid_or_tampered` | 继续补充经过授权的生产发行者样本；不把 fixture、未签名本地 marker 或 valid 当作 AI 生成结论 |
 | C2PA 对外 API | 已完成工程验收 | `/api/v1/images/provenance/verify` 无 scope=403，有 `image:provenance` scope=200；公网无 API Key=401；不暴露 manifest 原文 | 由管理员按租户策略签发 Key 后再做授权调用，不在文档或前端保存 Key |
 | 人工试标 P2-3.6 | 工程完成，真人验收未完成 | 200 条样本池、领取/证据查看/首次标签三步审计和只读 verifier | 真实审核员完成首批 20 条，再累计 200 条；当前 0/20、0/200，开发不得代填 |
-| 昇腾 910 国产化 | 部分完成 | 16 卡健康、CANN、物理卡 2/3/4/5 四卡矩阵/MLP 微基准 | 根盘治理、卡号与隔离目录确认后再做护栏模型真实推理；不抢占现有任务 |
+| 昇腾 910C 国产化 | 通用模型真实验证完成，专用护栏待部署 | 16 卡健康、CANN、物理卡 2/3/4/5 四卡微基准和 Qwen3-0.6B 四路生成；已有 Qwen3-235B vLLM 三类分类结果 | 通用模型不冒充 Qwen3Guard；磁盘治理、隔离目录和安全窗口具备后再部署专用护栏权重 |
 
 ## C2PA 生产证据摘要
 
-- 生产提交：`5ebe626`。
+- 当前生产分支：GitHub main 与正式服务器 fast-forward 对齐；精确提交号以发布后核验记录为准。
 - 正式接口：`POST https://aigc.49.51.248.227.sslip.io/api/detect/provenance`。
 - 有效公开夹具：`docs/evidence/c2pa-fixtures/c2pa-rs-update-manifest.jpg`，HTTP 200，`manifest_count=2`，`validation_state=valid`，`raw_image_retained=false`。
 - 解析异常公开夹具：`docs/evidence/c2pa-fixtures/c2pa-rs-ocsp.jpg`，HTTP 200，`overall_state=inconclusive`，`error=manifest_parse_failed`。
 - 无来源负样本：合成 PNG / `c2pa-rs-sample1.png`，`not_found`；不能推出“不是 AI”。
+- 篡改公开夹具：翻转 byte offset 20000 的 1 bit 后，HTTP 200，`overall_state=invalid_or_tampered`、`validation_state=invalid`、`trust_verified=false`。
+- 未签名本地 marker：只作为声明线索，返回 `inconclusive` 和 `trust_verified=false`，不能建立来源信任。
 
 ## 不可回退边界
 

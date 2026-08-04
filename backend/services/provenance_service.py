@@ -32,7 +32,9 @@ def _marker_status(value: Any) -> tuple[str, dict[str, Any] | None, str | None]:
     if marker.get("source_type") not in {"ai_generated", "ai_assisted", "human_created"}:
         return "invalid_or_tampered", None, "declared_local_marker_source_invalid"
     safe = {k: str(marker[k])[:128] for k in ("schema", "source_type", "issuer", "event_ref") if k in marker}
-    return "confirmed_source", safe, None
+    # This legacy marker is unsigned metadata.  It may be useful as a routing
+    # hint, but it cannot establish provenance because anyone can write it.
+    return "inconclusive", safe, "declared_local_marker_unsigned"
 
 
 def _c2pa_evidence(path: Path) -> dict[str, Any]:
@@ -121,13 +123,15 @@ def verify(path: str | Path) -> dict[str, Any]:
         raise ProvenanceError("image_invalid") from exc
 
     content_credentials = _c2pa_evidence(file_path)
-    state = marker_state
-    if marker_state == "not_found" and content_credentials["status"] == "valid":
-        state = "confirmed_source"
-    elif marker_state == "not_found" and content_credentials["status"] == "inconclusive":
-        state = "inconclusive"
-    elif marker_state == "not_found" and content_credentials["status"] == "invalid_or_tampered":
+    credentials_state = content_credentials["status"]
+    if "invalid_or_tampered" in {marker_state, credentials_state}:
         state = "invalid_or_tampered"
+    elif credentials_state == "valid":
+        state = "confirmed_source"
+    elif "inconclusive" in {marker_state, credentials_state}:
+        state = "inconclusive"
+    else:
+        state = "not_found"
     if state == "not_found" and (metadata["width"] < 16 or metadata["height"] < 16):
         state = "inconclusive"
     return {
@@ -141,7 +145,12 @@ def verify(path: str | Path) -> dict[str, Any]:
         "content_hash": digest,
         "size_bytes": size,
         "source_evidence": {
-            "local_marker": {"status": marker_state, "error": marker_error},
+            "local_marker": {
+                "status": marker_state,
+                "error": marker_error,
+                "trust_verified": False,
+                "note": "未签名本地标记只作为声明线索，不构成来源确认",
+            },
             "content_credentials": content_credentials,
             "watermark": {"status": "not_found", "supported": False},
         },
@@ -157,6 +166,7 @@ def verify(path: str | Path) -> dict[str, Any]:
         "metadata": metadata,
         "limitations": [
             "未发现来源证据不等于确认非 AI",
-            "本地 marker 不代表 Google SynthID；有效 C2PA 也不单独证明内容一定由 AI 生成",
+            "未签名本地 marker 不构成来源确认，也不代表 Google SynthID",
+            "有效 C2PA 只证明可验证来源链，不单独证明内容一定由 AI 生成",
         ],
     }

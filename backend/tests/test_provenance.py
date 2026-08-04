@@ -31,10 +31,14 @@ class ProvenanceServiceTests(unittest.TestCase):
         self.assertEqual(result["source_evidence"]["content_credentials"]["status"], "not_found")
         self.assertIn("不等于", result["limitations"][0])
 
-    def test_valid_local_marker_confirms_source(self):
+    def test_unsigned_local_marker_is_inconclusive(self):
         marker = json.dumps({"schema":"aigc-safety-provenance/v1", "source_type":"ai_generated", "issuer":"test", "event_ref":"demo-1"})
         result = verify(self._write(marker))
-        self.assertEqual(result["overall_state"], "confirmed_source")
+        local_marker = result["source_evidence"]["local_marker"]
+        self.assertEqual(result["overall_state"], "inconclusive")
+        self.assertEqual(local_marker["status"], "inconclusive")
+        self.assertEqual(local_marker["error"], "declared_local_marker_unsigned")
+        self.assertFalse(local_marker["trust_verified"])
         self.assertEqual(result["metadata"]["local_marker"]["source_type"], "ai_generated")
 
     def test_malformed_local_marker_is_invalid(self):

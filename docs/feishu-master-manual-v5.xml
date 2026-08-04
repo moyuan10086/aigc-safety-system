@@ -1,0 +1,285 @@
+<title>AIGC 安全运营台｜比赛交付总手册</title>
+
+<callout emoji="🎯" background-color="light-blue" border-color="blue">
+  <p><b>适用场景：</b>第十九届全国大学生信息安全竞赛（作品赛）暨第三届“长城杯”网数智安全大赛（作品赛）现场演示、审核员操作、外部 API 接入、部署运维和验收取证。本页是唯一当前总文档；旧过程记录已完整归档，不再与操作手册混排。</p>
+</callout>
+
+<h1>0. 快速入口</h1>
+<table>
+  <thead><tr><th background-color="light-gray">用途</th><th background-color="light-gray">入口</th><th background-color="light-gray">说明</th></tr></thead>
+  <tbody>
+    <tr><td>正式系统</td><td><a href="https://aigc.49.51.248.227.sslip.io">https://aigc.49.51.248.227.sslip.io</a></td><td>HTTPS 443；比赛演示与人工审核入口</td></tr>
+    <tr><td>健康检查</td><td><a href="https://aigc.49.51.248.227.sslip.io/api/health">/api/health</a></td><td>正常返回 <code>{"status":"ok"}</code></td></tr>
+    <tr><td>GitHub</td><td><a href="https://github.com/moyuan10086/aigc-safety-system">moyuan10086/aigc-safety-system</a></td><td>代码、测试、部署脚本与结构化证据</td></tr>
+    <tr><td>历史归档</td><td><a href="https://my.feishu.cn/docx/MefidERvfoWGVFxeX62cBu7snqh">截至 revision 273 的完整执行记录</a></td><td>保留所有旧计划、专项报告与发布记录；日常操作不需要阅读</td></tr>
+  </tbody>
+</table>
+
+<h1>1. 项目总览与当前状态</h1>
+<p><b>总目标：</b>建设可真实调用模型、可解释、可追溯、可供外部系统调用并可在比赛现场稳定演示的 AIGC 安全运营台。主链路覆盖图片与非身份化人脸审核、实时大模型安全护栏、主动安全扫描、红线知识库、C2PA 来源验证、Agent 工具安全、日志取证、数据驾驶舱和开放 API；国产化路线覆盖昇腾 910C 真实推理。</p>
+<table>
+  <thead><tr><th background-color="light-gray">目标域</th><th background-color="light-gray">状态</th><th background-color="light-gray">验收证据</th><th background-color="light-gray">剩余工作</th></tr></thead>
+  <tbody>
+    <tr><td>正式站与三级界面</td><td><span text-color="green">工程完成</span></td><td>标准工作台、数据总览、大屏模式、HTTPS、systemd</td><td>官方应用内浏览器恢复后补当前截图</td></tr>
+    <tr><td>图片与人脸审核</td><td><span text-color="green">工程完成</span></td><td>Deepfake、MLLM、OCR/红线、逐脸质量证据、报告</td><td>继续积累公开或授权样本；不做身份识别和 embedding</td></tr>
+    <tr><td>大模型安全护栏</td><td><span text-color="green">真实模型已验证</span></td><td>输入/输出双向护栏、真实对话、规则、RAG、Qwen3Guard、SingGuard、XGBoost Shadow</td><td>扩充中文越狱、危险输出和边界样本</td></tr>
+    <tr><td>C2PA 来源验证</td><td><span text-color="green">四态生产验证</span></td><td>confirmed_source、not_found、inconclusive、invalid_or_tampered；公开有效、无凭证、解析不足和篡改素材</td><td>补页面截图；继续补授权发行者素材</td></tr>
+    <tr><td>日志、取证与开放 API</td><td><span text-color="green">工程完成</span></td><td>租户、scope、限流、配额、SQLite WAL、SHA-256 审计链、AES-GCM 证据库</td><td>持续轮换密钥、验证备份和积累真实调用量</td></tr>
+    <tr><td>人工试标</td><td><span text-color="blue">工程完成，真人待执行</span></td><td>200 条真实模型样本、领取租约、证据访问和首次标签审计</td><td>真实审核员完成 20/20，再累计至 200/200；当前 0/20、0/200</td></tr>
+    <tr><td>Agent 安全</td><td><span text-color="green">工程完成</span></td><td>执行前审批、一次性授权、结果复检、间接注入隔离、多步轨迹账本</td><td>继续 Promptfoo/轨迹 CI 回归</td></tr>
+    <tr><td>昇腾 910C</td><td><span text-color="yellow">通用模型验证完成</span></td><td>四卡基准、Qwen3-0.6B 四路生成、Qwen3-235B 三类分类</td><td>专用 Qwen3Guard 权重待磁盘治理和安全窗口；通用模型不冒充专用护栏</td></tr>
+  </tbody>
+</table>
+
+<h2>当前执行顺序</h2>
+<ol>
+  <li seq="auto">真实审核员完成首批 20 条人工试标；领取、本人查看证据、首次标签三步必须齐全。</li>
+  <li seq="auto">官方应用内浏览器恢复后补登录、人工试标、C2PA、护栏和 readiness 页面截图。</li>
+  <li seq="auto">继续 C2PA 未签名本地声明降级、回归、部署和飞书证据闭环。</li>
+  <li seq="auto">资源窗口具备后部署昇腾专用护栏模型，不抢占现有 NPU 任务。</li>
+</ol>
+
+<h1>2. 审核员账号与登录</h1>
+<h2>2.1 当前账号</h2>
+<table>
+  <thead><tr><th background-color="light-gray">字段</th><th background-color="light-gray">当前值</th></tr></thead>
+  <tbody>
+    <tr><td>登录入口</td><td>正式站左侧边栏底部“审核员登录”</td></tr>
+    <tr><td>用户名</td><td><code>admin</code></td></tr>
+    <tr><td>角色</td><td><code>admin</code>（系统管理员）</td></tr>
+    <tr><td>会话</td><td>HttpOnly、Secure、SameSite=Strict Cookie，有效期 8 小时</td></tr>
+    <tr><td>失败限制</td><td>5 分钟内连续失败 5 次后返回 HTTP 429，等待 5 分钟</td></tr>
+  </tbody>
+</table>
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>密码不写入飞书：</b>生产服务器只保存 PBKDF2-SHA256 摘要，无法从摘要恢复明文。把明文密码写进可分享、可导出的飞书文档会导致任何获得链接的人取得管理权限。现有密码若遗失，请按下述流程重置；新密码通过面对面或团队认可的一次性安全渠道交付。</p>
+</callout>
+
+<h2>2.2 忘记密码时的安全重置</h2>
+<ol>
+  <li seq="auto">SSH 登录正式服务器，进入 <code>/root/CH/aigc-safety-system/backend</code>。</li>
+  <li seq="auto">运行下列命令；命令使用隐藏输入，不把明文密码写入命令历史。</li>
+</ol>
+<pre lang="bash" caption="生成新的 PBKDF2-SHA256 摘要"><code>cd /root/CH/aigc-safety-system/backend
+.venv/bin/python -c "from getpass import getpass; from services.auth_service import hash_password; print(hash_password(getpass('新密码: ')))"</code></pre>
+<ol>
+  <li seq="auto">只把输出的 <code>pbkdf2_sha256$...</code> 摘要写入 <code>backend/.env</code> 的 <code>AUTH_PASSWORD_HASH</code>；不要把明文写入文件。</li>
+  <li seq="auto">执行 <code>systemctl restart aigc-safety.service</code>。</li>
+  <li seq="auto">打开正式站重新登录；再访问 <code>GET /api/auth/session</code>，确认 <code>authenticated=true</code>。</li>
+</ol>
+
+<h2>2.3 多审核员账号</h2>
+<p>人工试标应为每位审核员创建独立账号，不能共用 <code>admin</code>。在 <code>AUTH_OPERATORS_JSON</code> 中配置 username、display_name、role 和 password_hash；最多 50 个账号。飞书只登记用户名、显示名和角色，不登记密码或摘要。</p>
+
+<h1>3. 比赛现场操作手册</h1>
+<h2>3.1 开场前 3 分钟检查</h2>
+<ol>
+  <li seq="auto">打开正式站，确认 HTTPS 正常且左侧导航完整。</li>
+  <li seq="auto">使用审核员账号登录。</li>
+  <li seq="auto">进入“设置”→“现场演示自检”，先刷新被动状态，再运行真实模型探针。</li>
+  <li seq="auto">确认 readiness 为 13/13；规则、RAG、Qwen3Guard、SingGuard、XGBoost Shadow 状态可解释；停用项必须显示 disabled，不能伪装在线。</li>
+  <li seq="auto">进入“数据驾驶舱”，确认审核量、风险告警、审核链路和模型状态有数据。</li>
+</ol>
+
+<h2>3.2 三种界面模式</h2>
+<table>
+  <thead><tr><th background-color="light-gray">模式</th><th background-color="light-gray">入口</th><th background-color="light-gray">用途</th></tr></thead>
+  <tbody>
+    <tr><td>标准工作台</td><td>左侧业务导航</td><td>上传图片、运行单次检测、查看证据、人工复核</td></tr>
+    <tr><td>数据总览</td><td>左侧“数据驾驶舱”</td><td>查看审核趋势、风险分布、模型状态、实时告警、API 用量和人工样本池</td></tr>
+    <tr><td>大屏模式</td><td>数据驾驶舱右上角“大屏模式”</td><td>会议与比赛展示；全屏深色态势视图，不替代日常后台</td></tr>
+  </tbody>
+</table>
+
+<h2>3.3 图片与人脸审核</h2>
+<ol>
+  <li seq="auto">点击左侧“图片与人脸审核”，上传 JPG、PNG 或 WebP；单图不超过 12 MiB。</li>
+  <li seq="auto">选择 Deepfake、MLLM 和 RAG 模块，点击“开始检测”。</li>
+  <li seq="auto">依次讲解人脸存在性/数量/质量、Deepfake 分数、MLLM 证据、OCR/红线命中和最终风险。</li>
+  <li seq="auto">人脸模块不做人名识别、1:N 搜索、跨请求跟踪或 embedding 持久化。</li>
+  <li seq="auto">点击“验证 AI 来源”查看 C2PA 与 SHA-256 审计证据。</li>
+</ol>
+
+<h2>3.4 实时大模型安全护栏</h2>
+<ol>
+  <li seq="auto">点击左侧“实时安全护栏”。</li>
+  <li seq="auto">先输入正常公开咨询，运行真实模型对话，确认输入判定、<code>model_called=true</code> 和输出判定均显示 safe。</li>
+  <li seq="auto">再使用已脱敏的越狱/凭证窃取测试描述，确认 unsafe 被阻断；不要把真实凭证或可执行危险步骤写入测试。</li>
+  <li seq="auto">边界样本应显示 borderline 并进入人工复核，不应被硬判为安全或危险。</li>
+  <li seq="auto">原始提示词和模型危险输出完整保存在 AES-GCM 加密证据库，普通日志和飞书只保留哈希、类别、状态和延迟。</li>
+</ol>
+
+<h2>3.5 C2PA / Content Credentials</h2>
+<table>
+  <thead><tr><th background-color="light-gray">状态</th><th background-color="light-gray">含义</th><th background-color="light-gray">处置</th></tr></thead>
+  <tbody>
+    <tr><td><code>confirmed_source</code></td><td>验证通过的来源链；不等于一定由 AI 生成</td><td>与 Deepfake、MLLM、OCR 和审计证据综合判断</td></tr>
+    <tr><td><code>not_found</code></td><td>未找到兼容凭证；不等于“非 AI”</td><td>继续内容检测</td></tr>
+    <tr><td><code>inconclusive</code></td><td>解析器不可用、证据不足或只有未签名声明</td><td>人工复核</td></tr>
+    <tr><td><code>invalid_or_tampered</code></td><td>验证失败、资产绑定无效、不可信或疑似篡改</td><td>提升风险并人工复核</td></tr>
+  </tbody>
+</table>
+<p>服务端使用 <code>c2pa-python 0.37.2</code> 只读解析，不签名、不修改上传图片、不在普通日志保存 manifest 原文。未签名的 <code>aigc_safety_provenance</code> 本地字段只作为声明线索，不能建立来源信任。</p>
+
+<h1>4. 人工试标手册</h1>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow"><p><b>真实人工任务：</b>当前首批 0/20、总目标 0/200。自动化脚本只能只读核验，不能代领、代看证据或代提交标签。</p></callout>
+<h2>4.1 操作步骤</h2>
+<ol>
+  <li seq="auto">使用个人审核员账号登录，点击“数据驾驶舱”，滚动到“人工复核样本池”。</li>
+  <li seq="auto">确认顶部“首批有效试标 / 有效标签进度 / 标签完整性”三个指标。</li>
+  <li seq="auto">点击样本右侧“开始复核”；成功后显示“我的复核”和 15 分钟独占租约。</li>
+  <li seq="auto">点击“继续复核/查看证据”，阅读输入、模型输出和护栏结果；确认页面显示“证据已查看”。</li>
+  <li seq="auto">独立选择“安全”“边界”或“危险”，提交首次标签。首次标签不可覆盖。</li>
+  <li seq="auto">提交后确认已提交标签数和有效标签数同时增加 1，再继续下一条。</li>
+</ol>
+
+<h2>4.2 标注口径</h2>
+<table>
+  <thead><tr><th background-color="light-gray">标签</th><th background-color="light-gray">判断标准</th><th background-color="light-gray">处置</th></tr></thead>
+  <tbody>
+    <tr><td>安全 / safe</td><td>符合业务目的，无明显违规、越权、泄露或危险执行指导</td><td>放行</td></tr>
+    <tr><td>边界 / borderline</td><td>证据不足、语义模糊、模型与规则分歧或需要补充上下文</td><td>继续人工复核</td></tr>
+    <tr><td>危险 / unsafe</td><td>明确违法违规、提示注入、隐私/凭证泄漏、危险工具调用或高风险输出</td><td>阻断并保留加密证据</td></tr>
+  </tbody>
+</table>
+<p><b>首批完成：</b>有效标签 ≥ 20 且已提交标签数 = 有效标签数。<b>总目标完成：</b>有效标签 ≥ 200 且标签完整性 = 完整。若出现完整性异常，立即停止，核查“领取→本人查看证据→首次标签”三步审计。</p>
+
+<h2>4.3 必须补的截图</h2>
+<ol>
+  <li seq="auto">左侧审核员登录入口与登录成功后的账号区域。</li>
+  <li seq="auto">人工样本池领取前进度、领取成功、“证据已查看”、标签选择和提交后进度。</li>
+  <li seq="auto">图片审核结果与 C2PA 四态证据卡。</li>
+  <li seq="auto">真实护栏安全/边界/危险输入输出状态；危险原文必须脱敏。</li>
+  <li seq="auto">设置页 13/13 readiness、专家状态和不确定组件。</li>
+</ol>
+<p>当前官方应用内浏览器仍报 <code>failed to write kernel assets</code>，截图标记为待补；不得用示意图、旧图或其他浏览器控制面冒充当前版本。</p>
+
+<h1>5. 开放 API 手册</h1>
+<h2>5.1 申请和保管 API Key</h2>
+<ol>
+  <li seq="auto">审核员登录后进入“设置”→“开放 API 与租户”。</li>
+  <li seq="auto">填写租户、Key 名称、scope、每分钟限流和每日配额，点击签发。</li>
+  <li seq="auto">明文 Key 只显示一次；立即放入调用方服务端密钥管理，不写入浏览器、飞书、截图、Git 或普通日志。</li>
+  <li seq="auto">调用使用 <code>Authorization: Bearer &lt;key&gt;</code> 或 <code>X-API-Key: &lt;key&gt;</code>。</li>
+</ol>
+
+<h2>5.2 v1 能力与 scope</h2>
+<table>
+  <thead><tr><th background-color="light-gray">接口</th><th background-color="light-gray">scope</th><th background-color="light-gray">用途</th></tr></thead>
+  <tbody>
+    <tr><td><code>POST /api/v1/guardrail/check</code></td><td><code>guardrail:check</code></td><td>输入或输出审核</td></tr>
+    <tr><td><code>POST /api/v1/guardrail/chat</code></td><td><code>guardrail:chat</code></td><td>实际生成模型 + 输入/输出护栏</td></tr>
+    <tr><td><code>POST /api/v1/guardrail/agent/check</code></td><td><code>guardrail:agent</code></td><td>工具执行前门禁</td></tr>
+    <tr><td><code>POST /api/v1/guardrail/agent/result/check</code></td><td><code>guardrail:agent</code></td><td>工具结果回传复检</td></tr>
+    <tr><td><code>POST /api/v1/guardrail/agent/trajectory/check</code></td><td><code>guardrail:agent</code></td><td>多步轨迹污染与授权绕过检测</td></tr>
+    <tr><td><code>POST /api/v1/content/check</code></td><td><code>content:check</code></td><td>红线知识与敏感内容审核</td></tr>
+    <tr><td><code>POST /api/v1/images/face</code></td><td><code>image:face</code></td><td>非身份化人脸与图像质量</td></tr>
+    <tr><td><code>POST /api/v1/images/deepfake</code></td><td><code>image:deepfake</code></td><td>Deepfake 检测</td></tr>
+    <tr><td><code>POST /api/v1/images/mllm</code></td><td><code>image:mllm</code></td><td>多模态图片解释</td></tr>
+    <tr><td><code>POST /api/v1/images/provenance/verify</code></td><td><code>image:provenance</code></td><td>C2PA 来源验证</td></tr>
+    <tr><td><code>GET /api/v1/catalog</code>、<code>/usage</code></td><td><code>usage:read</code></td><td>能力、配额和调用统计</td></tr>
+    <tr><td><code>/api/v1/scans</code></td><td><code>scan:run</code> / <code>scan:read</code></td><td>租户隔离主动扫描</td></tr>
+    <tr><td><code>/api/v1/reports</code></td><td><code>report:write</code> / <code>report:read</code></td><td>报告生成、查询与下载</td></tr>
+  </tbody>
+</table>
+
+<h2>5.3 调用示例</h2>
+<pre lang="bash" caption="输入护栏"><code>curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/guardrail/check \
+  -H "Authorization: Bearer &lt;api-key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"请介绍公开产品的安全能力","response":"","mode":"input"}'</code></pre>
+<pre lang="bash" caption="C2PA 来源验证"><code>curl -X POST https://aigc.49.51.248.227.sslip.io/api/v1/images/provenance/verify \
+  -H "X-API-Key: &lt;api-key&gt;" \
+  -F "image=@public-sample.jpg;type=image/jpeg"</code></pre>
+<p>成功响应统一包含 <code>api_version</code>、<code>request_id</code> 和 <code>data</code>。未带 Key 返回 401；scope 不足返回 403；超过限流/配额返回 429；非法或超限图片返回 413/415/422。C2PA 的 <code>inconclusive</code> 与 <code>invalid_or_tampered</code> 仍为 HTTP 200 的业务状态，调用方必须转人工复核，不能当成接口失败后放行。</p>
+
+<h1>6. 部署与运维手册</h1>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">当前值</th></tr></thead>
+  <tbody>
+    <tr><td>正式服务器</td><td><code>49.51.248.227</code>，SSH 别名 <code>crawler-server</code></td></tr>
+    <tr><td>代码目录</td><td><code>/root/CH/aigc-safety-system</code></td></tr>
+    <tr><td>应用服务</td><td><code>aigc-safety.service</code>，内部端口 8010</td></tr>
+    <tr><td>公网入口</td><td><code>https://aigc.49.51.248.227.sslip.io</code>，443</td></tr>
+    <tr><td>昇腾服务器</td><td><code>100.121.203.95</code>，SSH 别名 <code>atlas-42</code>，16 × Ascend 910C</td></tr>
+  </tbody>
+</table>
+
+<h2>6.1 日常更新</h2>
+<pre lang="bash"><code>ssh crawler-server
+cd /root/CH/aigc-safety-system
+git pull --ff-only
+bash deploy/update.sh
+systemctl is-active aigc-safety.service
+curl -fsS http://127.0.0.1:8010/api/health</code></pre>
+
+<h2>6.2 状态与日志</h2>
+<pre lang="bash"><code>systemctl status aigc-safety.service
+journalctl -u aigc-safety.service -n 200 --no-pager
+journalctl -u aigc-safety.service -f
+curl -fsS https://aigc.49.51.248.227.sslip.io/api/health</code></pre>
+
+<h2>6.3 发布前备份</h2>
+<pre lang="bash"><code>cd /root/CH/aigc-safety-system/backend
+.venv/bin/python maintenance.py backup --label before-release
+.venv/bin/python maintenance.py verify --archive &lt;manifest-archive-name&gt;</code></pre>
+<p>备份必须验证文件 SHA-256、事件数量、证据数量和 <code>audit_chain_valid</code>。原始提示词、危险模型输出和工具结果只在 AES-GCM 证据库保存；普通日志、CSV、驾驶舱和飞书不得出现原文。</p>
+
+<h1>7. 测试报告与真实例子</h1>
+<h2>7.1 大模型护栏实际结果</h2>
+<table>
+  <thead><tr><th background-color="light-gray">脱敏输入</th><th background-color="light-gray">预期/实际</th><th background-color="light-gray">证据</th></tr></thead>
+  <tbody>
+    <tr><td>公开产品能力说明</td><td>safe / safe</td><td>真实模型调用，保留模型名、延迟、输出哈希和加密证据</td></tr>
+    <tr><td>可能含个人信息，要求复核</td><td>borderline / borderline</td><td>转人工复核，不强行放行或阻断</td></tr>
+    <tr><td>越狱并索取凭证窃取步骤（已脱敏）</td><td>unsafe / unsafe</td><td>阻断；危险原文不进入飞书</td></tr>
+  </tbody>
+</table>
+
+<h2>7.2 昇腾 910C 三类实验</h2>
+<p>复用已有 <code>qwen3-235b-a22b-thinking-2507-w8a8-64k-target</code> vLLM 服务，safe、borderline、unsafe 三例均与预期一致，延迟分别为 3917、1921、3009 ms，平均 2949 ms。该模型是通用 Qwen3-235B，不是 Qwen3Guard；必须使用 JSON mode，非结构化 thinking 文本按 inconclusive 处理。</p>
+
+<h2>7.3 C2PA 实际结果</h2>
+<table>
+  <thead><tr><th background-color="light-gray">样本</th><th background-color="light-gray">实际输出</th></tr></thead>
+  <tbody>
+    <tr><td>公开有效 C2PA 夹具</td><td><code>confirmed_source</code>，manifest_count=2，validation_state=valid</td></tr>
+    <tr><td>无 manifest 合成图</td><td><code>not_found</code></td></tr>
+    <tr><td>解析信息不足夹具</td><td><code>inconclusive</code>，manifest_parse_failed</td></tr>
+    <tr><td>有效夹具 byte offset 20000 翻转 1 bit</td><td><code>invalid_or_tampered</code>，validation_state=invalid，trust_verified=false</td></tr>
+  </tbody>
+</table>
+
+<h2>7.4 权威证据路径</h2>
+<ul>
+  <li><code>docs/evidence/c2pa-public-fixtures-production-20260804.json</code></li>
+  <li><code>docs/evidence/c2pa-tampered-production-20260804.json</code></li>
+  <li><code>docs/evidence/ascend-guardrail-three-class-20260804.json</code></li>
+  <li><code>docs/evidence/review-valid-progress-production-20260804.json</code></li>
+  <li><code>docs/operator-manual.md</code>、<code>docs/provenance-api-quickstart.md</code></li>
+</ul>
+
+<h1>8. 统一验收标准</h1>
+<table>
+  <thead><tr><th background-color="light-gray">维度</th><th background-color="light-gray">必须满足</th></tr></thead>
+  <tbody>
+    <tr><td>真实模型</td><td>需要模型的能力必须证明 <code>model_called=true</code>；不使用 mock 冒充</td></tr>
+    <tr><td>正确性</td><td>正常、边界、危险和篡改样例分别放行、复核、阻断；字段与状态一致</td></tr>
+    <tr><td>隐私</td><td>原始提示词和危险输出只进 AES-GCM 证据库；飞书和普通接口仅留脱敏摘要</td></tr>
+    <tr><td>人工复核</td><td>领取、本人证据访问、首次标签身份一致；不能代标</td></tr>
+    <tr><td>稳定降级</td><td>增强专家失败时规则/RAG 主链可用；必需项故障显示 not_ready 或 inconclusive</td></tr>
+    <tr><td>部署追溯</td><td>本地、GitHub、服务器 fast-forward 对齐；测试、备份、health 和审计链可核验</td></tr>
+    <tr><td>NPU</td><td>不抢占现有任务；通用模型与专用护栏模型明确区分</td></tr>
+  </tbody>
+</table>
+
+<h1>9. 参考资料与历史归档</h1>
+<ul>
+  <li><a href="https://my.feishu.cn/docx/MefidERvfoWGVFxeX62cBu7snqh">历史执行记录归档（截至 2026-08-04 revision 273）</a></li>
+  <li><a href="https://my.feishu.cn/docx/QjT3dY6yRoeHLcxUCNCc9gejn2g">比赛现场部署记录</a></li>
+  <li><a href="https://my.feishu.cn/docx/FOnUdD5CPoJSwUxA8U2c3QBGnGh">有限算力下的反事实安全蒸馏</a></li>
+  <li><a href="https://my.feishu.cn/docx/JuUrdwpiGovtlfxuMKZcXzFZnQh">JoySafety 大模型安全框架讲解</a></li>
+  <li><a href="https://github.com/guardrails-ai/guardrails">Guardrails AI</a>、<a href="https://github.com/NVIDIA-NeMo/Guardrails">NeMo Guardrails</a>、<a href="https://github.com/protectai/llm-guard">LLM Guard</a>、<a href="https://github.com/promptfoo/promptfoo">Promptfoo</a>、<a href="https://github.com/NVIDIA/garak">Garak</a>、<a href="https://github.com/QwenLM/Qwen3Guard">Qwen3Guard</a>、<a href="https://github.com/inclusionAI/SingGuard-NSFA">SingGuard-NSFA</a></li>
+</ul>
+
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow"><p><b>不可回退安全边界：</b>飞书不保存审核员密码、API Key、模型密钥、内部服务密钥、原始提示词或危险模型输出；人脸功能保持非身份化；C2PA 不作为单一 AI 判定器；人工标签不伪造；GPU/NPU 现有任务不停止、不抢占。</p></callout>
