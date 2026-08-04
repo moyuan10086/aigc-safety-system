@@ -32,6 +32,7 @@ from config import (
     PROXY_URL,
 )
 from services import xgboost_shadow_service
+from services.model_output_normalizer import normalize_classifier_output
 
 RULE_VERSION = "2026.08.4"
 MAX_ANALYSIS_CHARS = 12_000
@@ -413,16 +414,14 @@ def _run_mllm(prompt: str, response: str) -> tuple[dict[str, float], list[dict[s
                 max_tokens=400,
                 temperature=0,
             )
-        raw = completion.choices[0].message.content or "{}"
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        parsed = json.loads(match.group() if match else "{}")
-        allowed = set(CATEGORY_ACTIONS)
-        scores = {
-            str(category): min(1.0, max(0.0, float(score)))
-            for category, score in parsed.get("scores", {}).items()
-            if str(category) in allowed
-        }
-        reason = str(parsed.get("reason", "MLLM safety classifier signal"))[:160]
+        normalized = normalize_classifier_output(
+            completion.choices[0].message.content or "",
+            allowed_categories=set(CATEGORY_ACTIONS),
+        )
+        if normalized["status"] != "ok":
+            return {}, [], "inconclusive"
+        scores = normalized["scores"]
+        reason = normalized["reason"] or "MLLM safety classifier signal"
         evidence = [{
             "source": "mllm",
             "category": category,
@@ -560,5 +559,8 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
                 "singguard": statuses["singguard"],
                 "xgboost_shadow": shadow_evaluation["status"],
             },
+            "inconclusive_components": [
+                name for name, status in statuses.items() if status == "inconclusive"
+            ],
         },
     }

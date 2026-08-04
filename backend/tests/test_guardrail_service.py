@@ -231,6 +231,35 @@ class GuardrailServiceTests(unittest.TestCase):
         self.assertEqual(result["shadow_evaluation"]["decision"], "fail")
         self.assertEqual(result["engine"]["components"]["xgboost_shadow"], "ok")
 
+    def test_mllm_unstructured_output_is_inconclusive(self):
+        class FakeHTTPClient:
+            def __init__(self, **_kwargs): pass
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        class FakeOpenAI:
+            def __init__(self, **_kwargs):
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=lambda **_kwargs: SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content="unstructured model explanation"))]
+                )))
+
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_MLLM", True), patch.object(
+            guardrail_service, "MLLM_API_KEY", "test-key"
+        ), patch.dict(sys.modules, {"httpx": SimpleNamespace(Client=FakeHTTPClient), "openai": SimpleNamespace(OpenAI=FakeOpenAI)}):
+            scores, evidence, status = guardrail_service._run_mllm("prompt", "response")
+        self.assertEqual((scores, evidence, status), ({}, [], "inconclusive"))
+
+    def test_inconclusive_component_is_visible_without_changing_rule_verdict(self):
+        def fake_component(*_args):
+            return {}, [], "inconclusive"
+
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_MLLM", False), patch.object(
+            guardrail_service, "_run_mllm", fake_component
+        ), patch.object(guardrail_service.xgboost_shadow_service, "evaluate", return_value={"status": "disabled"}):
+            result = self._check(prompt="normal text")
+        self.assertEqual(result["verdict"], "safe")
+        self.assertEqual(result["engine"]["inconclusive_components"], ["mllm"])
+
     def test_independent_experts_run_in_parallel_with_timings(self):
         barrier = threading.Barrier(4)
 
