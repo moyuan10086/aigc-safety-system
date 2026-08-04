@@ -76,6 +76,18 @@ jobs:
       - name: Run Agent trajectory regression
         working-directory: evaluations
         run: npm run eval:trajectory
+      - name: Stop offline guardrail API
+        if: always()
+        run: |
+          if [[ -f /tmp/aigc-guardrail.pid ]]; then
+            api_pid=$(cat /tmp/aigc-guardrail.pid)
+            kill "$api_pid" 2>/dev/null || true
+            for attempt in {1..10}; do
+              kill -0 "$api_pid" 2>/dev/null || exit 0
+              sleep 1
+            done
+            kill -9 "$api_pid" 2>/dev/null || true
+          fi
       - name: Upload sanitized regression artifact
         if: always()
         uses: actions/upload-artifact@v4
