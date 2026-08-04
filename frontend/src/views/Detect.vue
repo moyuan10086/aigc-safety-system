@@ -149,6 +149,9 @@
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
           <input type="checkbox" v-model="modules" value="rag" /> RAG内容审核
         </label>
+        <button class="source-btn" :disabled="!file || provenanceLoading" @click="runProvenance">
+          {{ provenanceLoading ? '验证中...' : '验证 AI 来源' }}
+        </button>
         <button class="detect-btn" :disabled="(!file && !auditText.trim()) || loading || modules.length===0" @click="runAudit">
           <span v-if="loading" class="btn-spin"><LoaderIcon :size="16" /></span>
           <span>{{ loading ? '检测中...' : '开始检测' }}</span>
@@ -173,7 +176,8 @@
     </div>
 
     <!-- 检测结果 -->
-    <div v-if="results.face || results.deepfake || results.mllm || results.rag" class="results-grid">
+    <div v-if="results.face || results.deepfake || results.mllm || results.rag || results.provenance" class="results-grid">
+      <ProvenanceEvidencePanel v-if="results.provenance" :result="results.provenance" />
       <FaceEvidencePanel v-if="results.face" :evidence="results.face" />
       <div class="card result-card" v-if="results.deepfake"
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400}}">
@@ -234,6 +238,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import FaceEvidencePanel from '../components/detect/FaceEvidencePanel.vue'
+import ProvenanceEvidencePanel from '../components/detect/ProvenanceEvidencePanel.vue'
 
 // Inline SVG icons
 const ImageIcon = { template: `<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`, props: ['size'] }
@@ -250,6 +255,8 @@ const mllmModel = ref('GPT-4o')
 const auditText = ref('')
 const modules = ref(['deepfake', 'mllm', 'rag'])
 const currentStep = ref('')
+const provenanceLoading = ref(false)
+let lastProvenanceRun = 0
 
 onMounted(async () => {
   try {
@@ -332,6 +339,21 @@ const runRagOnly = async () => {
   }
 }
 
+const runProvenance = async () => {
+  if (!file.value || provenanceLoading.value) return
+  const now = Date.now()
+  if (now - lastProvenanceRun < 800) return
+  lastProvenanceRun = now
+  provenanceLoading.value = true
+  try {
+    const fd = new FormData(); fd.append('image', file.value)
+    const response = await fetch('/api/detect/provenance', { method:'POST', body:fd })
+    if (!response.ok) throw new Error('verify_failed')
+    results.provenance = await response.json()
+  } catch { ElMessage.error('来源验证失败，请检查图片格式') }
+  finally { provenanceLoading.value = false }
+}
+
 const runAudit = async () => {
   if (!file.value && !auditText.value.trim()) { ElMessage.warning('请上传图像或输入文本'); return }
   loading.value = true
@@ -396,4 +418,5 @@ const runAudit = async () => {
 .audit-textarea:focus{box-shadow:0 0 0 3px rgba(8,126,174,.1)}
 .scan-overlay{background:rgba(16,40,60,.48)}
 .scan-box{background:#fff;box-shadow:0 20px 56px rgba(16,40,60,.2)}
+.source-btn{min-height:34px;padding:0 14px;color:var(--primary);background:#fff;border:1px solid var(--primary);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.source-btn:disabled{opacity:.45;cursor:not-allowed}
 </style>

@@ -122,6 +122,7 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/face", "scope": "image:face"},
                 {"method": "POST", "path": "/api/v1/images/deepfake", "scope": "image:deepfake"},
                 {"method": "POST", "path": "/api/v1/images/mllm", "scope": "image:mllm"},
+                {"method": "POST", "path": "/api/v1/images/provenance/verify", "scope": "image:provenance"},
                 {"method": "GET", "path": "/api/v1/usage", "scope": "usage:read"},
                 {"method": "POST", "path": "/api/v1/scans", "scope": "scan:run"},
                 {"method": "GET", "path": "/api/v1/scans", "scope": "scan:read"},
@@ -267,6 +268,26 @@ async def image_mllm(request: Request, image: UploadFile = File(...)):
         return await _run_image(image, mllm_service.analyze)
 
     return await _metered(request, scope="image:mllm", operation="image.mllm", run=run)
+
+
+@router.post("/images/provenance/verify")
+async def image_provenance(request: Request, image: UploadFile = File(...)):
+    from fastapi import HTTPException
+    from services import provenance_service
+
+    async def run():
+        try:
+            result = await _run_image(image, provenance_service.verify)
+        except provenance_service.ProvenanceError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        audit_log_service.record_safe(
+            event_type="image.provenance_verify", module="provenance", action="verify",
+            summary="外部 API 图片来源证据验证", content_hash=result.get("content_hash"),
+            metadata={"overall_state": result.get("overall_state"), "api": "v1"},
+        )
+        return result
+
+    return await _metered(request, scope="image:provenance", operation="image.provenance_verify", run=run)
 
 
 @router.get("/usage")

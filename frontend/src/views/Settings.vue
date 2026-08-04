@@ -172,6 +172,7 @@ const scopeOptions = [
   { value:'image:face', label:'人脸质量检查' },
   { value:'image:deepfake', label:'Deepfake 检测' },
   { value:'image:mllm', label:'多模态图片审核' },
+  { value:'image:provenance', label:'AI 来源证据验证' },
   { value:'usage:read', label:'用量查询' },
   { value:'scan:run', label:'主动扫描提交' },
   { value:'scan:read', label:'主动扫描查询' },

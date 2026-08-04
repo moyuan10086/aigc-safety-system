@@ -12,7 +12,7 @@ import aiofiles
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from services import deepfake_service, face_service, mllm_service, rag_service
+from services import audit_log_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -65,6 +65,28 @@ async def inspect_face(image: UploadFile = File(...)):
         return await asyncio.to_thread(_inspect_faces, path)
     finally:
         os.unlink(path)
+
+
+@router.post("/provenance")
+async def verify_provenance(image: UploadFile = File(...)):
+    """Verify local/source provenance without retaining the uploaded image."""
+    path = await _save_upload(image)
+    try:
+        result = await asyncio.to_thread(provenance_service.verify, path)
+        audit_log_service.record_safe(
+            event_type="image.provenance_verify", module="provenance", action="verify",
+            severity="warning" if result["overall_state"] in {"invalid_or_tampered", "inconclusive"} else "info",
+            outcome="success", summary="图片来源证据验证", content_hash=result["content_hash"],
+            metadata={"overall_state": result["overall_state"], "format": result["metadata"].get("format"),
+                      "marker_status": result["source_evidence"]["local_marker"]["status"]},
+        )
+        return result
+    except provenance_service.ProvenanceError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
 
 
 @router.post("/full")
