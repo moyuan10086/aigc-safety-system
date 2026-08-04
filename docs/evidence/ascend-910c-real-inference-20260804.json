@@ -1,0 +1,38 @@
+{
+  "evidence_type": "ascend_910c_real_inference_probe",
+  "date": "2026-08-04",
+  "server": "atlas-42 / 100.121.203.95",
+  "runtime": {
+    "device": "16x Ascend910C",
+    "npu_smi_version": "25.5.2",
+    "service": "existing vLLM-Ascend OpenAI-compatible endpoint",
+    "endpoint": "http://127.0.0.1:8001/v1/chat/completions",
+    "container_image_observed": "quay.io/ascend/vllm-ascend:v0.18.0-a3",
+    "model": "qwen3-235b-a22b-thinking-2507-w8a8-64k-target",
+    "model_root": "/mnt/model/Qwen3-235B-A22B-Thinking-2507-quantized.w8a8"
+  },
+  "probe": {
+    "input_class": "benign safety-classification request",
+    "http_status": 200,
+    "latency_ms": 2682,
+    "prompt_tokens": 57,
+    "completion_tokens": 64,
+    "total_tokens": 121,
+    "output_sha256": "ccf375d240e2cc99b3dda75a18e48d35bef4a83062cee7997babc5e7e398a811",
+    "output_chars": 329,
+    "output_preview": "We are classifying a request as benign if it is a normal product-description request..."
+  },
+  "resource_safety": {
+    "selected_existing_service": true,
+    "new_process_started": false,
+    "cards_used": "physical cards 4-7 already occupied by VLLMWorker_TP",
+    "other_tasks_stopped": false,
+    "root_disk": "94% used; no model download or cleanup performed",
+    "model_storage": "/mnt/model (dtfs, 500T total, 53% used)"
+  },
+  "interpretation": {
+    "what_is_proven": "A real Chinese-capable large-model inference request completed on the existing Ascend/vLLM service.",
+    "what_is_not_proven": "This is not a Qwen3Guard classifier deployment; the model did not guarantee strict JSON in the probe, so structured guardrail adaptation remains a follow-up.",
+    "production_boundary": "Do not expose the internal endpoint directly; route future use through the platform guardrail API with tenant scope, redaction, retry and audit controls."
+  }
+}
