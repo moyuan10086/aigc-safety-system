@@ -1,0 +1,24 @@
+<h4>Gemini AI 来源验证体验对齐方案（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>对齐结论：</b>借鉴 Gemini 的核心不是复制 Google 的模型或品牌，而是把“AI 来源验证”做成证据分层、可解释、有限定语的审核工作流：隐形水印回答“已知来源是否明确生成/修改”，C2PA/Content Credentials 回答“来源与编辑历史”，本系统检测链回答“内容风险与伪造概率”，三者并列展示，不互相冒充。</p>
+</callout>
+<h5>一、官方体验中值得借鉴的产品结构</h5>
+<table><thead><tr><th background-color="light-gray">Gemini 做法</th><th background-color="light-gray">我们对齐的本地能力</th><th background-color="light-gray">产品表达</th></tr></thead><tbody>
+<tr><td>上传单个图片/视频/音频，提出“这是 AI 生成的吗？”等问题</td><td>图片与人脸审核增加“AI 来源验证”入口</td><td>图片优先，后续扩展视频/音频；提供问题模板与自定义问题</td></tr>
+<tr><td>SynthID 与 Content Credentials 分开解释</td><td>隐形水印/来源凭证、EXIF/C2PA、Deepfake/MLLM/RAG/规则分栏</td><td>“来源证据”“内容检测”“审计证据”三张卡，不给单个绝对结论</td></tr>
+<tr><td>结果区分检测到、未检测到、无法确定</td><td>统一四态：<code>confirmed_source</code>、<code>not_found</code>、<code>inconclusive</code>、<code>invalid_or_tampered</code></td><td>未检测到本系统水印不等于肯定不是 AI</td></tr>
+<tr><td>说明只能识别 Google AI 水印，不能覆盖其他 AI</td><td>展示检测器覆盖范围、版本、阈值、输入质量和失败原因</td><td>固定显示“覆盖范围/局限性”</td></tr>
+<tr><td>Content Credentials 展示组成、修改记录、是否使用 AI</td><td>接入 C2PA 读取器展示签名链、发行者、创建/修改动作</td><td>时间线式“来源护照”，签名结论可查看摘要</td></tr>
+</tbody></table>
+<h5>二、本系统建议的验证结果模型</h5>
+<pre lang="json"><code>{"verification":{"overall":"inconclusive","source_evidence":{"watermark":{"status":"not_found","coverage":"declared"},"content_credentials":{"status":"valid","history_events":2},"metadata":{"status":"present","tamper_warning":false}},"content_detection":{"deepfake":{"status":"review","score":0.72},"mllm":{"status":"safe"},"rules":{"status":"safe"}},"audit":{"event_id":"opaque-reference","evidence_encrypted":true}}}</code></pre>
+<p>示例仅说明结构，生产响应不得暴露原始提示词、危险模型输出、AES 密文、密钥或内部路径；事件引用使用现有安全审计链的受控摘要。</p>
+<h5>三、页面与 API 的具体改造</h5>
+<ol><li><b>入口：</b>图片审核页新增“AI 来源验证”模式；数据总览增加来源验证趋势，大屏只展示聚合数。</li><li><b>结果卡：</b>来源证据卡展示水印、C2PA、元数据；检测卡展示 Deepfake/MLLM/规则；处置卡展示放行、人工复核、阻断。</li><li><b>API：</b>增加受控 <code>POST /api/v1/images/provenance/verify</code>，支持文件或已上传对象引用；响应包含 request_id、四态状态和安全摘要。</li><li><b>审计：</b>保存输入文件 SHA-256、检测器版本、状态变迁和摘要；原始内容继续只在 AES-GCM 证据库中保留。</li><li><b>降级：</b>水印或 C2PA 解析失败不影响 Deepfake/MLLM 审核；外部适配器超时返回 <code>inconclusive</code>。</li></ol>
+<h5>四、验收与边界</h5>
+<table><thead><tr><th background-color="light-gray">验收样本</th><th background-color="light-gray">预期</th></tr></thead><tbody>
+<tr><td>本系统生成并带本地水印的公开合成图</td><td>confirmed_source；可解码；审计链有效</td></tr><tr><td>无水印真实公开照片</td><td>not_found 或 inconclusive，不能断言“非 AI”</td></tr><tr><td>第三方 AI 图且无兼容水印</td><td>水印 not_found；检测链独立给出风险；总体可能 inconclusive/review</td></tr><tr><td>C2PA 签名破坏或版本不兼容</td><td>invalid_or_tampered，展示原因</td></tr><tr><td>截图、拼图、严重压缩图</td><td>inconclusive，提示重新提供原始文件</td></tr>
+</tbody></table>
+<callout emoji="⚠️" background-color="light-yellow" border-color="yellow"><p><b>关键边界：</b>Gemini 官方说明明确：未检测到 SynthID 不代表内容一定不是其他 AI 生成；Content Credentials 提供来源和历史，但不能单独判定是否 AI 生成。这两个边界将固化到 UI、API、报告和比赛讲解词。</p></callout>
+<h5>五、排期</h5><ul><li><checkbox done="true">完成 Gemini 官方能力与局限调研，形成三层证据模型</checkbox></li><li><checkbox done="false">实现本地 provenance 数据结构、四态结果和安全摘要</checkbox></li><li><checkbox done="false">增加图片来源验证 API、前端结果卡、节流防抖与自定义组件</checkbox></li><li><checkbox done="false">加入 C2PA/水印公开合成样本回归，不上传真实用户图片</checkbox></li><li><checkbox done="false">完成生产部署、输入输出实测、截图和飞书报告</checkbox></li></ul>
+<p><b>官方参考：</b><a href="https://support.google.com/gemini/answer/16722517?hl=zh-Hans">验证 AI 生成的图片、视频和音频 - Gemini 应用帮助</a></p>

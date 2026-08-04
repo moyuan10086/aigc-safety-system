@@ -1,0 +1,48 @@
+<h4>UAPIS 水印与 AIGC 标识接口调研（2026-08-04）</h4>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>调研结论：</b>UAPIS 的四个接口可以补充“内容来源标记与取证解码”能力，但应作为可选外部适配器，不应替代本系统现有的 SHA-256 审计链、AES-GCM 原始证据库、Deepfake/MLLM/RAG 判定或人工复核。</p>
+</callout>
+
+<h5>一、接口能力映射</h5>
+<table>
+  <thead><tr><th background-color="light-gray">接口</th><th background-color="light-gray">作用</th><th background-color="light-gray">输入/输出要点</th><th background-color="light-gray">适合接入位置</th></tr></thead>
+  <tbody>
+    <tr><td><code>POST /api/v1/watermark/producer-code</code></td><td>生成或校验 ContentProducer 服务提供者编码</td><td>面向组织/个人主体，页面说明为 27 位编码；生成结果应作为标识元数据，不等于主体认证</td><td>系统配置/租户级“来源标识”设置</td></tr>
+    <tr><td><code>POST /api/v1/watermark/label</code></td><td>添加 AI 生成内容显式标识</td><td>multipart；图片来源 <code>file</code>、<code>url</code>、<code>image_base64</code> 三选一；<code>content_producer</code> 必填；<code>label</code> 为 1=AI 生成合成、2=人机协同、3=其他；<code>explicit_label</code> 可选</td><td>图片审核后的“合规标识副本”导出</td></tr>
+    <tr><td><code>POST /api/v1/watermark/embed</code></td><td>嵌入自定义隐形水印</td><td>支持 PNG/JPEG/WebP 的文件、URL 或 Base64；<code>payload</code> 放短溯源 ID；返回处理后的图片及容量/格式信息</td><td>内部样本导出、演示样本溯源</td></tr>
+    <tr><td><code>POST /api/v1/watermark/decode</code></td><td>提取图片隐形水印</td><td>上传待核验图片，返回嵌入的 payload；用于复核转存/压缩后的样本</td><td>审计与取证页的“水印核验”动作</td></tr>
+  </tbody>
+</table>
+
+<h5>二、与本系统的安全边界</h5>
+<ul>
+  <li>四个接口均使用 <code>Authorization: Bearer</code>；API Key 只能放服务器密钥存储，不能进入前端、飞书、普通日志或返回体。</li>
+  <li>file、URL、Base64 三种方式都可能把图片内容发送给第三方；默认不启用，不允许把生产用户图片或含人脸图片直接外传。</li>
+  <li>UAPIS 返回的水印/编码只能作为外部来源标识证据，不能证明图片真实来源、没有被篡改或一定由 AI 生成；最终判定仍以本系统检测链和人工复核为准。</li>
+  <li>水印 payload 不得写入原始提示词、危险模型输出、身份证号、手机号或访问令牌；建议只放不可逆的 <code>event_id</code> 派生短 ID 和版本号。原始内容继续只进入 AES-GCM 证据库。</li>
+  <li>URL 模式需防 SSRF：只允许 HTTPS、公网解析校验、超时、大小上限、禁止内网地址和重定向到内网；文件和 Base64 需 MIME、尺寸、像素和压缩炸弹校验。</li>
+</ul>
+
+<h5>三、推荐接入方案</h5>
+<ol>
+  <li><b>第一阶段（本地优先）：</b>在现有图片审核结果中增加“来源标识”对象，使用本系统事件派生 ID；本地记录 hash、模型结果、审核状态和标识策略，不调用外部服务。</li>
+  <li><b>第二阶段（可选 UAPIS 适配器）：</b>新增服务端适配器和开关，提供 producer-code、label、embed、decode 四个受控能力；所有请求纳入限流、超时、重试上限、审计摘要和租户配额。</li>
+  <li><b>第三阶段（验收）：</b>只使用公开合成测试图验证“嵌入 → JPEG 重压缩/转存 → 解码”的成功率、耗时、尺寸变化和失败降级；不把第三方成功响应直接当作审核通过。</li>
+</ol>
+
+<h5>四、当前状态与下一任务</h5>
+<table>
+  <thead><tr><th background-color="light-gray">任务</th><th background-color="light-gray">状态</th><th background-color="light-gray">验收条件</th></tr></thead>
+  <tbody>
+    <tr><td>接口契约与风险调研</td><td><b>已完成（文档只读）</b></td><td>四个 endpoint、字段、鉴权和外传边界已记录</td></tr>
+    <tr><td>生产开通 UAPIS</td><td>未执行</td><td>需先配置密钥、租户策略、隐私审批和出站域名白名单</td></tr>
+    <tr><td>本地适配器实现</td><td>待排期</td><td>默认关闭、无真实业务图片外传、失败安全降级、审计不泄露原文</td></tr>
+    <tr><td>压缩/转存解码实测</td><td>待排期</td><td>仅公开合成样本，形成输入输出与截图证据</td></tr>
+  </tbody>
+</table>
+
+<callout emoji="⚠️" background-color="light-yellow" border-color="yellow">
+  <p><b>不建议直接照搬：</b>UAPIS 是第三方在线接口，当前调研未携带 API Key、未上传图片、未执行真实业务调用。若比赛现场需要展示，优先展示本地可控的审计链与加密证据；UAPIS 仅作为“外部标准兼容与水印核验”增强项。</p>
+</callout>
+
+<p><b>参考链接：</b> <a href="https://uapis.cn/docs/api-reference/post-watermark-producer-code">服务提供者编码</a>　<a href="https://uapis.cn/docs/api-reference/post-watermark-label">AI 生成内容标识</a>　<a href="https://uapis.cn/docs/api-reference/post-watermark-decode">提取图片隐水印</a>　<a href="https://uapis.cn/docs/api-reference/post-watermark-embed">添加图片隐水印</a></p>
