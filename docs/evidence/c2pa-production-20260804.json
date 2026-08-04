@@ -1,0 +1,29 @@
+{
+  "evidence_type": "c2pa_provenance_production",
+  "date": "2026-08-04",
+  "commit": "4d1e86f",
+  "url": "https://aigc.49.51.248.227.sslip.io/api/detect/provenance",
+  "sample": {"kind": "synthetic_png", "width": 32, "height": 32, "bytes": 98},
+  "response": {
+    "http_status": 200,
+    "overall_state": "not_found",
+    "content_credentials": {
+      "status": "not_found",
+      "supported": true,
+      "manifest_count": 0
+    },
+    "raw_image_retained": false
+  },
+  "interpretation": "C2PA parser is active and found no embedded manifest in the synthetic PNG. This does not prove the image is not AI-generated.",
+  "security": {
+    "read_only": true,
+    "remote_manifest_fetch": false,
+    "raw_manifest_logged": false,
+    "real_user_image_uploaded": false
+  },
+  "browser_screenshot": {
+    "status": "blocked",
+    "reason": "in-app browser failed to write kernel assets",
+    "not_bypassed": true
+  }
+}
