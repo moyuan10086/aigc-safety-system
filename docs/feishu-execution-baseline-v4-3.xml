@@ -1,0 +1,66 @@
+<h1>执行总览 v4.3（唯一当前基线，2026-08-04）</h1>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>总目标：</b>把“面向 AIGC 伪造的跨域泛化检测与可解释性防御平台”建设为可在比赛现场稳定演示、可真实调用模型、可供外部系统通过受控 API 接入、可追溯审核并可持续扩展的 AIGC 安全运营台。主链路覆盖图片与非身份化人脸审核、实时大模型安全护栏、主动安全扫描、红线知识库、C2PA / Content Credentials 来源验证、审计与取证、数据驾驶舱、开放 API 与 Agent 安全；国产化路线覆盖昇腾 910C 真实推理验证。</p>
+</callout>
+
+<h2>一、全部目标与当前状态</h2>
+<table>
+  <thead><tr><th background-color="light-gray">目标域</th><th background-color="light-gray">状态</th><th background-color="light-gray">已证明的成果</th><th background-color="light-gray">剩余验收</th></tr></thead>
+  <tbody>
+    <tr><td>视觉、交互与生产基线</td><td><span text-color="green">工程完成</span></td><td>浅色安全管理后台、三级驾驶舱、响应式布局、HTTPS、443 与 systemd 自启动已上线；正式站持续可用</td><td>官方应用内浏览器恢复后补当前桌面、移动端、登录、人工复核与设置页截图</td></tr>
+    <tr><td>图片与人脸审核</td><td><span text-color="green">工程完成</span></td><td>Deepfake、MLLM、OCR/红线联动、逐脸存在性/数量/质量证据和报告链路已完成；<code>identity_analysis=false</code></td><td>继续积累真实授权样本；不引入身份识别或 embedding</td></tr>
+    <tr><td>实时大模型安全护栏</td><td><span text-color="green">工程完成并真实验证</span></td><td>真实生成模型、输入/输出双向护栏、safe/borderline/unsafe 三态、规则、RAG、Qwen3Guard、SingGuard、XGBoost shadow 与有界重试已接入；最新正式探针 <code>model_called=true</code></td><td>扩充中文危险输出、越狱与边界样本；失败时保持 inconclusive/人工复核闭环</td></tr>
+    <tr><td>C2PA / Content Credentials</td><td><span text-color="green">四态完整并生产验证</span></td><td>服务端 c2pa-python 0.37.2 只读解析；支持 <code>confirmed_source</code>、<code>not_found</code>、<code>inconclusive</code>、<code>invalid_or_tampered</code>；公开有效、无凭证、解析不足及翻转 1 bit 的篡改路径均有真实结构化证据</td><td>补页面操作截图；后续可研究签发/水印，但不得把 valid 简化为“AI 生成”，也不得把 not_found 简化为“非 AI”</td></tr>
+    <tr><td>红线知识库与主动扫描</td><td><span text-color="green">工程完成</span></td><td>敏感词、规则、来源、分类、关键词/RAG 检索和 garak 主动扫描均已上线</td><td>按比赛样本持续维护；garak 不进入实时请求链路</td></tr>
+    <tr><td>登录、日志、取证、开放 API 与驾驶舱</td><td><span text-color="green">工程完成</span></td><td>审核员登录、租户/API Key/scope/限流/配额、SQLite WAL、SHA-256 审计链、CSV、AES-GCM 原始证据库、数据总览及大屏模式已上线</td><td>持续做密钥轮换、备份校验、最小权限与真实调用量积累</td></tr>
+    <tr><td>人工试标与独立评测</td><td><span text-color="blue">工程完成，真人执行待完成</span></td><td>200 条真实模型样本、盲审门禁、审核员租约、领取→证据访问→首次标签双审计、20/200 进度与完整性校验已上线</td><td>当前 0/20、0/200；必须由真实审核员本人操作，不得由开发代理代领、代看或代标</td></tr>
+    <tr><td>Agent 安全</td><td><span text-color="green">工程完成</span></td><td>工具执行前审批、精确一次性授权、结果回传复检、间接注入隔离与多步轨迹风险账本已上线</td><td>继续用 Promptfoo 与轨迹用例做 CI 回归</td></tr>
+    <tr><td>比赛现场 readiness</td><td><span text-color="green">13/13 ready</span></td><td>普通、自检与真实模型探针场景就绪；设置页显示规则、RAG、MLLM、Qwen3Guard、SingGuard、XGBoost Shadow 状态及不确定组件；证据进入 AES-GCM 库</td><td>官方浏览器恢复后补当前设置页与专家链截图</td></tr>
+    <tr><td>昇腾 910C 国产化</td><td><span text-color="yellow">真实验证完成，专用模型待部署</span></td><td>16 卡健康；物理卡 2/3/4/5 四卡基准和 Qwen3-0.6B 四路生成已留证；复用现有 Qwen3-235B vLLM 完成 safe/borderline/unsafe 三类真实分类，平均 2949 ms</td><td>当前结果是通用 Qwen3-235B，不冒充 Qwen3Guard；专用护栏权重需在磁盘治理和安全窗口后另测</td></tr>
+    <tr><td>GitHub、生产与飞书证据</td><td><span text-color="green">持续执行</span></td><td>当前生产 HEAD <code>13f785f</code>，服务 active，health 正常；最近后端 102/102、Ruff、前端构建通过；每阶段均留结构化证据和飞书记录</td><td>后续每个里程碑继续执行“实现→测试→GitHub→部署→公网验证→证据→飞书”闭环</td></tr>
+  </tbody>
+</table>
+
+<h2>二、最新权威证据</h2>
+<ul>
+  <li><b>C2PA：</b><code>docs/evidence/c2pa-public-fixtures-production-20260804.json</code> 与 <code>docs/evidence/c2pa-tampered-production-20260804.json</code>；篡改样本返回 <code>overall_state=invalid_or_tampered</code>、<code>validation_state=invalid</code>、<code>trust_verified=false</code>。</li>
+  <li><b>护栏 readiness：</b>真实模型探针返回 <code>model_called=true</code>，规则/RAG/Qwen3Guard/SingGuard/XGBoost 为 ok，MLLM 按配置 disabled，不确定组件为空，审计链有效。</li>
+  <li><b>昇腾：</b><code>docs/evidence/ascend-guardrail-three-class-20260804.json</code>；三类样本实际分类与预期一致，必须使用 JSON mode；非结构化 thinking 文本按 inconclusive 处理。</li>
+  <li><b>人工试标：</b><code>docs/evidence/review-valid-progress-production-20260804.json</code>；200 条均可进入复核流程，当前有效人工标签仍为 0。</li>
+</ul>
+
+<h2>三、当前执行优先级</h2>
+<checkbox done="false">P0：由真实审核员按现场手册完成首批 20 条，随后累计到 200 条；以有效标签数、提交数相等和审计完整为验收条件</checkbox>
+<checkbox done="false">P0：官方应用内浏览器运行资产恢复后，补录真实页面输入、输出和点击路径截图；不得使用示意图或其他浏览器控制面冒充</checkbox>
+<checkbox done="true">P1：C2PA 四态、公开素材、篡改路径、生产 API 与现场讲解边界已闭环</checkbox>
+<checkbox done="true">P1：护栏专家状态、真实模型探针、AES-GCM 原始提示词/危险输出留存与降级解释已闭环</checkbox>
+<checkbox done="true">P1：昇腾四卡工程验证和通用 Qwen3-235B 三类安全分类已闭环</checkbox>
+<checkbox done="false">P2：在不抢卡、不停止现有任务、不向 94% 根盘下载大权重的前提下，为专用 Qwen3Guard 或同类 Ascend 权重安排独立目录与验证窗口</checkbox>
+
+<h2>四、统一验收标准</h2>
+<table>
+  <thead><tr><th background-color="light-gray">维度</th><th background-color="light-gray">必须满足</th><th background-color="light-gray">权威证据</th></tr></thead>
+  <tbody>
+    <tr><td>功能正确性</td><td>正常、边界、危险与篡改样例分别放行、复核、阻断；字段与状态一致</td><td>自动化测试、正式站脱敏输入输出、结构化 JSON</td></tr>
+    <tr><td>真实模型</td><td>需要模型的能力证明 <code>model_called=true</code>；模型名、延迟和输出哈希可核验，不用 mock 冒充</td><td>脱敏响应、模型信息、SHA-256 与加密证据事件</td></tr>
+    <tr><td>C2PA 语义</td><td>验证失败优先于容器可读；invalid/error/untrusted 必须进入 <code>invalid_or_tampered</code>；四态均有测试</td><td>SDK 状态、API 响应、公开夹具与篡改探针</td></tr>
+    <tr><td>隐私与安全</td><td>原始提示词和危险模型输出完整保留，但只进入 AES-GCM 加密证据库；普通接口、日志、CSV、驾驶舱和飞书仅留哈希、类别、状态、延迟与统计</td><td>字段审计、加密证据访问记录与隐私测试</td></tr>
+    <tr><td>人工复核</td><td>人工真值只由真实审核员提交；领取、证据访问、标签三步身份一致</td><td>有效标签统计、审核员贡献和脱敏 CSV</td></tr>
+    <tr><td>稳定与降级</td><td>模型增强失败时规则/RAG 主链仍可用；必需项故障显示 not_ready 或 inconclusive，不伪装在线</td><td>readiness、降级测试、systemd 与 HTTPS health</td></tr>
+    <tr><td>工程与部署</td><td>Ruff、后端全量、前端构建通过；本地、GitHub、服务器提交一致，审计链和备份可验证</td><td>测试结果、Git HEAD、备份 manifest 与 audit_chain_valid</td></tr>
+    <tr><td>NPU 国产化</td><td>不得抢占现有任务；明确通用模型和专用护栏模型的区别；记录模型、卡号、输入输出、延迟、吞吐、显存和边界</td><td>npu-smi、推理 JSON、版本信息和飞书报告</td></tr>
+  </tbody>
+</table>
+
+<h2>五、人工试标与截图执行说明</h2>
+<ol>
+  <li seq="auto">审核员从左侧登录，进入“数据驾驶舱”，滚动到“人工复核样本池”。</li>
+  <li seq="auto">点击“领取”，再点击“继续复核/查看证据”；只有本人完成证据访问审计后，首次标签按钮才可用。</li>
+  <li seq="auto">按页面证据独立选择 safe、borderline 或 unsafe 并提交；不要复制或外传取证弹窗中的原始提示词和危险输出。</li>
+  <li seq="auto">先验收首批有效标签 20/20，再累计至 200/200；要求“已提交标签数 = 有效标签数”且“标签完整性 = 完整”。</li>
+  <li seq="auto">截图至少覆盖：登录入口、领取前进度、领取成功、证据已查看、标签选择、提交后进度、C2PA 四态页面、设置页专家状态；截图只使用授权的官方应用内浏览器。</li>
+</ol>
+
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>不可回退边界：</b>人脸能力保持非身份化；人工标签不伪造；原始提示词和危险输出保留但只进 AES-GCM 加密证据库；C2PA 不作为单一 AI 判定器；外部 GPU/NPU 现有任务不停止、不抢占；专用 Qwen3Guard 未部署前不得以通用 Qwen3 分类实验冒充。</p>
+</callout>
