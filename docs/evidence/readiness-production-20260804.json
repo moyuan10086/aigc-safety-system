@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "milestone": "P4-3",
+  "verified_at": "2026-08-04T02:42:43Z",
+  "endpoint": "/api/system/readiness",
+  "passive_readiness": {
+    "status": "ready",
+    "summary": {
+      "total": 13,
+      "passed": 13,
+      "degraded": 0,
+      "failed": 0,
+      "required_failed": 0
+    },
+    "scenarios": {
+      "guardrail": "ready",
+      "image_review": "ready",
+      "audit_forensics": "ready"
+    },
+    "checks": [
+      "api_runtime",
+      "operator_auth",
+      "audit_chain",
+      "evidence_vault",
+      "frontend_dist",
+      "rules_engine",
+      "face_detector",
+      "rag_knowledge",
+      "chat_model",
+      "mllm_model",
+      "deepfake_model",
+      "qwen3guard",
+      "singguard"
+    ]
+  },
+  "active_model_probe": {
+    "status": "ready",
+    "model_called": true,
+    "model_returned": "gpt-5.6-terra",
+    "latency_ms": 3876,
+    "input_verdict": "safe",
+    "output_verdict": "safe",
+    "final_verdict": "safe",
+    "output_sha256": "c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526",
+    "input_experts": {
+      "rules": "ok",
+      "rag": "ok",
+      "mllm": "disabled",
+      "qwen3guard": "ok",
+      "singguard": "ok",
+      "xgboost_shadow": "ok"
+    },
+    "output_experts": {
+      "rules": "ok",
+      "rag": "ok",
+      "mllm": "disabled",
+      "qwen3guard": "ok",
+      "singguard": "ok",
+      "xgboost_shadow": "ok"
+    },
+    "privacy": {
+      "secrets_exposed": false,
+      "paths_exposed": false,
+      "raw_content_included": false
+    }
+  },
+  "audit_evidence": {
+    "event_id": "eb2d7800b0aa48d9b1c6c3f3fdbbfdaa",
+    "audit_chain_valid": true,
+    "audit_events": 674,
+    "encrypted_evidence": 217,
+    "raw_content_policy": "prompt and model output retained only as AES-GCM ciphertext"
+  },
+  "post_release_backup": {
+    "archive": "20260804T024138Z_post-p4-3-readiness_92207fd7",
+    "files_valid": true,
+    "audit_chain_valid": true,
+    "audit_events": 674,
+    "encrypted_evidence": 217,
+    "audit_db_sha256": "782ba90c963a74fe7b901921308ec3c9fd11a72da97257905e53f00e8e3c32d0",
+    "api_keys_db_sha256": "55fae1a61d1b4ebf907cddfa0f71945a6bcc94ffbecd4bf8b63d76d53f1d512f"
+  },
+  "browser_screenshot": {
+    "status": "pending",
+    "reason": "official in-app browser failed to write kernel assets (os error 3)",
+    "bypass_used": false
+  }
+}

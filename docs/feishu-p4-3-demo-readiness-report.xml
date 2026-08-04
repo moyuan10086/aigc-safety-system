@@ -1,0 +1,46 @@
+<h4>P4-3 实测报告与发布证据（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>P4-3 已完成。正式站被动自检返回 <code>ready</code>，13/13 项通过，实时安全护栏、图片与人脸审核、审计与取证三个场景均可用；服务器上已执行真实大模型探针，输入、输出均经过护栏并返回 <code>safe</code>。原始提示词和模型危险输出仍只保存在 AES-GCM 加密证据库。</p>
+</callout>
+<h5>一、正式站数据总览自检</h5>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">实际输出</th><th background-color="light-gray">结论</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET /api/system/readiness</code></td><td>status=ready；total=13；passed=13；degraded=0；failed=0</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>实时安全护栏</td><td>ready；输入、生成与输出护栏链路就绪</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>图片与人脸审核</td><td>ready；人脸、Deepfake 与多模态审核就绪</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>审计与取证</td><td>ready；登录、审计链与加密证据库就绪</td><td><span text-color="green">通过</span></td></tr>
+  </tbody>
+</table>
+<h5>二、真实大模型输入输出</h5>
+<p><b>探针输入：</b>系统内部使用固定的现场自检提示，未在接口响应、页面或报告中公开原文；服务器实际调用模型并记录了输出摘要哈希。</p>
+<table>
+  <thead><tr><th background-color="light-gray">字段</th><th background-color="light-gray">实际结果</th></tr></thead>
+  <tbody>
+    <tr><td>model_called</td><td><span text-color="green">true</span>；实际返回模型 <code>gpt-5.6-terra</code></td></tr>
+    <tr><td>输入护栏</td><td>safe；rules=ok、rag=ok、Qwen3Guard=ok、SingGuard-NSFA=ok、XGBoost shadow=ok</td></tr>
+    <tr><td>输出护栏</td><td>safe；rules=ok、rag=ok、Qwen3Guard=ok、SingGuard-NSFA=ok、XGBoost shadow=ok</td></tr>
+    <tr><td>模型耗时</td><td>3876 ms</td></tr>
+    <tr><td>输出证据</td><td>仅记录 SHA-256：<code>c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526</code></td></tr>
+  </tbody>
+</table>
+<p>验证脚本的重试采样出现过一次上游瞬态失败，随后再次真实调用成功；当前运行手册要求现场人员在模型探针失败时复按“重新探测”，不会把一次网络波动误判为系统永久故障。</p>
+<h5>三、审计、原始内容和备份</h5>
+<ul>
+  <li>探针审计事件：<code>eb2d7800b0aa48d9b1c6c3f3fdbbfdaa</code>；审计事件总数 674；加密证据 217；<code>audit_chain_valid=true</code>。</li>
+  <li>原始提示词与模型输出不进入 readiness 响应、普通日志或飞书，只通过事件关联存入 AES-GCM 密文；公共响应三项隐私标记均为 false。</li>
+  <li>发布后归档：<code>20260804T024138Z_post-p4-3-readiness_92207fd7</code>；<code>files_valid=true</code>、<code>audit_chain_valid=true</code>。归档只含数据库密文和 nonce，不含明文证据。</li>
+</ul>
+<h5>四、工程、CI 与发布</h5>
+<ul>
+  <li>本地：Ruff 通过；后端 80/80；P4-3 专项 6/6；前端 Vite production build 成功。</li>
+  <li>GitHub：运行 <code>30871557806</code> 全绿；Promptfoo 12/12；Agent trajectory 4/4。</li>
+  <li>服务器：生产 HEAD <code>f8d7e842e2a2a882918a56bed78687be9c39161c</code>；systemd active；HTTPS health 与 readiness 均正常。</li>
+</ul>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30871557806">GitHub Actions P4-3 最终绿色运行</a></p>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>docs/evidence/readiness-production-20260804.json</code>；实现见 <code>backend/services/readiness_service.py</code>、<code>backend/routers/system.py</code>，专项测试见 <code>backend/tests/test_readiness.py</code>。</p>
+</callout>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>页面截图状态：</b>官方应用内浏览器仍返回 failed to write kernel assets: 系统找不到指定的路径 (os error 3)。未使用独立 Playwright、Chrome 或 CDP 绕过；当前以正式站 API、真实模型输入输出、前端生产构建、CI、服务器回归和结构化证据作为验收，浏览器恢复后补录桌面与移动端截图。</p>
+</callout>
