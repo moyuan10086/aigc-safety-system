@@ -1,0 +1,50 @@
+<h4>P4-4 模型探针瞬态故障恢复实测报告（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>P4-4 已完成并上线。探针只对 <code>ModelGatewayError</code> 最多重试 1 次，公开返回实际尝试次数和恢复状态；其他异常不盲目重试。正式站真实调用 <code>gpt-5.6-sol</code> 成功，输入、输出和最终判定均为 safe，审计链有效，原始提示词与模型输出继续仅存 AES-GCM 加密证据库。</p>
+</callout>
+
+<h5>一、实现与失败边界</h5>
+<table>
+  <thead><tr><th background-color="light-gray">场景</th><th background-color="light-gray">行为</th><th background-color="light-gray">公开结果</th></tr></thead>
+  <tbody>
+    <tr><td>首次成功</td><td>只调用一次模型，进入 30 秒短缓存</td><td><code>attempts=1</code>、<code>recovered_after_retry=false</code></td></tr>
+    <tr><td>一次网关异常后成功</td><td>等待 0.5 秒后执行第 2 次调用</td><td><code>status=ready</code>、<code>attempts=2</code>、<code>recovered_after_retry=true</code></td></tr>
+    <tr><td>连续两次网关异常</td><td>达到上限后停止，不继续放大上游压力</td><td><code>status=failed</code>、<code>model_called=false</code>、<code>error_code=model_gateway_unavailable</code></td></tr>
+    <tr><td>未配置或其他异常</td><td>不按网关故障重试</td><td>保留原安全错误码，不返回错误原文</td></tr>
+  </tbody>
+</table>
+
+<h5>二、本地与 GitHub 门禁</h5>
+<ul>
+  <li>readiness 专项 8/8；后端全量 83/83；Ruff 通过；前端 Vite production build 成功。</li>
+  <li>GitHub Actions 运行 <code>30875949799</code> 全绿：后端测试、Promptfoo 中文输入输出 12/12、Agent trajectory 4/4 均通过。</li>
+  <li>隐私回归证明连续故障中的内部错误文本、URL 和令牌不会进入公共响应。</li>
+</ul>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30875949799">GitHub Actions P4-4 绿色运行</a></p>
+
+<h5>三、正式站真实输入输出</h5>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">实际结果</th></tr></thead>
+  <tbody>
+    <tr><td>HTTPS 与被动自检</td><td>health=ok；readiness=<code>ready</code>；13/13 passed；三场景均 ready</td></tr>
+    <tr><td>真实生成模型</td><td><code>model_called=true</code>；模型 <code>gpt-5.6-sol</code>；延迟 2415 ms</td></tr>
+    <tr><td>尝试与恢复</td><td><code>attempts=1/2</code>；<code>recovered_after_retry=false</code>；本次生产调用无需重试</td></tr>
+    <tr><td>护栏结果</td><td>input=safe；output=safe；final=safe；Qwen3Guard、SingGuard、RAG、规则和 XGBoost shadow 均 ok</td></tr>
+    <tr><td>输出证据</td><td>只公开 SHA-256：<code>c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526</code></td></tr>
+  </tbody>
+</table>
+
+<h5>四、审计与隐私</h5>
+<ul>
+  <li>正式探针事件：<code>a98f6c0f5f94431c9b4406f4a07dc692</code>；<code>chain_valid=true</code>；探针时审计事件总数 682。</li>
+  <li>审计元数据中的 <code>attempts=1</code>、<code>max_attempts=2</code>、<code>recovered_after_retry=false</code> 与探针响应一致。</li>
+  <li>公共响应隐私三项均为 false；不包含会话令牌、API Key、内部模型地址、路径、原始提示词或模型输出。</li>
+  <li>原始提示词和模型输出已通过同一事件 ID 进入 AES-GCM 加密证据库；飞书和普通日志只记录状态、类别、哈希与统计。</li>
+</ul>
+
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>docs/evidence/readiness-probe-resilience-production-20260804.json</code>；实现见 <code>backend/services/readiness_service.py</code>、<code>backend/routers/system.py</code> 与 <code>frontend/src/views/Settings.vue</code>；测试见 <code>backend/tests/test_readiness.py</code>；运维复测入口为 <code>scripts/verify_readiness_probe.py</code>。</p>
+</callout>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>证据边界：</b>本次生产探针第一次即成功，因此未通过人为制造生产故障来演示重试；<code>attempts=2</code> 的恢复与连续失败上限由确定性测试证明。验证脚本使用生产鉴权配置签发短期审核员会话，不替代密码登录流程测试。官方应用内浏览器仍因运行资产错误无法截图，未使用其他浏览器控制面绕过。</p>
+</callout>

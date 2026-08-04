@@ -71,7 +71,6 @@ def main() -> int:
                 "audit": {
                     "chain_valid": stats.get("chain_valid"),
                     "event_count": stats.get("total", stats.get("event_count")),
-                    "evidence_count": stats.get("evidence_count"),
                     "latest_probe": {
                         "event_id": latest.get("id"),
                         "outcome": latest.get("outcome"),

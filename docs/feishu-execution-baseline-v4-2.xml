@@ -9,20 +9,20 @@
   <tbody>
     <tr><td>视觉、交互与生产基线</td><td><span text-color="green">已完成</span></td><td>浅色管理后台、藏蓝安全侧栏、三级驾驶舱、响应式布局、HTTPS 与服务自启动均已上线</td><td>当前版本官方桌面/移动端截图仍待浏览器运行资产恢复</td></tr>
     <tr><td>图片与人脸审核</td><td><span text-color="green">已完成</span></td><td>Deepfake、MLLM、OCR/红线联动、逐脸质量证据和报告链路已完成；明确 <code>identity_analysis=false</code></td><td>继续积累真实样本，不引入身份识别或 embedding</td></tr>
-    <tr><td>实时大模型安全护栏</td><td><span text-color="green">已完成</span></td><td>真实生成模型、输入/输出双向护栏、三态判定、Qwen3Guard、SingGuard、RAG、规则与 XGBoost shadow 已接入</td><td>P4-4 增加上游瞬态故障的有界重试与可审计恢复状态</td></tr>
+    <tr><td>实时大模型安全护栏</td><td><span text-color="green">已完成</span></td><td>真实生成模型、输入/输出双向护栏、三态判定、Qwen3Guard、SingGuard、RAG、规则与 XGBoost shadow 已接入；P4-4 有界重试已上线</td><td>继续按真实模型和危险输出样本扩充评测，不改变失败闭环</td></tr>
     <tr><td>红线知识库与主动扫描</td><td><span text-color="green">已完成</span></td><td>敏感词、规则、来源、分类、关键词/RAG 检索和 garak 主动扫描均已上线</td><td>后续按比赛样本维护红线数据，不把 garak 放入实时请求路径</td></tr>
     <tr><td>登录、日志、取证与开放 API</td><td><span text-color="green">已完成</span></td><td>侧栏审核员登录、API Key/租户/限流/配额、SQLite WAL、SHA-256 审计链、CSV、AES-GCM 原始证据库和数据驾驶舱已上线</td><td>保持密钥轮换、备份校验和最小权限</td></tr>
     <tr><td>模型评测与人工复核</td><td><span text-color="blue">工程完成，真人验收待执行</span></td><td>200 条真实模型样本、盲审门禁、多人租约、独立审核员身份、20/200 进度和有效标签判定均已上线</td><td>生产当前仍为 0/20、0/200；必须由真实审核员本人领取、查看证据并提交标签</td></tr>
     <tr><td>Agent 安全</td><td><span text-color="green">已完成</span></td><td>工具执行前审批、精确一次性授权、结果回传复检、间接注入隔离和多步轨迹风险账本已上线</td><td>继续用 Promptfoo/轨迹用例做 CI 回归</td></tr>
-    <tr><td>比赛现场演示自检</td><td><span text-color="green">已完成 P4-3</span></td><td>readiness 13/13、三场景 ready、真实模型探针、短缓存、审计留痕和设置页状态视图已上线</td><td>P4-4 处理已观测到的一次上游瞬态失败</td></tr>
-    <tr><td>昇腾 910 国产化</td><td><span text-color="yellow">部分完成</span></td><td>16 卡健康、CANN 8.5.1、Ascend 容器和 2048×2048 FP32 NPU 矩阵计算均有真实证据</td><td>8–15 正在跑 vLLM、0 有长期任务、根盘 94%；需指定安全卡与隔离目录后做小模型真实推理</td></tr>
+    <tr><td>比赛现场演示自检</td><td><span text-color="green">已完成 P4-4</span></td><td>readiness 13/13、三场景 ready、真实模型探针、短缓存、有界重试、恢复状态、审计留痕和设置页状态视图已上线</td><td>官方应用内浏览器恢复后补录当前版本截图</td></tr>
+    <tr><td>昇腾 910 国产化</td><td><span text-color="yellow">部分完成</span></td><td>16 卡健康、CANN 8.5.1、Ascend 容器和物理卡 2–5 四卡 FP16 矩阵/MLP 并行微基准均有真实证据；四卡运行后无残留</td><td>8–15 正在跑 vLLM、0 有长期任务、根盘 94%；需治理空间并指定安全卡后做预训练护栏模型真实推理</td></tr>
     <tr><td>GitHub、部署与飞书证据</td><td><span text-color="green">持续执行</span></td><td>每阶段均有提交、CI、服务器部署、备份和飞书报告；主站为 <code>aigc.49.51.248.227.sslip.io</code></td><td>每个后续里程碑继续执行“计划→实现→测试→部署→证据→飞书”闭环</td></tr>
   </tbody>
 </table>
 
 <h2>二、当前优先级与实施计划</h2>
 <checkbox done="true">P4-3：比赛现场演示自检与安全降级已完成，正式站 13/13 ready，真实模型探针和 AES-GCM 证据均已验证</checkbox>
-<checkbox done="false">P4-4：模型探针瞬态故障恢复。仅对模型网关异常执行最多 1 次有界重试，返回 attempts/recovered_after_retry，缓存防重复调用，并将恢复状态写入审计元数据</checkbox>
+<checkbox done="true">P4-4：模型探针瞬态故障恢复已完成。仅对模型网关异常执行最多 1 次有界重试，返回 attempts/recovered_after_retry，缓存防重复调用，并将恢复状态写入审计元数据；本地、CI、生产真实探针均通过</checkbox>
 <checkbox done="false">P2-3.6 人工试标：由真实审核员完成首批 20 条，要求已提交标签数与双审计完整的有效标签数相等，再累计到 200 条</checkbox>
 <checkbox done="false">页面证据：官方应用内浏览器恢复后补录当前版本桌面、移动端、登录、人工复核和现场自检截图；不得用其他浏览器控制面绕过</checkbox>
 <checkbox done="false">昇腾模型推理：先确认物理卡 2–7 中的安全卡和隔离目录；不使用 8–15，不占用物理卡 0，不在 94% 的根盘下载大模型</checkbox>
@@ -44,7 +44,7 @@
 
 <h2>四、执行顺序</h2>
 <ol>
-  <li seq="auto"><b>当前执行 P4-4：</b>根据生产已观测瞬态失败补齐探针有界重试、恢复标记、测试、CI、部署和正式站证据。</li>
+  <li seq="auto"><b>当前执行 P2-3.6：</b>由真实审核员完成首批人工试标并把有效双审计标签累计到 200 条；开发侧保持证据完整性和不伪造标签。</li>
   <li seq="auto"><b>外部并行项：</b>真实审核员完成 P2-3.6 首批 20 条；这项不能由开发代理代填。</li>
   <li seq="auto"><b>环境恢复项：</b>官方应用内浏览器恢复后补齐当前版本截图。</li>
   <li seq="auto"><b>国产化项：</b>确认安全卡和隔离目录后，复用现有 Ascend 环境做小模型推理；根盘空间未治理前不下载大权重。</li>

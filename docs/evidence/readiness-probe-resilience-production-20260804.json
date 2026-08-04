@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "milestone": "P4-4",
+  "verified_at": "2026-08-04T04:01:14Z",
+  "production_url": "https://aigc.49.51.248.227.sslip.io",
+  "implementation_commit": "bc9719793d8168228f599cdf9c5aa5e31df9dc14",
+  "github_actions": {
+    "run_id": 30875949799,
+    "status": "success",
+    "url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30875949799",
+    "backend_tests": 83,
+    "promptfoo_cases": 12,
+    "agent_trajectory_cases": 4
+  },
+  "local_verification": {
+    "focused_readiness_tests": 8,
+    "backend_tests": 83,
+    "ruff": "passed",
+    "frontend_build": "passed"
+  },
+  "passive_readiness": {
+    "status": "ready",
+    "total": 13,
+    "passed": 13,
+    "degraded": 0,
+    "failed": 0,
+    "required_failed": 0
+  },
+  "active_model_probe": {
+    "status": "ready",
+    "model_called": true,
+    "model": "gpt-5.6-sol",
+    "latency_ms": 2415,
+    "attempts": 1,
+    "max_attempts": 2,
+    "recovered_after_retry": false,
+    "input_verdict": "safe",
+    "output_verdict": "safe",
+    "final_verdict": "safe",
+    "output_sha256": "c2e3ac47f4a325469c1a2d5f117e463ec943c721986d5d9f09ac4540b7d80526",
+    "evidence_captured": true,
+    "evidence_event_id": "a98f6c0f5f94431c9b4406f4a07dc692",
+    "privacy": {
+      "secrets_exposed": false,
+      "paths_exposed": false,
+      "raw_content_included": false
+    }
+  },
+  "audit": {
+    "chain_valid": true,
+    "event_count": 682,
+    "latest_probe_event_id": "a98f6c0f5f94431c9b4406f4a07dc692",
+    "latest_probe_outcome": "success",
+    "attempts": 1,
+    "max_attempts": 2,
+    "recovered_after_retry": false,
+    "error_code": null
+  },
+  "deterministic_retry_tests": {
+    "transient_gateway_failure_then_success": {
+      "status": "ready",
+      "attempts": 2,
+      "recovered_after_retry": true
+    },
+    "two_gateway_failures": {
+      "status": "failed",
+      "model_called": false,
+      "attempts": 2,
+      "error_code": "model_gateway_unavailable",
+      "secret_error_text_exposed": false
+    }
+  },
+  "boundaries": [
+    "The production probe succeeded on its first attempt; retry recovery is proven by deterministic tests, not by inducing a production outage.",
+    "The verifier creates a signed operator session from production auth configuration and does not test the password login flow.",
+    "The public response and this evidence file exclude the original prompt, model output, session token, API keys, internal model URL, and filesystem paths.",
+    "Original prompt and model output remain available only through the AES-GCM evidence vault under the recorded event ID."
+  ]
+}
