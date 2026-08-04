@@ -212,7 +212,10 @@ Agent 门禁接收工具名、JSON 参数和资源范围，融合确定性执行
 cd /root/CH/aigc-safety-system/backend
 uv run python maintenance.py backup --label before-release
 uv run python maintenance.py verify --archive <manifest-archive-name>
+uv run python maintenance.py restore-verify --archive <manifest-archive-name>
 ```
+
+`restore-verify` 只把归档复制到临时隔离目录，执行 SQLite 完整性、审计链和表计数核验，完成后删除临时副本。它不会停止服务、覆盖生产数据库或删除备份归档；真正的灾难恢复仍需在维护窗口由运维人员明确指定目标路径执行。
 
 API Key 哈希轮换：先把新值写入 `API_KEY_HASH_SECRET`，旧值暂存到 `API_KEY_HASH_PREVIOUS_SECRET` 并重启；旧 Key 首次使用时惰性迁移为新摘要。确认宽限期结束且调用方已更新后，再清空上一密钥。AES-GCM 证据轮换同样先配置 `AUDIT_CONTENT_KEY` 新值和 `AUDIT_CONTENT_PREVIOUS_KEY` 旧值，然后执行：
 

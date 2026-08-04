@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import sqlite3
+import tempfile
 import uuid
 from contextlib import closing
 from datetime import datetime, timezone
@@ -145,6 +147,66 @@ def verify_backup(name: str) -> dict[str, Any]:
         "audit_chain_valid": chain_valid,
         "valid": all(item["matches"] for item in checks) and chain_valid,
         "counts": manifest.get("counts", {}),
+    }
+
+
+def _sqlite_integrity(path: Path) -> dict[str, Any]:
+    with closing(sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, timeout=10)) as connection:
+        rows = [str(row[0]) for row in connection.execute("PRAGMA integrity_check").fetchall()]
+    return {"ok": rows == ["ok"], "result": rows}
+
+
+def verify_restore(name: str) -> dict[str, Any]:
+    """Exercise an archive restore without touching production databases."""
+    archive_dir = _safe_archive_dir(name)
+    verified = verify_backup(name)
+    if not verified["valid"]:
+        raise RuntimeError("archive verification failed; restore drill aborted")
+
+    manifest = json.loads((archive_dir / "manifest.json").read_text(encoding="utf-8"))
+    expected_files = {str(item.get("name", "")) for item in manifest.get("files", [])}
+    if expected_files != {"audit.db", "api_keys.db"}:
+        raise ValueError("archive does not contain the expected database set")
+
+    restored_root: Path | None = None
+    integrity: dict[str, dict[str, Any]] = {}
+    restored_counts: dict[str, int] = {}
+    chain_valid = False
+    with tempfile.TemporaryDirectory(prefix="aigc-restore-verify-") as directory:
+        restored_root = Path(directory)
+        for filename in sorted(expected_files):
+            shutil.copy2(archive_dir / filename, restored_root / filename)
+        integrity = {
+            filename: _sqlite_integrity(restored_root / filename)
+            for filename in sorted(expected_files)
+        }
+        restored_counts = _counts(restored_root / "audit.db")
+        restored_counts.update({
+            key: value
+            for key, value in _counts(restored_root / "api_keys.db").items()
+            if key in {"api_keys", "api_usage", "tenant_scan_jobs", "tenant_reports"}
+        })
+        chain_valid = audit_log_service.verify_chain(restored_root / "audit.db")
+
+    expected_counts = {str(key): int(value) for key, value in manifest.get("counts", {}).items()}
+    counts_match = all(restored_counts.get(key) == value for key, value in expected_counts.items())
+    tempdir_removed = restored_root is not None and not restored_root.exists()
+    restorable = (
+        all(item["ok"] for item in integrity.values())
+        and chain_valid
+        and counts_match
+        and tempdir_removed
+    )
+    return {
+        "archive": name,
+        "restorable": restorable,
+        "mode": "isolated-read-only-drill",
+        "production_databases_modified": False,
+        "integrity": integrity,
+        "audit_chain_valid": chain_valid,
+        "counts_match_manifest": counts_match,
+        "counts": restored_counts,
+        "temporary_restore_directory_removed": tempdir_removed,
     }
 
 

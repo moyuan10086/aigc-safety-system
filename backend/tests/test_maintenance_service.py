@@ -1,5 +1,6 @@
 """Tests for online backup manifests and non-destructive maintenance."""
 
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -87,6 +88,21 @@ class MaintenanceServiceTests(unittest.TestCase):
         verified = maintenance_service.verify_backup(backup["archive"])
         self.assertTrue(verified["valid"])
         self.assertTrue((Path(backup["path"]) / "audit.db").is_file())
+
+        production_paths = [audit_log_service._db_path(), api_access_service._db_path()]
+        hashes_before = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in production_paths
+        }
+        restored = maintenance_service.verify_restore(backup["archive"])
+        hashes_after = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in production_paths
+        }
+        self.assertTrue(restored["restorable"])
+        self.assertTrue(restored["counts_match_manifest"])
+        self.assertTrue(restored["audit_chain_valid"])
+        self.assertTrue(restored["temporary_restore_directory_removed"])
+        self.assertFalse(restored["production_databases_modified"])
+        self.assertEqual(hashes_before, hashes_after)
 
 
 if __name__ == "__main__":
