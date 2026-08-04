@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "milestone": "P2-3.6",
+  "verified_at": "2026-08-04T06:56:54Z",
+  "production_url": "https://aigc.49.51.248.227.sslip.io",
+  "implementation_commit": "f566e668c2c2b5f1c68d0d1f97a41606774e8251",
+  "github_actions": {
+    "run_id": 30885418958,
+    "status": "success",
+    "url": "https://github.com/moyuan10086/aigc-safety-system/actions/runs/30885418958",
+    "head_sha": "f566e668c2c2b5f1c68d0d1f97a41606774e8251"
+  },
+  "local_verification": {
+    "dashboard_tests": 6,
+    "backend_tests": 84,
+    "ruff": "passed",
+    "frontend_build": "passed"
+  },
+  "production": {
+    "server_head_sha": "f566e668c2c2b5f1c68d0d1f97a41606774e8251",
+    "service": "active",
+    "https_health": "ok",
+    "readiness": {
+      "status": "ready",
+      "total": 13,
+      "passed": 13,
+      "degraded": 0,
+      "failed": 0,
+      "required_failed": 0
+    }
+  },
+  "review_campaign": {
+    "eligible_samples": 200,
+    "pending_reviews": 200,
+    "active_claims": 0,
+    "submitted_labels": 0,
+    "verified_labels": 0,
+    "unverified_labels": 0,
+    "pilot_target_labels": 20,
+    "pilot_remaining_count": 20,
+    "pilot_completed": false,
+    "target_labels": 200,
+    "remaining_count": 200,
+    "target_completed": false,
+    "review_integrity_complete": true
+  },
+  "read_only_verifier": {
+    "script": "scripts/verify_review_campaign.py",
+    "read_only": true,
+    "claim_or_label_written": false,
+    "event_ids_included": false,
+    "content_hashes_included": false,
+    "raw_content_included": false
+  },
+  "acceptance_regression": {
+    "scenario": "one submitted label without claim and evidence-access audit",
+    "submitted_labels": 1,
+    "verified_labels": 0,
+    "unverified_labels": 1,
+    "pilot_remaining_count": 20,
+    "pilot_completed": false,
+    "remaining_count": 200,
+    "completion_rate": 0
+  },
+  "backups": {
+    "pre_release": {
+      "archive": "20260804T064903Z_pre-p2-3-6-valid-progress_a2958ab1",
+      "valid": true,
+      "files_valid": true,
+      "audit_chain_valid": true,
+      "audit_events": 684,
+      "encrypted_evidence": 219,
+      "reviews": 0,
+      "claims": 0
+    },
+    "post_release": {
+      "archive": "20260804T065654Z_post-p2-3-6-valid-progress_1c93e697",
+      "valid": true,
+      "files_valid": true,
+      "audit_chain_valid": true,
+      "audit_events": 687,
+      "encrypted_evidence": 219,
+      "reviews": 0,
+      "claims": 0,
+      "audit_db_sha256": "abd517a90b1c2f3f7cdfa4f10bbca84b58cd5b294fffef4f375248fba7a232f8",
+      "api_keys_db_sha256": "55fae1a61d1b4ebf907cddfa0f71945a6bcc94ffbecd4bf8b63d76d53f1d512f"
+    }
+  },
+  "boundaries": [
+    "Engineering integrity gates are complete, but the human pilot remains incomplete at 0/20 and 0/200.",
+    "Only real reviewers may claim samples, view encrypted evidence, and submit labels; no labels were fabricated during verification.",
+    "Raw prompts and dangerous model outputs remain retained only in the AES-GCM evidence vault and are excluded from this artifact and ordinary logs."
+  ]
+}

@@ -1,0 +1,52 @@
+<h4>P2-3.6 有效人工复核进度硬化实测报告（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>工程结论：</b>有效标签进度门禁、操作引导、异常标签回归、只读生产核验和发布归档均已完成并上线。首批 20 条和总计 200 条里程碑现在只按“领取审计 + 加密证据访问审计 + 首次标签”完整的有效标签推进，异常标签不能抬高完成率。</p>
+</callout>
+
+<h5>一、实现与验收口径</h5>
+<ul>
+  <li>首批剩余数、总剩余数、完成率、<code>pilot_completed</code> 与 <code>target_completed</code> 全部改为按有效标签计算。</li>
+  <li>完成里程碑还要求已提交数等于有效数；存在未通过双审计的标签时，页面明确显示完整性告警。</li>
+  <li>审核页面新增“领取样本 → 查看本次加密证据 → 提交首次标签”三步说明、首批 20 条进度和有效/已提交完整性比值。</li>
+  <li>确定性回归构造 1 条缺少领取与证据访问审计的标签，结果保持有效数 0、首批剩余 20、总剩余 200、完成率 0。</li>
+</ul>
+
+<h5>二、质量门禁与生产发布</h5>
+<table>
+  <thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">实际结果</th></tr></thead>
+  <tbody>
+    <tr><td>本地门禁</td><td>Dashboard 专项 6/6；后端全量 84/84；Ruff 通过；前端 production build 成功</td></tr>
+    <tr><td>GitHub Actions</td><td>运行 <code>30885418958</code> 绿色；HEAD <code>f566e66</code></td></tr>
+    <tr><td>正式站</td><td>服务器 HEAD 与仓库一致；<code>aigc-safety.service=active</code>；HTTPS health=ok</td></tr>
+    <tr><td>就绪检查</td><td><code>status=ready</code>；13/13 passed；0 degraded；0 failed</td></tr>
+  </tbody>
+</table>
+<p><a type="url-preview" href="https://github.com/moyuan10086/aigc-safety-system/actions/runs/30885418958">GitHub Actions P2-3.6 绿色运行</a></p>
+
+<h5>三、生产人工复核真值（只读）</h5>
+<table>
+  <thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">实际值</th></tr></thead>
+  <tbody>
+    <tr><td>候选 / 待复核</td><td>200 / 200</td></tr>
+    <tr><td>当前领取</td><td>0</td></tr>
+    <tr><td>已提交 / 有效 / 异常标签</td><td>0 / 0 / 0</td></tr>
+    <tr><td>首批试标</td><td>0/20，剩余 20，未完成</td></tr>
+    <tr><td>总目标</td><td>0/200，剩余 200，未完成</td></tr>
+    <tr><td>核验副作用</td><td><code>claim_or_label_written=false</code></td></tr>
+  </tbody>
+</table>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>人工任务仍未完成：</b>工程能力完成不等于人工试标完成。当前真实进度严格保持 0/20、0/200；本次核验没有领取样本、解密证据或代替审核员提交标签。后续必须由真实审核员登录后逐条操作。</p>
+</callout>
+
+<h5>四、备份、审计与隐私</h5>
+<ul>
+  <li>发布前归档：<code>20260804T064903Z_pre-p2-3-6-valid-progress_a2958ab1</code>；发布后归档：<code>20260804T065654Z_post-p2-3-6-valid-progress_1c93e697</code>。</li>
+  <li>两份归档均为 <code>valid=true</code>、<code>files_valid=true</code>、<code>audit_chain_valid=true</code>；发布后有 687 条审计事件、219 条 AES-GCM 加密证据、0 条复核、0 条领取。</li>
+  <li>发布后哈希：<code>audit.db=abd517a90b1c2f3f7cdfa4f10bbca84b58cd5b294fffef4f375248fba7a232f8</code>；<code>api_keys.db=55fae1a61d1b4ebf907cddfa0f71945a6bcc94ffbecd4bf8b63d76d53f1d512f</code>。</li>
+  <li>只读脚本只输出聚合计数，不输出事件 ID、内容哈希、原始提示词或危险模型输出；原始内容继续只保留在 AES-GCM 加密证据库。</li>
+</ul>
+
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>docs/evidence/review-valid-progress-production-20260804.json</code>；生产只读入口为 <code>scripts/verify_review_campaign.py</code>；核心实现见 <code>backend/services/audit_log_service.py</code> 与 <code>frontend/src/components/dashboard/ShadowReviewPanel.vue</code>。</p>
+</callout>
