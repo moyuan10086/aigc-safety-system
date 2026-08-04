@@ -124,22 +124,24 @@ class ApiAccessTests(unittest.TestCase):
         self.assertEqual(payload["data"]["risk_code"], "SAFE")
 
         authenticated = api_access_service.authenticate(issued["key"])
+        initial_usage = api_access_service.usage(authenticated)
+        synthetic_latency_ms = initial_usage["totals"]["p95_latency_ms"] + 400
         api_access_service.record_usage(
             authenticated,
             operation="guardrail.check",
             status_code=500,
-            latency_ms=400,
+            latency_ms=synthetic_latency_ms,
         )
         usage = api_access_service.usage(authenticated)
         self.assertEqual(usage["tenant_id"], "tenant-a")
         self.assertEqual(usage["totals"]["requests"], 2)
         self.assertEqual(usage["totals"]["failure_rate"], 50.0)
-        self.assertEqual(usage["totals"]["p95_latency_ms"], 400)
+        self.assertEqual(usage["totals"]["p95_latency_ms"], synthetic_latency_ms)
         self.assertEqual(usage["by_operation"][0]["operation"], "guardrail.check")
         operator_usage = api_access_service.operator_usage(days=7, tenant_id="tenant-a")
         self.assertEqual(operator_usage["totals"]["tenants"], 1)
         self.assertEqual(operator_usage["totals"]["failure_rate"], 50.0)
-        self.assertEqual(operator_usage["totals"]["p95_latency_ms"], 400)
+        self.assertEqual(operator_usage["totals"]["p95_latency_ms"], synthetic_latency_ms)
         self.assertEqual(operator_usage["by_tenant"][0]["tenant_id"], "tenant-a")
         self.assertEqual(operator_usage["by_key"][0]["key_id"], issued["key_id"])
 
