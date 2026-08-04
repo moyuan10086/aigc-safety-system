@@ -27,6 +27,8 @@ class ProvenanceServiceTests(unittest.TestCase):
     def test_plain_image_is_not_found_not_non_ai(self):
         result = verify(self._write())
         self.assertEqual(result["overall_state"], "not_found")
+        self.assertTrue(result["source_evidence"]["content_credentials"]["supported"])
+        self.assertEqual(result["source_evidence"]["content_credentials"]["status"], "not_found")
         self.assertIn("不等于", result["limitations"][0])
 
     def test_valid_local_marker_confirms_source(self):

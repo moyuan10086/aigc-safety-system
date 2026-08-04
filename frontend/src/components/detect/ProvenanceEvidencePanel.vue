@@ -6,7 +6,7 @@
     </div>
     <p class="caveat" v-if="result.overall_state === 'not_found'">未发现兼容水印或来源声明，不代表该图片一定不是 AI 生成。</p>
     <div class="layers">
-      <article><b>来源证据</b><span>本地标记：{{ evidenceText(result.source_evidence.local_marker.status) }}</span><span>Content Credentials：尚未启用</span></article>
+      <article><b>来源证据</b><span>本地标记：{{ evidenceText(result.source_evidence.local_marker.status) }}</span><span>Content Credentials：{{ credentialsText }}</span></article>
       <article><b>内容检测</b><span>{{ result.content_detection.note }}</span></article>
       <article><b>审计证据</b><span>SHA-256：{{ shortHash }}</span><span>原图留存：否</span></article>
     </div>
@@ -19,6 +19,10 @@ import { computed } from 'vue'
 const props = defineProps<{ result:any }>()
 const stateText = computed(() => ({confirmed_source:'来源确认',not_found:'未发现',inconclusive:'不确定',invalid_or_tampered:'需复核'}[props.result.overall_state] || '未知'))
 const shortHash = computed(() => `${props.result.content_hash.slice(0,12)}…${props.result.content_hash.slice(-8)}`)
+const credentialsText = computed(() => {
+  const c = props.result.source_evidence?.content_credentials || {}
+  return c.status === 'valid' ? `已验证（${c.manifest_count || 0} 个 manifest）` : c.status === 'invalid_or_tampered' ? '无效或疑似篡改' : c.status === 'inconclusive' ? '证据不足' : c.supported ? '未发现' : '解析器不可用'
+})
 const evidenceText = (state:string) => ({confirmed_source:'已验证',not_found:'未发现',inconclusive:'证据不足',invalid_or_tampered:'无效'}[state] || state)
 </script>
 

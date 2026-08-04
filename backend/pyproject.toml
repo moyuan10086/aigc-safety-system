@@ -6,6 +6,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     "aiofiles>=25.1.0",
     "chromadb>=1.5.8",
+    "c2pa-python==0.37.2",
     "cryptography>=45.0.0",
     "fastapi>=0.136.0",
     "garak>=0.14.1",
