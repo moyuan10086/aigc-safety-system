@@ -17,27 +17,46 @@
 
 <h1>1. 项目总览与当前状态</h1>
 <p><b>总目标：</b>建设可真实调用模型、可解释、可追溯、可供外部系统调用并可在比赛现场稳定演示的 AIGC 安全运营台。主链路覆盖图片与非身份化人脸审核、实时大模型安全护栏、主动安全扫描、红线知识库、C2PA 来源验证、Agent 工具安全、日志取证、数据驾驶舱和开放 API；国产化路线覆盖昇腾 910C 真实推理。</p>
+<h2>1.1 全部子目标与状态</h2>
 <table>
-  <thead><tr><th background-color="light-gray">目标域</th><th background-color="light-gray">状态</th><th background-color="light-gray">验收证据</th><th background-color="light-gray">剩余工作</th></tr></thead>
+  <thead><tr><th background-color="light-gray">优先级 / 子目标</th><th background-color="light-gray">状态</th><th background-color="light-gray">验收证据</th><th background-color="light-gray">退出条件 / 剩余工作</th></tr></thead>
   <tbody>
-    <tr><td>正式站与三级界面</td><td><span text-color="green">工程完成并已截图</span></td><td>标准工作台、数据总览、大屏模式、HTTPS、systemd；2026-08-04 正式站实拍</td><td>比赛前按最终版本再补一组同机位截图</td></tr>
-    <tr><td>图片与人脸审核</td><td><span text-color="green">工程完成</span></td><td>Deepfake、MLLM、OCR/红线、逐脸质量证据、报告</td><td>继续积累公开或授权样本；不做身份识别和 embedding</td></tr>
-    <tr><td>大模型安全护栏</td><td><span text-color="green">真实模型已验证</span></td><td>输入/输出双向护栏、真实对话、规则、RAG、Qwen3Guard、SingGuard、XGBoost Shadow</td><td>扩充中文越狱、危险输出和边界样本</td></tr>
-    <tr><td>C2PA 来源验证</td><td><span text-color="green">四态生产验证</span></td><td>confirmed_source、not_found、inconclusive、invalid_or_tampered；公开有效、无凭证、未签名声明和篡改素材</td><td>继续补授权发行者素材与最终页面截图</td></tr>
-    <tr><td>日志、取证与开放 API</td><td><span text-color="green">工程完成</span></td><td>租户、scope、限流、配额、SQLite WAL、SHA-256 审计链、AES-GCM 证据库</td><td>持续轮换密钥、验证备份和积累真实调用量</td></tr>
-    <tr><td>人工试标</td><td><span text-color="blue">工程完成，真人待执行</span></td><td>200 条真实模型样本、领取租约、证据访问和首次标签审计</td><td>真实审核员完成 20/20，再累计至 200/200；当前 0/20、0/200</td></tr>
-    <tr><td>Agent 安全</td><td><span text-color="green">工程完成</span></td><td>执行前审批、一次性授权、结果复检、间接注入隔离、多步轨迹账本</td><td>继续 Promptfoo/轨迹 CI 回归</td></tr>
-    <tr><td>昇腾 910C</td><td><span text-color="yellow">通用模型验证完成</span></td><td>四卡基准、Qwen3-0.6B 四路生成、Qwen3-235B 三类分类</td><td>专用 Qwen3Guard 权重待磁盘治理和安全窗口；通用模型不冒充专用护栏</td></tr>
+    <tr><td>P0 正式站、部署与三级界面</td><td><span text-color="green">工程完成并已截图</span></td><td>HTTPS 443、systemd、标准工作台、数据总览、大屏模式；正式站 6 张实拍</td><td>比赛前按最终 commit 完成备份、全量回归、部署和同机位复拍</td></tr>
+    <tr><td>P0 大模型安全护栏</td><td><span text-color="green">真实模型已验证</span></td><td>真实生成、输入/输出双向护栏、safe/borderline/unsafe、规则、RAG、Qwen3Guard、SingGuard、XGBoost Shadow</td><td>中文安全/边界/危险回归持续通过；模型故障必须显式 inconclusive 或降级</td></tr>
+    <tr><td>P0 日志、取证与危险原文保留</td><td><span text-color="green">工程完成</span></td><td>SQLite WAL、SHA-256 审计链、AES-GCM 证据库；原始提示词和危险输出受控保留</td><td>普通日志、驾驶舱、CSV、API 和飞书保持无危险原文；备份恢复可验证</td></tr>
+    <tr><td>P0 审核员账号、操作/API 手册</td><td><span text-color="green">本轮完成</span></td><td><code>reviewer-demo</code> 生产登录；比赛操作、人工试标、开放 API、运维与测试章节；GitHub 文档</td><td>比赛前轮换审核员密码；明文密码和 API Key 不进入飞书</td></tr>
+    <tr><td>P0 人工试标与证据截图</td><td><span text-color="blue">工程完成，真人未执行</span></td><td>200 条真实模型样本、15 分钟租约、证据访问审计、首次标签锁定；领取前截图</td><td>真实审核员先完成 20/20，再完成 200/200；补领取后、证据已查看、提交后截图</td></tr>
+    <tr><td>P1 图片、Deepfake 与非身份化人脸审核</td><td><span text-color="green">工程完成</span></td><td>文件安全校验、Deepfake、MLLM、OCR/红线、逐脸质量证据、检测报告</td><td>扩充公开或授权样本与指标；不做人名识别、1:N 搜索、跨请求跟踪或 embedding 持久化</td></tr>
+    <tr><td>P1 红线知识库与主动扫描</td><td><span text-color="green">工程完成</span></td><td>敏感词、规则、来源/分类、关键词与 RAG 检索、Garak 扫描、报告链路</td><td>按比赛场景维护中文红线；Garak 保持离线/主动扫描，不进入实时链路</td></tr>
+    <tr><td>P1 Agent 工具安全</td><td><span text-color="green">工程完成</span></td><td>执行前审批、短时一次性授权、结果复检、间接注入隔离、多步轨迹账本与 v1 API</td><td>Promptfoo 轨迹回归和 GitHub Actions 持续通过</td></tr>
+    <tr><td>P1 数据驾驶舱、开放 API 与调用统计</td><td><span text-color="green">工程完成</span></td><td>租户、scope、限流、配额、IP/用户/用量、趋势/风险分布、组件化图表、刷新防抖</td><td>积累真实外部调用量；对外 Key 按最小权限签发并可撤销</td></tr>
+    <tr><td>P1 C2PA / Content Credentials</td><td><span text-color="green">四态生产验证</span></td><td>confirmed_source、not_found、inconclusive、invalid_or_tampered；未签名 marker 降级；篡改优先</td><td>补授权发行者素材与最终 UI 截图；不得把 confirmed_source 等同 AI 生成</td></tr>
+    <tr><td>P1 开源护栏融合与 CI</td><td><span text-color="green">核心融合完成</span></td><td>Qwen3Guard 通用内容专家、SingGuard Agent 专家、Garak 主动扫描、Promptfoo + Ruff + 后端测试 CI</td><td>Guardrails AI、NeMo、LLM Guard、PurpleLlama、OpenGuardrails、WildGuard 保持调研/按验证器择优引入，不整体替换现链路</td></tr>
+    <tr><td>P1 国产 GPU/NPU 适配</td><td><span text-color="yellow">GPU 专家已接入；NPU 通用模型完成</span></td><td>4090 上 Qwen3Guard/SingGuard 服务；910C 四卡基准、Qwen3-0.6B 四路生成、Qwen3-235B 三类分类</td><td>专用 Ascend 护栏权重待隔离目录、磁盘治理和安全窗口；通用 Qwen3 不冒充 Qwen3Guard</td></tr>
+    <tr><td>P2 来源水印 / Google 对齐</td><td><span text-color="yellow">对齐与调研完成，产品能力待实现</span></td><td>Google SynthID/Content Credentials 边界说明；uapis producer-code、label、embed、decode 接口研究</td><td>默认不上传用户原图到第三方；先实现显式同意、脱敏、临时文件清理和供应商失败降级，再考虑接入</td></tr>
+    <tr><td>P2 UI 一致性与演示体验</td><td><span text-color="green">主体完成，持续优化</span></td><td>浅色安全后台、图标保留、驾驶舱深色大屏、响应式布局、自定义组件和防抖刷新</td><td>比赛前按目标 UI 做桌面/移动截图回归，修复文字截断、重叠和状态误导</td></tr>
   </tbody>
 </table>
 
-<h2>当前执行顺序</h2>
+<h2>1.2 实施计划与优先级</h2>
 <ol>
-  <li seq="auto">真实审核员完成首批 20 条人工试标；领取、本人查看证据、首次标签三步必须齐全。</li>
-  <li seq="auto">由真实审核员按本手册完成“领取→本人查看证据→首次标签”，并补领取后、证据已查看、提交后 3 张截图。</li>
-  <li seq="auto">比赛前按最终版本复拍登录、C2PA、readiness 和大屏；当前登录、驾驶舱样本池、真实护栏输入输出已完成实拍。</li>
-  <li seq="auto">资源窗口具备后部署昇腾专用护栏模型，不抢占现有 NPU 任务。</li>
+  <li seq="auto"><b>P0 真人任务：</b>为每位审核员分配独立账号；先完成 20 条有效试标并核对完整性，再扩展到 200 条。每条必须满足领取人 = 证据查看人 = 首次标签人。</li>
+  <li seq="auto"><b>P0 比赛封版：</b>以最终 commit 运行 Ruff、后端全量测试、Promptfoo、前端生产构建、发布前备份与恢复验证；部署后检查 health、13/13 readiness、真实模型探针和审计链。</li>
+  <li seq="auto"><b>P0 证据封版：</b>补人工试标三阶段、C2PA 四态、设置 readiness、大屏和移动端截图；飞书只放脱敏结果、哈希、状态、模型名和延迟。</li>
+  <li seq="auto"><b>P1 评测扩充：</b>增加中文越狱、隐私泄露、工具滥用、危险输出、边界语义、Deepfake 和来源凭证样本，报告召回、误报、P95 和失败降级。</li>
+  <li seq="auto"><b>P1 国产化：</b>在明确空闲卡位与隔离目录后部署专用 Ascend 护栏；不停止现有任务、不向高水位根盘下载大权重。</li>
+  <li seq="auto"><b>P2 可选增强：</b>在隐私评审通过后实现水印/显式标识适配层；Guardrails AI、NeMo、LLM Guard 等只按可量化收益引入单个验证器。</li>
 </ol>
+
+<h2>1.3 阶段验收门槛</h2>
+<table>
+  <thead><tr><th background-color="light-gray">阶段</th><th background-color="light-gray">必须通过</th><th background-color="light-gray">不得发生</th></tr></thead>
+  <tbody>
+    <tr><td>P0 比赛可交付</td><td>正式站可用；真实模型与三态护栏正确；人工首批 20/20；文档、账号、截图、备份、部署证据齐全</td><td>mock 冒充模型、共享审核账号代标、危险原文进入飞书、截图与当前版本不一致</td></tr>
+    <tr><td>P1 工程增强</td><td>外部 API 租户隔离；红线/扫描/Agent/来源链路回归；200/200 标签；GPU/NPU 证据可复现</td><td>专家失败静默放行、Garak 进入实时请求、通用 NPU 模型冒充专用护栏</td></tr>
+    <tr><td>P2 可选能力</td><td>新增依赖有许可证、隐私、性能和失败降级评审；对比赛核心链路无回归</td><td>默认上传用户原图到第三方、把水印/C2PA/Deepfake 任一证据当绝对 AI 结论</td></tr>
+  </tbody>
+</table>
 
 <h1>2. 审核员账号与登录</h1>
 <h2>2.1 当前账号</h2>
