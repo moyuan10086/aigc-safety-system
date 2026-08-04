@@ -56,10 +56,16 @@ def _c2pa_evidence(path: Path) -> dict[str, Any]:
         ] if isinstance(assertions, list) else []
         validation_state = str(reader.get_validation_state() or "").lower()
         is_valid = bool(reader.is_valid)
-        if is_valid:
-            status = "valid"
-        elif any(token in validation_state for token in ("invalid", "error", "untrusted")):
+        validation_failed = any(
+            token in validation_state for token in ("invalid", "error", "untrusted")
+        )
+        # Some SDK/container combinations can remain structurally readable
+        # (is_valid=True) while the asset/claim binding is invalid.  A reported
+        # validation failure must take precedence over container readability.
+        if validation_failed:
             status = "invalid_or_tampered"
+        elif is_valid:
+            status = "valid"
         else:
             status = "inconclusive"
         return {
@@ -70,7 +76,7 @@ def _c2pa_evidence(path: Path) -> dict[str, Any]:
             "claim_generator": str(active.get("claim_generator"))[:160] if isinstance(active, dict) and active.get("claim_generator") else None,
             "assertion_labels": labels[:32],
             "validation_state": validation_state[:80] or None,
-            "trust_verified": is_valid,
+            "trust_verified": is_valid and not validation_failed,
             "remote_manifest_fetch": False,
             "note": "Content Credentials 提供来源与编辑历史，不单独证明内容一定由 AI 生成",
         }

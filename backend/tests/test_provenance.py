@@ -58,6 +58,21 @@ class ProvenanceServiceTests(unittest.TestCase):
         self.assertEqual(credentials["status"], "inconclusive")
         self.assertEqual(result["overall_state"], "inconclusive")
 
+    def test_tampered_c2pa_asset_is_invalid_even_when_container_is_readable(self):
+        fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-update-manifest.jpg"
+        tampered = bytearray(fixture.read_bytes())
+        self.assertGreater(len(tampered), 20_000)
+        tampered[20_000] ^= 1
+        path = self.root / "tampered-c2pa.jpg"
+        path.write_bytes(tampered)
+
+        result = verify(path)
+        credentials = result["source_evidence"]["content_credentials"]
+        self.assertEqual(credentials["validation_state"], "invalid")
+        self.assertEqual(credentials["status"], "invalid_or_tampered")
+        self.assertFalse(credentials["trust_verified"])
+        self.assertEqual(result["overall_state"], "invalid_or_tampered")
+
 
 if __name__ == "__main__":
     unittest.main()
