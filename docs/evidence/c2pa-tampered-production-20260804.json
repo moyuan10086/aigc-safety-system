@@ -1,0 +1,30 @@
+{
+  "evidence_type": "c2pa_tampered_asset_production_probe",
+  "captured_at": "2026-08-04",
+  "production_url": "https://aigc.49.51.248.227.sslip.io/api/detect/provenance",
+  "implementation_commit": "1148365",
+  "input": {
+    "source_fixture": "c2pa-rs-update-manifest.jpg",
+    "source_sha256": "c855bbce1e2ea50bfc1da939f55b7d1bce97a9afa5a0e671ed05d59dc7950b3b",
+    "mutation": "flip one bit at byte offset 20000 in a temporary copy",
+    "tampered_content_hash_prefix": "42950a8bbd2ebdf420f348332cb07983b3",
+    "temporary_copy_deleted": true,
+    "user_content_used": false
+  },
+  "result": {
+    "http_status": 200,
+    "overall_state": "invalid_or_tampered",
+    "state_label": "来源声明无效或疑似篡改",
+    "validation_state": "invalid",
+    "trust_verified": false,
+    "raw_image_retained": false
+  },
+  "regression": {
+    "backend_tests": 101,
+    "ruff": "passed",
+    "frontend_build": "passed",
+    "test": "test_tampered_c2pa_asset_is_invalid_even_when_container_is_readable"
+  },
+  "fixed_failure_mode": "SDK container readability/is_valid must not override validation_state=invalid",
+  "operator_action": "raise risk and require human review; do not present the source as verified"
+}
