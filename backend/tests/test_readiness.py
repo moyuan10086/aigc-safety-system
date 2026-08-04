@@ -68,6 +68,7 @@ class ReadinessTests(unittest.TestCase):
             readiness_service,
             FRONTEND_INDEX=self.frontend_index,
             BUNDLED_LEXICON=self.lexicon,
+            DEEPFAKE_WEIGHTS=self.deepfake,
         )
         self.path_patch.start()
         self.face_patch = patch.object(
@@ -136,6 +137,14 @@ class ReadinessTests(unittest.TestCase):
             ],
             "ready",
         )
+
+    def test_deepfake_check_uses_the_weight_loaded_by_the_real_service(self):
+        with patch.object(config, "DEEPFAKE_MODEL_PATH", "obsolete/model.torchscript"):
+            result = readiness_service.snapshot(refresh=True)
+        deepfake = next(
+            item for item in result["checks"] if item["id"] == "deepfake_model"
+        )
+        self.assertEqual(deepfake["status"], "pass")
 
     def test_required_failure_is_not_ready(self):
         with patch.object(audit_log_service, "verify_chain", return_value=False):

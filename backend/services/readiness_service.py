@@ -17,6 +17,7 @@ BACKEND_DIR = Path(__file__).parents[1]
 PROJECT_DIR = BACKEND_DIR.parent
 FRONTEND_INDEX = PROJECT_DIR / "frontend" / "dist" / "index.html"
 BUNDLED_LEXICON = BACKEND_DIR / "Sensitive-lexicon" / "Vocabulary"
+DEEPFAKE_WEIGHTS = PROJECT_DIR / "deepfake-detection" / "weights" / "model.ckpt"
 PASSIVE_CACHE_SECONDS = 5.0
 PROBE_CACHE_SECONDS = 30.0
 PROBE_PROMPT = "这是比赛演示运行自检。请只回答 READY。"
@@ -105,7 +106,7 @@ def _passive_checks() -> list[dict[str, Any]]:
         and config.CHAT_MODEL_NAME
     )
     mllm_ready = bool(config.MLLM_API_KEY and config.MLLM_BASE_URL and config.MLLM_MODEL)
-    deepfake_ready = _exists(config.DEEPFAKE_MODEL_PATH)
+    deepfake_ready = DEEPFAKE_WEIGHTS.is_file() or _exists(config.DEEPFAKE_MODEL_PATH)
     face_ready = _face_detector_available()
 
     qwen_enabled = config.GUARDRAIL_ENABLE_QWEN_CLASSIFIER
