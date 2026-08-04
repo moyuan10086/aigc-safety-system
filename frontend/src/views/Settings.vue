@@ -198,9 +198,13 @@ const probeSummary = computed(() => {
   if (!user.value) return '登录审核员后可执行；探测会真实调用生成模型并经过输入、输出护栏。'
   if (!probeResult.value) return '尚未执行主动探测。'
   const item = probeResult.value
-  if (item.status === 'ready') return `${item.model} · ${item.latency_ms ?? 0}ms · 输入 ${item.input_verdict} / 输出 ${item.output_verdict}${item.cached ? ' · 缓存结果' : ''}`
+  if (item.status === 'ready') {
+    const recovery = item.recovered_after_retry ? ` · 第 ${item.attempts} 次尝试恢复` : ''
+    return `${item.model} · ${item.latency_ms ?? 0}ms · 输入 ${item.input_verdict} / 输出 ${item.output_verdict}${recovery}${item.cached ? ' · 缓存结果' : ''}`
+  }
   if (item.status === 'not_configured') return '生成模型未配置。'
-  return `模型链路探测失败${item.error_code ? ` · ${item.error_code}` : ''}`
+  const attempts = item.attempts ? ` · 已尝试 ${item.attempts}/${item.max_attempts || item.attempts} 次` : ''
+  return `模型链路探测失败${attempts}${item.error_code ? ` · ${item.error_code}` : ''}`
 })
 
 function scenarioStatusLabel(status: string) { return ({ ready:'就绪', degraded:'降级', not_ready:'不可用' } as Record<string,string>)[status] || status }

@@ -65,11 +65,15 @@ async def probe_model_readiness(request: Request):
             "status": result["status"],
             "cached": result["cached"],
             "model_called": result["model_called"],
+            "attempts": result.get("attempts"),
+            "max_attempts": result.get("max_attempts"),
+            "recovered_after_retry": result.get("recovered_after_retry"),
             "model": result.get("model"),
             "latency_ms": result.get("latency_ms"),
             "input_verdict": result.get("input_verdict"),
             "output_verdict": result.get("output_verdict"),
             "output_sha256": result.get("output_sha256"),
+            "error_code": result.get("error_code"),
         },
     )
     if evidence:

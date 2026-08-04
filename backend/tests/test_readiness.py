@@ -90,6 +90,39 @@ class ReadinessTests(unittest.TestCase):
         self.config_patch.stop()
         self.temp_dir.cleanup()
 
+    def _successful_guarded_run(self, prompt, max_tokens=None, evidence_capture=None):
+        self.assertEqual(prompt, readiness_service.PROBE_PROMPT)
+        self.assertEqual(max_tokens, 32)
+        evidence_capture["model_output"] = "READY"
+        components = {
+            "rules": "ok",
+            "rag": "ok",
+            "mllm": "disabled",
+            "qwen3guard": "ok",
+            "singguard": "ok",
+            "xgboost_shadow": "disabled",
+        }
+        return {
+            "status": "completed",
+            "model_called": True,
+            "response": "READY",
+            "quarantined": False,
+            "input_guard": {
+                "verdict": "safe",
+                "engine": {"components": components},
+            },
+            "output_guard": {
+                "verdict": "safe",
+                "engine": {"components": components},
+            },
+            "final_guard": {"verdict": "safe"},
+            "generation": {
+                "called": True,
+                "model": "competition-chat",
+                "latency_ms": 12.5,
+            },
+        }
+
     def test_passive_snapshot_is_ready_and_exposes_only_safe_metadata(self):
         result = readiness_service.snapshot(refresh=True)
         self.assertEqual(result["status"], "ready")
@@ -167,40 +200,11 @@ class ReadinessTests(unittest.TestCase):
         token = auth_service.create_session(auth_service.current_user())
         self.client.cookies.set("aigc_operator_session", token)
 
-        def guarded_run(prompt, max_tokens=None, evidence_capture=None):
-            self.assertEqual(prompt, readiness_service.PROBE_PROMPT)
-            self.assertEqual(max_tokens, 32)
-            evidence_capture["model_output"] = "READY"
-            components = {
-                "rules": "ok",
-                "rag": "ok",
-                "mllm": "disabled",
-                "qwen3guard": "ok",
-                "singguard": "ok",
-                "xgboost_shadow": "disabled",
-            }
-            return {
-                "status": "completed",
-                "model_called": True,
-                "response": "READY",
-                "quarantined": False,
-                "input_guard": {
-                    "verdict": "safe",
-                    "engine": {"components": components},
-                },
-                "output_guard": {
-                    "verdict": "safe",
-                    "engine": {"components": components},
-                },
-                "final_guard": {"verdict": "safe"},
-                "generation": {
-                    "called": True,
-                    "model": "competition-chat",
-                    "latency_ms": 12.5,
-                },
-            }
-
-        with patch.object(guarded_chat_service, "run", side_effect=guarded_run) as run:
+        with patch.object(
+            guarded_chat_service,
+            "run",
+            side_effect=self._successful_guarded_run,
+        ) as run:
             first = self.client.post("/api/system/readiness/probe")
             second = self.client.post("/api/system/readiness/probe")
         self.assertEqual(first.status_code, 200)
@@ -209,6 +213,9 @@ class ReadinessTests(unittest.TestCase):
         data = first.json()
         self.assertEqual(data["status"], "ready")
         self.assertTrue(data["model_called"])
+        self.assertEqual(data["attempts"], 1)
+        self.assertEqual(data["max_attempts"], 2)
+        self.assertFalse(data["recovered_after_retry"])
         self.assertEqual(data["input_verdict"], "safe")
         self.assertEqual(data["output_verdict"], "safe")
         self.assertEqual(
@@ -222,6 +229,49 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(evidence["prompt"], readiness_service.PROBE_PROMPT)
         self.assertEqual(evidence["response"], "READY")
         self.assertTrue(audit_log_service.verify_chain())
+
+    def test_active_probe_recovers_from_one_transient_gateway_failure(self):
+        calls = 0
+
+        def flaky_run(prompt, max_tokens=None, evidence_capture=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise guarded_chat_service.ModelGatewayError("temporary outage")
+            return self._successful_guarded_run(prompt, max_tokens, evidence_capture)
+
+        with patch.object(
+            guarded_chat_service, "run", side_effect=flaky_run
+        ) as run, patch.object(readiness_service.time, "sleep") as sleep:
+            result, evidence = readiness_service.active_model_probe()
+
+        self.assertEqual(result["status"], "ready")
+        self.assertTrue(result["model_called"])
+        self.assertEqual(result["attempts"], 2)
+        self.assertEqual(result["max_attempts"], 2)
+        self.assertTrue(result["recovered_after_retry"])
+        self.assertEqual(evidence["response"], "READY")
+        self.assertEqual(run.call_count, 2)
+        sleep.assert_called_once_with(readiness_service.PROBE_RETRY_DELAY_SECONDS)
+
+    def test_active_probe_reports_safe_failure_after_bounded_retries(self):
+        secret_error = "https://secret-gateway.invalid/token/private"
+        with patch.object(
+            guarded_chat_service,
+            "run",
+            side_effect=guarded_chat_service.ModelGatewayError(secret_error),
+        ) as run, patch.object(readiness_service.time, "sleep") as sleep:
+            result, evidence = readiness_service.active_model_probe()
+
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(result["model_called"])
+        self.assertEqual(result["attempts"], 2)
+        self.assertEqual(result["error_code"], "model_gateway_unavailable")
+        self.assertFalse(result["recovered_after_retry"])
+        self.assertEqual(evidence["response"], "")
+        self.assertEqual(run.call_count, 2)
+        sleep.assert_called_once_with(readiness_service.PROBE_RETRY_DELAY_SECONDS)
+        self.assertNotIn(secret_error, json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":

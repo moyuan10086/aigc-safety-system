@@ -20,6 +20,8 @@ BUNDLED_LEXICON = BACKEND_DIR / "Sensitive-lexicon" / "Vocabulary"
 DEEPFAKE_WEIGHTS = PROJECT_DIR / "deepfake-detection" / "weights" / "model.ckpt"
 PASSIVE_CACHE_SECONDS = 5.0
 PROBE_CACHE_SECONDS = 30.0
+PROBE_MAX_ATTEMPTS = 2
+PROBE_RETRY_DELAY_SECONDS = 0.5
 PROBE_PROMPT = "这是比赛演示运行自检。请只回答 READY。"
 
 _PASSIVE_LOCK = threading.Lock()
@@ -335,12 +337,22 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
             result["cached"] = True
             return result, None
         evidence: dict[str, str] = {}
+        attempts = 0
         try:
-            guarded = guarded_chat_service.run(
-                PROBE_PROMPT,
-                max_tokens=32,
-                evidence_capture=evidence,
-            )
+            while attempts < PROBE_MAX_ATTEMPTS:
+                attempts += 1
+                evidence = {}
+                try:
+                    guarded = guarded_chat_service.run(
+                        PROBE_PROMPT,
+                        max_tokens=32,
+                        evidence_capture=evidence,
+                    )
+                    break
+                except guarded_chat_service.ModelGatewayError:
+                    if attempts >= PROBE_MAX_ATTEMPTS:
+                        raise
+                    time.sleep(PROBE_RETRY_DELAY_SECONDS)
             generation = guarded.get("generation") or {}
             input_guard = guarded.get("input_guard") or {}
             output_guard = guarded.get("output_guard") or {}
@@ -360,6 +372,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "checked_at": _utc_now(),
                 "cached": False,
                 "model_called": model_called,
+                "attempts": attempts,
+                "max_attempts": PROBE_MAX_ATTEMPTS,
+                "recovered_after_retry": attempts > 1,
                 "model": _public_model_name(
                     str(generation.get("model") or config.CHAT_MODEL_NAME)
                 ),
@@ -387,8 +402,30 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "checked_at": _utc_now(),
                 "cached": False,
                 "model_called": False,
+                "attempts": attempts,
+                "max_attempts": PROBE_MAX_ATTEMPTS,
+                "recovered_after_retry": False,
                 "model": _public_model_name(config.CHAT_MODEL_NAME),
                 "error_code": "model_not_configured",
+                "evidence_captured": False,
+                "privacy": {
+                    "secrets_exposed": False,
+                    "paths_exposed": False,
+                    "raw_content_included": False,
+                },
+            }
+            captured = {"prompt": PROBE_PROMPT, "response": ""}
+        except guarded_chat_service.ModelGatewayError:
+            public = {
+                "status": "failed",
+                "checked_at": _utc_now(),
+                "cached": False,
+                "model_called": False,
+                "attempts": attempts,
+                "max_attempts": PROBE_MAX_ATTEMPTS,
+                "recovered_after_retry": False,
+                "model": _public_model_name(config.CHAT_MODEL_NAME),
+                "error_code": "model_gateway_unavailable",
                 "evidence_captured": False,
                 "privacy": {
                     "secrets_exposed": False,
@@ -403,6 +440,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "checked_at": _utc_now(),
                 "cached": False,
                 "model_called": False,
+                "attempts": attempts,
+                "max_attempts": PROBE_MAX_ATTEMPTS,
+                "recovered_after_retry": False,
                 "model": _public_model_name(config.CHAT_MODEL_NAME),
                 "error_code": "model_probe_failed",
                 "evidence_captured": False,
