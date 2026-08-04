@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "measured_at": "2026-08-04T07:20:47.683578Z",
+  "physical_card": 2,
+  "visible_device": "npu:0",
+  "device_name": "Ascend910_9382",
+  "model": "Qwen3-0.6B",
+  "model_path": "/model",
+  "dtype": "bfloat16",
+  "python": "3.11.14",
+  "torch": "2.9.0+cpu",
+  "torch_npu": "2.9.0.post1+gitee7ba04",
+  "transformers": "4.57.6",
+  "load_seconds": 1.279237,
+  "prompt": "请用两句话说明大模型安全护栏在输入和输出阶段分别起什么作用。",
+  "input_tokens": 31,
+  "response": "大模型安全护栏在输入阶段用于过滤不合规或潜在风险的输入数据，确保输入内容符合安全规范；在输出阶段则用于生成符合安全标准的输出内容，保障输出质量与合规性。",
+  "repetitions": 3,
+  "max_new_tokens": 64,
+  "total_generated_tokens": 138,
+  "total_generation_seconds": 4.959332,
+  "average_tokens_per_second": 27.826,
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 1.713106,
+      "generated_tokens": 46,
+      "tokens_per_second": 26.852,
+      "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+    },
+    {
+      "run": 2,
+      "seconds": 1.585036,
+      "generated_tokens": 46,
+      "tokens_per_second": 29.021,
+      "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+    },
+    {
+      "run": 3,
+      "seconds": 1.66119,
+      "generated_tokens": 46,
+      "tokens_per_second": 27.691,
+      "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+    }
+  ]
+}

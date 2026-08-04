@@ -1,0 +1,44 @@
+<h4>国产昇腾四卡预训练模型真实推理报告（2026-08-04）</h4>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>已在昇腾服务器物理卡 2、3、4、5 上同时运行四路 Qwen3-0.6B BF16 真实中文生成推理。四路输入输出全部成功，生成 501 token；端到端耗时 35.296 秒、聚合 14.194 token/s（包含容器启动、模型加载、预热和推理），稳态每卡生成均值 27.519 token/s。</p>
+</callout>
+
+<h5>一、实验环境与隔离边界</h5>
+<ul>
+  <li>设备：<code>Ascend910_9382</code>，物理卡 2/3/4/5，每个容器只映射一张卡并在容器内显示为 <code>npu:0</code>。</li>
+  <li>运行时：Python 3.11.14、torch 2.9.0、torch-npu 2.9.0、Transformers 4.57.6、BF16。</li>
+  <li>模型：服务器模型盘中已存在的 Qwen3-0.6B，权重以只读方式挂载；模型文件 SHA-256 为 <code>f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b</code>。</li>
+  <li>容器：服务器已存在的 <code>quay.io/ascend/vllm-ascend:v0.18.0-a3</code>；没有下载新权重或镜像，没有向 94% 使用率的根盘写入模型。</li>
+  <li>既有任务保护：卡 0 的 RAG 任务、卡 8–15 的 8 卡 vLLM 均未停止或抢占；实验结束后容器全部清理，卡 2–5 回到原有低占用状态。</li>
+</ul>
+
+<h5>二、四卡真实输入输出</h5>
+<table>
+  <thead><tr><th background-color="light-gray">物理卡</th><th background-color="light-gray">真实输入</th><th background-color="light-gray">真实输出</th><th background-color="light-gray">稳态速度</th></tr></thead>
+  <tbody>
+    <tr><td>2</td><td>请用两句话说明大模型安全护栏在输入和输出阶段分别起什么作用。</td><td>大模型安全护栏在输入阶段用于过滤不合规或潜在风险的输入数据，确保输入内容符合安全规范；在输出阶段则用于生成符合安全标准的输出内容，保障输出质量与合规性。</td><td>27.826 token/s</td></tr>
+    <tr><td>3</td><td>请列出 AIGC 图片审核中需要重点关注的两类安全风险，并简述原因。</td><td>模型给出内容违规风险等分项回答；受 64 token 上限约束，本条输出在第二类展开前截断，原始输出已完整留存。</td><td>29.594 token/s</td></tr>
+    <tr><td>4</td><td>为什么安全审核系统需要保留加密审计证据？请用简洁中文回答。</td><td>安全审核系统需要保留加密审计证据，以确保审计过程的完整性和合规性，防止信息泄露或篡改。</td><td>25.620 token/s</td></tr>
+    <tr><td>5</td><td>请用一句话说明在国产昇腾 NPU 上部署 AI 安全模型的工程价值。</td><td>在国产昇腾 NPU 上部署 AI 安全模型能够提升 AI 安全防护能力，保障关键系统数据安全与合规性。</td><td>27.034 token/s</td></tr>
+  </tbody>
+</table>
+
+<h5>三、指标口径</h5>
+<table>
+  <thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">结果</th><th background-color="light-gray">口径</th></tr></thead>
+  <tbody>
+    <tr><td>四卡端到端 wall time</td><td>35.296 秒</td><td>同时启动四容器，包含容器启动、模型加载、预热、三轮生成和结果收集前的等待</td></tr>
+    <tr><td>总生成 token</td><td>501</td><td>四张卡各自三轮确定性生成之和</td></tr>
+    <tr><td>端到端聚合吞吐</td><td>14.194 token/s</td><td>501 / 35.296，不能与纯稳态服务吞吐混淆</td></tr>
+    <tr><td>稳态每卡均值</td><td>27.519 token/s</td><td>排除模型加载与预热后，四卡各自三轮生成速度的算术均值</td></tr>
+    <tr><td>模型加载</td><td>1.219–1.301 秒/卡</td><td>从本地模型盘加载 Qwen3-0.6B 到单卡 NPU</td></tr>
+  </tbody>
+</table>
+
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>能力边界：</b>Qwen3-0.6B 是预训练生成模型，不是 Qwen3Guard 安全分类器。本实验验证的是国产 NPU 上预训练模型的真实加载、中文生成和四卡并发工程路径，不能据此宣称 Qwen3Guard 风险分类准确率或护栏效果。专用护栏模型仍需在已有兼容权重可用时另做安全数据集评测。</p>
+</callout>
+
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>可复现证据：</b><code>scripts/npu_qwen_inference_benchmark.py</code>、<code>scripts/run_npu_qwen_four_card.sh</code> 与 <code>docs/evidence/qwen-four-card-concurrent-20260804/manifest.json</code>；原始四卡 JSON 均附 SHA-256。manifest SHA-256：<code>2ce26d3b00832e12d32ff1a1ddba1747a9edccab04b11720870183ee246ed84b</code>。</p>
+</callout>

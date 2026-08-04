@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0",
+  "experiment": "Qwen3-0.6B four-card concurrent generation on Ascend NPU",
+  "physical_cards": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "model": "Qwen3-0.6B",
+  "model_source": "/mnt/model/Qwen3-0.6B (pre-existing, read-only mount)",
+  "model_artifacts": {
+    "model.safetensors_sha256": "f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b",
+    "config.json_sha256": "660db3b73d788119c04535e48cf9be5f55bc3100841a718637ae695b442f27dd",
+    "tokenizer.json_sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+  },
+  "container_image": "quay.io/ascend/vllm-ascend:v0.18.0-a3 (pre-existing)",
+  "wall_seconds_including_container_start_load_warmup": 35.296189,
+  "total_generated_tokens": 501,
+  "end_to_end_aggregate_tokens_per_second": 14.194,
+  "mean_steady_generation_tokens_per_second_per_card": 27.519,
+  "cards": [
+    {
+      "schema_version": "1.0",
+      "measured_at": "2026-08-04T07:20:47.683578Z",
+      "physical_card": 2,
+      "visible_device": "npu:0",
+      "device_name": "Ascend910_9382",
+      "model": "Qwen3-0.6B",
+      "model_path": "/model",
+      "dtype": "bfloat16",
+      "python": "3.11.14",
+      "torch": "2.9.0+cpu",
+      "torch_npu": "2.9.0.post1+gitee7ba04",
+      "transformers": "4.57.6",
+      "load_seconds": 1.279237,
+      "prompt": "请用两句话说明大模型安全护栏在输入和输出阶段分别起什么作用。",
+      "input_tokens": 31,
+      "response": "大模型安全护栏在输入阶段用于过滤不合规或潜在风险的输入数据，确保输入内容符合安全规范；在输出阶段则用于生成符合安全标准的输出内容，保障输出质量与合规性。",
+      "repetitions": 3,
+      "max_new_tokens": 64,
+      "total_generated_tokens": 138,
+      "total_generation_seconds": 4.959332,
+      "average_tokens_per_second": 27.826,
+      "runs": [
+        {
+          "run": 1,
+          "seconds": 1.713106,
+          "generated_tokens": 46,
+          "tokens_per_second": 26.852,
+          "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+        },
+        {
+          "run": 2,
+          "seconds": 1.585036,
+          "generated_tokens": 46,
+          "tokens_per_second": 29.021,
+          "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+        },
+        {
+          "run": 3,
+          "seconds": 1.66119,
+          "generated_tokens": 46,
+          "tokens_per_second": 27.691,
+          "response_sha256": "921923d67d42bb6da2735c9f30930e1f2739715626f95522413c300810a7af15"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "measured_at": "2026-08-04T07:20:49.908486Z",
+      "physical_card": 3,
+      "visible_device": "npu:0",
+      "device_name": "Ascend910_9382",
+      "model": "Qwen3-0.6B",
+      "model_path": "/model",
+      "dtype": "bfloat16",
+      "python": "3.11.14",
+      "torch": "2.9.0+cpu",
+      "torch_npu": "2.9.0.post1+gitee7ba04",
+      "transformers": "4.57.6",
+      "load_seconds": 1.219126,
+      "prompt": "请列出 AIGC 图片审核中需要重点关注的两类安全风险，并简述原因。",
+      "input_tokens": 32,
+      "response": "在AIGC（人工智能生成内容）图片审核中，需要重点关注两类安全风险，并简述原因如下：\n\n### 1. **内容违规风险**\n   - **原因**：AIGC生成的内容可能包含违法、不道德、侵犯他人隐私或违反法律法规的内容。例如，涉及色情、",
+      "repetitions": 3,
+      "max_new_tokens": 64,
+      "total_generated_tokens": 192,
+      "total_generation_seconds": 6.487842,
+      "average_tokens_per_second": 29.594,
+      "runs": [
+        {
+          "run": 1,
+          "seconds": 2.101446,
+          "generated_tokens": 64,
+          "tokens_per_second": 30.455,
+          "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+        },
+        {
+          "run": 2,
+          "seconds": 2.193946,
+          "generated_tokens": 64,
+          "tokens_per_second": 29.171,
+          "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+        },
+        {
+          "run": 3,
+          "seconds": 2.19245,
+          "generated_tokens": 64,
+          "tokens_per_second": 29.191,
+          "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "measured_at": "2026-08-04T07:20:46.925064Z",
+      "physical_card": 4,
+      "visible_device": "npu:0",
+      "device_name": "Ascend910_9382",
+      "model": "Qwen3-0.6B",
+      "model_path": "/model",
+      "dtype": "bfloat16",
+      "python": "3.11.14",
+      "torch": "2.9.0+cpu",
+      "torch_npu": "2.9.0.post1+gitee7ba04",
+      "transformers": "4.57.6",
+      "load_seconds": 1.30103,
+      "prompt": "为什么安全审核系统需要保留加密审计证据？请用简洁中文回答。",
+      "input_tokens": 28,
+      "response": "安全审核系统需要保留加密审计证据，以确保审计过程的完整性和合规性，防止信息泄露或篡改。",
+      "repetitions": 3,
+      "max_new_tokens": 64,
+      "total_generated_tokens": 81,
+      "total_generation_seconds": 3.161646,
+      "average_tokens_per_second": 25.62,
+      "runs": [
+        {
+          "run": 1,
+          "seconds": 1.016906,
+          "generated_tokens": 27,
+          "tokens_per_second": 26.551,
+          "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+        },
+        {
+          "run": 2,
+          "seconds": 1.016348,
+          "generated_tokens": 27,
+          "tokens_per_second": 26.566,
+          "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+        },
+        {
+          "run": 3,
+          "seconds": 1.128392,
+          "generated_tokens": 27,
+          "tokens_per_second": 23.928,
+          "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "measured_at": "2026-08-04T07:20:47.490671Z",
+      "physical_card": 5,
+      "visible_device": "npu:0",
+      "device_name": "Ascend910_9382",
+      "model": "Qwen3-0.6B",
+      "model_path": "/model",
+      "dtype": "bfloat16",
+      "python": "3.11.14",
+      "torch": "2.9.0+cpu",
+      "torch_npu": "2.9.0.post1+gitee7ba04",
+      "transformers": "4.57.6",
+      "load_seconds": 1.20994,
+      "prompt": "请用一句话说明在国产昇腾 NPU 上部署 AI 安全模型的工程价值。",
+      "input_tokens": 33,
+      "response": "在国产昇腾 NPU 上部署 AI 安全模型能够提升AI安全防护能力，保障关键系统数据安全与合规性。",
+      "repetitions": 3,
+      "max_new_tokens": 64,
+      "total_generated_tokens": 90,
+      "total_generation_seconds": 3.32918,
+      "average_tokens_per_second": 27.034,
+      "runs": [
+        {
+          "run": 1,
+          "seconds": 1.096422,
+          "generated_tokens": 30,
+          "tokens_per_second": 27.362,
+          "response_sha256": "bcb858f7f226c18912beac2271257b19bcac5e59adac20b168648f8096b0b4fe"
+        },
+        {
+          "run": 2,
+          "seconds": 1.109933,
+          "generated_tokens": 30,
+          "tokens_per_second": 27.029,
+          "response_sha256": "bcb858f7f226c18912beac2271257b19bcac5e59adac20b168648f8096b0b4fe"
+        },
+        {
+          "run": 3,
+          "seconds": 1.122825,
+          "generated_tokens": 30,
+          "tokens_per_second": 26.718,
+          "response_sha256": "bcb858f7f226c18912beac2271257b19bcac5e59adac20b168648f8096b0b4fe"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "card2.json",
+      "sha256": "6cc5be5f03064d62ddfd4de96f81c4b07ec222102be879afbdfa7fea368d7d46",
+      "size": 1566
+    },
+    {
+      "name": "card3.json",
+      "sha256": "f818e2d874d7c10419a13cf572dd3180404928d3b06bb2541ebed38836ad17b5",
+      "size": 1636
+    },
+    {
+      "name": "card4.json",
+      "sha256": "2dc98a66e51dd65f39b39246b9025fe5c1c6789196d179f70a0d1253d2689fb1",
+      "size": 1462
+    },
+    {
+      "name": "card5.json",
+      "sha256": "af73082f3f64f12f7910686aae87edc72e3a7b0903b97114745f48c4532d5fd5",
+      "size": 1455
+    }
+  ],
+  "boundaries": [
+    "The end-to-end metric includes container startup, model loading, warm-up, and generation.",
+    "Per-card generation metrics exclude model loading and warm-up but include three deterministic generation runs.",
+    "Qwen3-0.6B is a pretrained generation model, not the Qwen3Guard safety classifier.",
+    "No existing workload was stopped or preempted; model weights and image were already present."
+  ]
+}

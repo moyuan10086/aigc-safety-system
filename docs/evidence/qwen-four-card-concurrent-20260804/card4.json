@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "measured_at": "2026-08-04T07:20:46.925064Z",
+  "physical_card": 4,
+  "visible_device": "npu:0",
+  "device_name": "Ascend910_9382",
+  "model": "Qwen3-0.6B",
+  "model_path": "/model",
+  "dtype": "bfloat16",
+  "python": "3.11.14",
+  "torch": "2.9.0+cpu",
+  "torch_npu": "2.9.0.post1+gitee7ba04",
+  "transformers": "4.57.6",
+  "load_seconds": 1.30103,
+  "prompt": "为什么安全审核系统需要保留加密审计证据？请用简洁中文回答。",
+  "input_tokens": 28,
+  "response": "安全审核系统需要保留加密审计证据，以确保审计过程的完整性和合规性，防止信息泄露或篡改。",
+  "repetitions": 3,
+  "max_new_tokens": 64,
+  "total_generated_tokens": 81,
+  "total_generation_seconds": 3.161646,
+  "average_tokens_per_second": 25.62,
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 1.016906,
+      "generated_tokens": 27,
+      "tokens_per_second": 26.551,
+      "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+    },
+    {
+      "run": 2,
+      "seconds": 1.016348,
+      "generated_tokens": 27,
+      "tokens_per_second": 26.566,
+      "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+    },
+    {
+      "run": 3,
+      "seconds": 1.128392,
+      "generated_tokens": 27,
+      "tokens_per_second": 23.928,
+      "response_sha256": "fad3cc439574afafc9f565c318a4551795333bb459ecb7082502f1b6e40c6bd4"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "measured_at": "2026-08-04T07:20:49.908486Z",
+  "physical_card": 3,
+  "visible_device": "npu:0",
+  "device_name": "Ascend910_9382",
+  "model": "Qwen3-0.6B",
+  "model_path": "/model",
+  "dtype": "bfloat16",
+  "python": "3.11.14",
+  "torch": "2.9.0+cpu",
+  "torch_npu": "2.9.0.post1+gitee7ba04",
+  "transformers": "4.57.6",
+  "load_seconds": 1.219126,
+  "prompt": "请列出 AIGC 图片审核中需要重点关注的两类安全风险，并简述原因。",
+  "input_tokens": 32,
+  "response": "在AIGC（人工智能生成内容）图片审核中，需要重点关注两类安全风险，并简述原因如下：\n\n### 1. **内容违规风险**\n   - **原因**：AIGC生成的内容可能包含违法、不道德、侵犯他人隐私或违反法律法规的内容。例如，涉及色情、",
+  "repetitions": 3,
+  "max_new_tokens": 64,
+  "total_generated_tokens": 192,
+  "total_generation_seconds": 6.487842,
+  "average_tokens_per_second": 29.594,
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 2.101446,
+      "generated_tokens": 64,
+      "tokens_per_second": 30.455,
+      "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+    },
+    {
+      "run": 2,
+      "seconds": 2.193946,
+      "generated_tokens": 64,
+      "tokens_per_second": 29.171,
+      "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+    },
+    {
+      "run": 3,
+      "seconds": 2.19245,
+      "generated_tokens": 64,
+      "tokens_per_second": 29.191,
+      "response_sha256": "1c65bf6175eb8ab234cc2e845ac4411f69c53fde5ee114d6eccf4f71f8e20b82"
+    }
+  ]
+}
