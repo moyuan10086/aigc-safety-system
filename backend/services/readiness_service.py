@@ -322,6 +322,12 @@ def _expert_summary(guard: dict[str, Any] | None) -> dict[str, str]:
     return {name: str(components.get(name, "not_run"))[:32] for name in allowed}
 
 
+def _inconclusive_components(guard: dict[str, Any] | None) -> list[str]:
+    """Expose only component names that could not produce a reliable result."""
+    values = ((guard or {}).get("engine") or {}).get("inconclusive_components") or []
+    return [str(value)[:40] for value in values if str(value).strip()][:16]
+
+
 def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
     """Run one real guarded generation and return only a metadata-safe result."""
     global _PROBE_CACHE
@@ -388,6 +394,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 else None,
                 "input_experts": _expert_summary(input_guard),
                 "output_experts": _expert_summary(output_guard),
+                "input_inconclusive_components": _inconclusive_components(input_guard),
+                "output_inconclusive_components": _inconclusive_components(output_guard),
+                "final_inconclusive_components": _inconclusive_components(final_guard),
                 "evidence_captured": bool(raw_output),
                 "privacy": {
                     "secrets_exposed": False,
@@ -407,6 +416,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "recovered_after_retry": False,
                 "model": _public_model_name(config.CHAT_MODEL_NAME),
                 "error_code": "model_not_configured",
+                "input_inconclusive_components": [],
+                "output_inconclusive_components": [],
+                "final_inconclusive_components": [],
                 "evidence_captured": False,
                 "privacy": {
                     "secrets_exposed": False,
@@ -426,6 +438,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "recovered_after_retry": False,
                 "model": _public_model_name(config.CHAT_MODEL_NAME),
                 "error_code": "model_gateway_unavailable",
+                "input_inconclusive_components": [],
+                "output_inconclusive_components": [],
+                "final_inconclusive_components": [],
                 "evidence_captured": False,
                 "privacy": {
                     "secrets_exposed": False,
@@ -445,6 +460,9 @@ def active_model_probe() -> tuple[dict[str, Any], dict[str, str] | None]:
                 "recovered_after_retry": False,
                 "model": _public_model_name(config.CHAT_MODEL_NAME),
                 "error_code": "model_probe_failed",
+                "input_inconclusive_components": [],
+                "output_inconclusive_components": [],
+                "final_inconclusive_components": [],
                 "evidence_captured": False,
                 "privacy": {
                     "secrets_exposed": False,

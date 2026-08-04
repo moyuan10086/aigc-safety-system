@@ -73,6 +73,13 @@ async def probe_model_readiness(request: Request):
             "input_verdict": result.get("input_verdict"),
             "output_verdict": result.get("output_verdict"),
             "output_sha256": result.get("output_sha256"),
+            "input_experts": result.get("input_experts", {}),
+            "output_experts": result.get("output_experts", {}),
+            "inconclusive_components": {
+                "input": result.get("input_inconclusive_components", []),
+                "output": result.get("output_inconclusive_components", []),
+                "final": result.get("final_inconclusive_components", []),
+            },
             "error_code": result.get("error_code"),
         },
     )

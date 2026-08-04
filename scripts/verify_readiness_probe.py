@@ -78,6 +78,7 @@ def main() -> int:
                         "max_attempts": metadata.get("max_attempts"),
                         "recovered_after_retry": metadata.get("recovered_after_retry"),
                         "error_code": metadata.get("error_code"),
+                        "inconclusive_components": metadata.get("inconclusive_components", []),
                     },
                 },
             },
