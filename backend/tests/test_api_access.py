@@ -202,6 +202,30 @@ class ApiAccessTests(unittest.TestCase):
         config.API_KEY_HASH_PREVIOUS_SECRET = ""
         self.assertEqual(api_access_service.authenticate(issued["key"])["key_id"], issued["key_id"])
 
+    def test_provenance_external_api_requires_scope_and_returns_safe_summary(self):
+        fixture = Path(__file__).parents[2] / "docs" / "evidence" / "c2pa-fixtures" / "c2pa-rs-update-manifest.jpg"
+        denied = self._issue(scopes=["usage:read"])
+        response = self.client.post(
+            "/api/v1/images/provenance/verify",
+            headers={"Authorization": f"Bearer {denied['key']}"},
+            files={"image": (fixture.name, fixture.read_bytes(), "image/jpeg")},
+        )
+        self.assertEqual(response.status_code, 403)
+
+        issued = self._issue(scopes=["image:provenance"])
+        response = self.client.post(
+            "/api/v1/images/provenance/verify",
+            headers={"X-API-Key": issued["key"]},
+            files={"image": (fixture.name, fixture.read_bytes(), "image/jpeg")},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["api_version"], "v1")
+        self.assertEqual(payload["data"]["overall_state"], "confirmed_source")
+        self.assertEqual(payload["data"]["source_evidence"]["content_credentials"]["status"], "valid")
+        self.assertFalse(payload["data"]["audit_evidence"]["raw_image_retained"])
+        self.assertNotIn("manifest_bytes", str(payload))
+
 
 if __name__ == "__main__":
     unittest.main()
