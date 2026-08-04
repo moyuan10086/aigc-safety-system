@@ -12,7 +12,7 @@ import aiofiles
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from services import deepfake_service, mllm_service, rag_service
+from services import deepfake_service, face_service, mllm_service, rag_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -54,49 +54,8 @@ async def check_content(text: str = Form(...)):
 
 
 def _inspect_faces(path: str) -> dict:
-    """Return non-identifying face and image-quality evidence for audit reports."""
-    try:
-        import cv2
-        img = cv2.imread(path)
-        if img is None:
-            return {"status": "unavailable", "face_detected": False, "face_count": 0, "reason": "image_decode_failed"}
-        height, width = img.shape[:2]
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        xml = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        if not Path(xml).exists():
-            return {"status": "unavailable", "face_detected": None, "face_count": None, "reason": "face_detector_missing", "image_width": width, "image_height": height}
-        cascade = cv2.CascadeClassifier(xml)
-        min_size = max(24, min(width, height) // 12)
-        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(min_size, min_size))
-        boxes = [{"x": int(x), "y": int(y), "width": int(w), "height": int(h)} for x, y, w, h in faces]
-        largest_ratio = max((w * h) / (width * height) for _, _, w, h in faces) if len(faces) else 0.0
-        sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-        brightness = float(gray.mean())
-        quality_flags = []
-        if min(width, height) < 480:
-            quality_flags.append("low_resolution")
-        if sharpness < 80:
-            quality_flags.append("blurred")
-        if brightness < 45:
-            quality_flags.append("underexposed")
-        elif brightness > 215:
-            quality_flags.append("overexposed")
-        return {
-            "status": "detected" if len(faces) else "not_detected",
-            "face_detected": bool(len(faces)),
-            "face_count": len(faces),
-            "boxes": boxes,
-            "image_width": width,
-            "image_height": height,
-            "largest_face_ratio": round(largest_ratio, 4),
-            "sharpness": round(sharpness, 1),
-            "brightness": round(brightness, 1),
-            "quality": "good" if not quality_flags else "review",
-            "quality_flags": quality_flags,
-            "detector": "OpenCV Haar Cascade",
-        }
-    except Exception as exc:
-        return {"status": "unavailable", "face_detected": None, "face_count": None, "reason": type(exc).__name__}
+    """Compatibility wrapper for existing route, report and v1 callers."""
+    return face_service.inspect(path)
 
 
 @router.post("/face")

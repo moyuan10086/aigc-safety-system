@@ -1,0 +1,14 @@
+<h3>P4-2 人脸审核证据增强与隐私边界（2026-08-04）</h3>
+<callout emoji="📌" background-color="light-blue" border-color="blue">
+  <p><b>目标：</b>在现有人脸框、数量、全图清晰度和亮度之上，补齐逐脸质量证据、主脸定位和可解释复核原因，使图片审核员能够判断“为什么需要复核”。本阶段仍是非身份化的人脸检测与质量审核，不做人脸身份识别、1:N 检索、跨请求追踪或特征向量持久化。</p>
+</callout>
+<checkbox done="false">P4-2.1 将人脸检测与质量分析从路由拆分为独立服务，保留现有 /api/detect/face、全量 SSE、报告和 /api/v1/images/face 契约</checkbox>
+<checkbox done="false">P4-2.2 为每张脸输出面积占比、中心偏移、边缘余量、局部清晰度、局部亮度、质量标记和复核原因，并明确主脸索引</checkbox>
+<checkbox done="false">P4-2.3 增加无人脸、多脸、主脸过小、贴近边缘、局部模糊和局部曝光异常等可解释规则；质量规则不得覆盖或伪造 Deepfake 判定</checkbox>
+<checkbox done="false">P4-2.4 前端在人脸审核结果中展示主脸、逐脸证据和中文复核原因，保持既有浅色安全后台语言和移动端可读性</checkbox>
+<checkbox done="false">P4-2.5 使用合成图像与固定人脸框补齐确定性单元测试，覆盖正常单脸、多脸、无脸、边缘截断、模糊/曝光、解码失败和检测器缺失降级</checkbox>
+<checkbox done="false">P4-2.6 完成本地 Ruff、后端全量测试、前端生产构建、GitHub 门禁、服务器复验、正式站真实图片输入输出、备份与飞书证据记录</checkbox>
+<p><b>验收口径：</b>原有顶层字段继续存在；新增 <code>faces</code>、<code>primary_face_index</code>、<code>review_recommended</code> 和 <code>review_reasons</code>；无脸时不得返回 quality=good；逐脸证据不含原始图像、embedding 或身份标识；正式站 API 返回结构化证据，服务保持 active，HTTPS 健康检查为 ok。</p>
+<callout emoji="🔐" background-color="light-yellow" border-color="yellow">
+  <p><b>不可回退边界：</b>检测结果只描述当前图片中的几何与质量特征，不声称识别人物身份；上传临时文件继续在请求结束后删除，普通日志和飞书不保存原始人脸图像。</p>
+</callout>
