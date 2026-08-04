@@ -64,6 +64,14 @@
           <Activity :size="15" />{{ probeLoading ? '探测中' : '执行探测' }}
         </button>
       </div>
+      <div v-if="probeResult" class="probe-details" aria-live="polite">
+        <div class="probe-detail-head"><span>专家链路状态</span><small>仅显示脱敏状态；原始提示词和模型输出仍在 AES-GCM 证据库中</small></div>
+        <div class="expert-status-list">
+          <span v-for="item in probeExperts" :key="item.name" class="expert-status" :class="item.status"><i></i>{{ item.name }}<b>{{ expertStatusLabel(item.status) }}</b></span>
+        </div>
+        <div v-if="probeInconclusive.length" class="probe-warning"><TriangleAlert :size="14" /><span>以下组件结果不确定，需要人工复核：{{ probeInconclusive.join('、') }}</span></div>
+        <div v-else class="probe-safe-note"><CircleCheck :size="14" />输入、输出和最终判定均无不确定组件</div>
+      </div>
     </section>
 
     <section class="card deployment-card">
@@ -211,6 +219,18 @@ const probeSummary = computed(() => {
 function scenarioStatusLabel(status: string) { return ({ ready:'就绪', degraded:'降级', not_ready:'不可用' } as Record<string,string>)[status] || status }
 function checkStatusLabel(status: string) { return ({ pass:'通过', warn:'降级', fail:'失败', disabled:'停用' } as Record<string,string>)[status] || status }
 
+const probeExperts = computed(() => {
+  const source = probeResult.value?.output_experts || probeResult.value?.input_experts || {}
+  const labels: Record<string, string> = { rules:'规则引擎', rag:'RAG 知识库', mllm:'MLLM', qwen3guard:'Qwen3Guard', singguard:'SingGuard', xgboost_shadow:'XGBoost Shadow' }
+  return Object.entries(source).map(([name, status]) => ({ name: labels[name] || name, status: String(status) }))
+})
+const probeInconclusive = computed(() => Array.from(new Set([
+  ...(probeResult.value?.input_inconclusive_components || []),
+  ...(probeResult.value?.output_inconclusive_components || []),
+  ...(probeResult.value?.final_inconclusive_components || []),
+])))
+function expertStatusLabel(status: string) { return ({ ok:'正常', disabled:'停用', inconclusive:'不确定', unavailable:'不可用', not_run:'未运行' } as Record<string,string>)[status] || status }
+
 async function apiJson(url: string, options?: RequestInit) {
   const response = await fetch(url, { credentials:'same-origin', ...options })
   const data = await response.json().catch(() => ({}))
@@ -307,4 +327,6 @@ watch(user, value => { if (value) loadKeys(); else apiKeys.value = [] }, { immed
 @media(max-width:900px){.api-metrics{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:820px){.scenario-list{grid-template-columns:1fr}.scenario-row{border-right:0;border-bottom:1px solid var(--line)}.scenario-row:last-child{border-bottom:0}.check-row{grid-template-columns:1fr 48px}.check-row>span:last-child{grid-column:1/-1;padding:0 0 9px 22px}.check-head>span:last-child{display:none}.probe-row{align-items:flex-start;flex-direction:column}.probe-row .command-button{width:100%}}
 @media(max-width:560px){.api-metrics,.readiness-summary{grid-template-columns:1fr 1fr}.readiness-summary>div:nth-child(2){border-right:0}.readiness-heading{align-items:flex-start;flex-direction:column}.readiness-actions{width:100%;justify-content:space-between}}
+ .probe-details{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}.probe-detail-head{display:flex;justify-content:space-between;gap:12px;color:var(--text);font-size:10px}.probe-detail-head small{color:var(--faint);font-size:9px}.expert-status-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.expert-status{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;color:var(--muted);font-size:9px}.expert-status i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.expert-status b{font-weight:600;color:var(--muted)}.expert-status.ok i{background:var(--success)}.expert-status.ok b{color:var(--success)}.expert-status.disabled i,.expert-status.unavailable i,.expert-status.not_run i{background:var(--warning)}.expert-status.disabled b,.expert-status.unavailable b,.expert-status.not_run b{color:var(--warning)}.expert-status.inconclusive i{background:var(--danger)}.expert-status.inconclusive b{color:var(--danger)}.probe-warning,.probe-safe-note{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:9px}.probe-warning{color:var(--danger)}.probe-safe-note{color:var(--success)}
+ .probe-details{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}.probe-detail-head{display:flex;justify-content:space-between;gap:12px;color:var(--text);font-size:10px}.probe-detail-head small{color:var(--faint);font-size:9px}.expert-status-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.expert-status{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;color:var(--muted);font-size:9px}.expert-status i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.expert-status b{font-weight:600;color:var(--muted)}.expert-status.ok i{background:var(--success)}.expert-status.ok b{color:var(--success)}.expert-status.disabled i,.expert-status.unavailable i,.expert-status.not_run i{background:var(--warning)}.expert-status.disabled b,.expert-status.unavailable b,.expert-status.not_run b{color:var(--warning)}.expert-status.inconclusive i{background:var(--danger)}.expert-status.inconclusive b{color:var(--danger)}.probe-warning,.probe-safe-note{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:9px}.probe-warning{color:var(--danger)}.probe-safe-note{color:var(--success)}
 </style>
