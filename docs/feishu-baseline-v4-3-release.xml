@@ -1,0 +1,11 @@
+<h2>执行基线 v4.3 发布闭环（2026-08-04）</h2>
+<ul>
+  <li><b>飞书：</b>总文档顶部已切换为 v4.3 唯一当前基线，旧 v4.2 已标记为历史基线。</li>
+  <li><b>C2PA：</b>四态、公开夹具、翻转 1 bit 篡改路径和现场解释边界均纳入当前基线与操作手册。</li>
+  <li><b>手册：</b>补充人工试标点击路径、safe/borderline/unsafe 标注口径、20/200 完成条件、C2PA 状态表与截图清单。</li>
+  <li><b>自动化：</b>C2PA 与开放 API 定向回归 12/12 通过；v4.3 飞书 XML 片段解析通过。</li>
+  <li><b>生产：</b>GitHub 与服务器已更新到 <code>5e7f71e</code>；<code>aigc-safety.service</code> active，内部与公网 health 正常。</li>
+  <li><b>人工试标只读复核：</b>eligible=200、pending=200、submitted=0、verified=0、pilot=0/20、target=0/200、active_claims=0、review_integrity_complete=true；本次未领取、未查看证据、未写标签。</li>
+  <li><b>截图状态：</b>再次尝试官方应用内浏览器，仍报 <code>failed to write kernel assets: os error 3</code>；真实页面截图保持待补，未用其他浏览器或示意图绕过。</li>
+</ul>
+<callout emoji="📌" background-color="light-yellow" border-color="yellow"><p><b>下一人工动作：</b>真实审核员按《AIGC 安全运营台现场演示与人工试标手册》完成首批 20 条；页面截图需等待官方应用内浏览器恢复。自动化代理不得代标，也不得把加密证据中的原始提示词或危险输出复制到飞书。</p></callout>
