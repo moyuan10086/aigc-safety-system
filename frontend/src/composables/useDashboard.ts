@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { createDebouncedTask } from '../lib/scheduling'
 
 export interface ShadowEvaluationSummary {
   observed_events: number
@@ -100,7 +101,6 @@ export function useDashboard() {
   const reviewingEventId = ref('')
   let controller: AbortController | null = null
   let timer: ReturnType<typeof setInterval> | null = null
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null
   let lastStartedAt = 0
 
   async function refresh(force = false) {
@@ -130,10 +130,7 @@ export function useDashboard() {
     }
   }
 
-  function scheduleRefresh() {
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => refresh(true), 220)
-  }
+  const refreshScheduler = createDebouncedTask(() => { void refresh(true) }, 220)
 
   async function resolveShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe') {
     if (reviewingEventId.value) return
@@ -177,7 +174,7 @@ export function useDashboard() {
   }
 
   function openLogin() { window.dispatchEvent(new CustomEvent('aigc:open-login')) }
-  watch(hours, scheduleRefresh)
+  watch(hours, refreshScheduler.schedule)
   onMounted(() => {
     refresh(true)
     timer = setInterval(() => refresh(), 15_000)
@@ -185,7 +182,7 @@ export function useDashboard() {
   onBeforeUnmount(() => {
     controller?.abort()
     if (timer) clearInterval(timer)
-    if (debounceTimer) clearTimeout(debounceTimer)
+    refreshScheduler.cancel()
   })
   return { data, hours, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, openLogin }
 }

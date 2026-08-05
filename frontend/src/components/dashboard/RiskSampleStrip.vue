@@ -1,8 +1,17 @@
 <template>
-  <div v-if="samples.length" ref="stripHost" class="sample-strip" :style="stripStyle" @mouseenter="pauseRotation" @mouseleave="startRotation">
+  <div
+    v-if="samples.length"
+    ref="stripHost"
+    class="sample-strip"
+    :style="stripStyle"
+    @mouseenter="setInteractionPaused(true)"
+    @mouseleave="setInteractionPaused(false)"
+    @focusin="setInteractionPaused(true)"
+    @focusout="setInteractionPaused(false)"
+  >
     <article v-for="sample in visibleSamples" :key="sample.id" class="sample-card" :class="{ disagreement: sample.disagreement }">
       <div class="sample-media">
-        <img :src="sample.image" :alt="sample.title" loading="eager" />
+        <img :src="sample.image" :alt="sample.title" loading="eager" decoding="async" />
         <span v-if="sample.masked" class="masked-label">脱敏预览</span>
         <span class="sample-category">{{ sample.risk_category }}</span>
       </div>
@@ -40,8 +49,10 @@ const props = defineProps<{ samples: DemoRiskSample[] }>()
 const page = ref(0)
 const pageSize = ref(8)
 const stripHost = ref<HTMLElement | null>(null)
+const interactionPaused = ref(false)
 let rotationTimer: ReturnType<typeof setInterval> | null = null
 let resizeObserver: ResizeObserver | null = null
+let motionPreference: MediaQueryList | null = null
 const stripStyle = computed(() => ({ '--sample-columns': String(pageSize.value) }))
 
 const visibleSamples = computed(() => {
@@ -78,11 +89,17 @@ function pauseRotation() {
 
 function startRotation() {
   pauseRotation()
-  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  if (document.hidden || interactionPaused.value || motionPreference?.matches) return
   rotationTimer = setInterval(() => {
     const pages = Math.ceil(props.samples.length / pageSize.value)
     if (pages > 1) page.value = (page.value + 1) % pages
   }, 8_000)
+}
+
+function setInteractionPaused(value: boolean) {
+  interactionPaused.value = value
+  if (value) pauseRotation()
+  else startRotation()
 }
 
 function handleVisibilityChange() {
@@ -96,6 +113,8 @@ watch(() => props.samples.length, async () => {
   observeStrip()
 })
 onMounted(async () => {
+  motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)')
+  motionPreference.addEventListener('change', startRotation)
   startRotation()
   document.addEventListener('visibilitychange', handleVisibilityChange)
   await nextTick()
@@ -104,6 +123,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   pauseRotation()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  motionPreference?.removeEventListener('change', startRotation)
   resizeObserver?.disconnect()
   columnScheduler.cancel()
 })

@@ -22,15 +22,15 @@
       "masked": false
     },
     {
-      "id": "generated-animal",
-      "title": "AI 生成动物图",
-      "image": "/demo-samples/generated-portrait.jpg",
+      "id": "generated-portrait",
+      "title": "AI 生成人像",
+      "image": "/demo-samples/generated-portrait.png",
       "source": "MLLM-Defake demo/fake",
       "reference": "AI 生成",
-      "risk_category": "生成图像",
+      "risk_category": "人像生成",
       "result": "真实性异常",
       "score": "MLLM 72%",
-      "detail": "非人像样本 · MLLM 判伪",
+      "detail": "合成人像样本 · MLLM 判伪",
       "disagreement": true,
       "masked": false
     },
