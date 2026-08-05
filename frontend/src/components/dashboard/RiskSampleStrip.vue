@@ -33,7 +33,7 @@ export interface DemoRiskSample {
 </script>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ samples: DemoRiskSample[] }>()
 const page = ref(0)
@@ -67,6 +67,16 @@ function scheduleColumns(width: number) {
   })
 }
 
+function observeStrip() {
+  if (!stripHost.value) return
+  resizeObserver?.disconnect()
+  updateColumns(stripHost.value.clientWidth)
+  resizeObserver = new ResizeObserver(entries => {
+    scheduleColumns(entries[0]?.contentRect.width || stripHost.value?.clientWidth || 0)
+  })
+  resizeObserver.observe(stripHost.value)
+}
+
 function pauseRotation() {
   if (rotationTimer) clearInterval(rotationTimer)
   rotationTimer = null
@@ -80,14 +90,15 @@ function startRotation() {
   }, 8_000)
 }
 
-watch(() => props.samples.length, () => { page.value = 0 })
-onMounted(() => {
+watch(() => props.samples.length, async () => {
+  page.value = 0
+  await nextTick()
+  observeStrip()
+})
+onMounted(async () => {
   startRotation()
-  if (stripHost.value) {
-    updateColumns(stripHost.value.clientWidth)
-    resizeObserver = new ResizeObserver(entries => scheduleColumns(entries[0]?.contentRect.width || 0))
-    resizeObserver.observe(stripHost.value)
-  }
+  await nextTick()
+  observeStrip()
 })
 onBeforeUnmount(() => {
   pauseRotation()

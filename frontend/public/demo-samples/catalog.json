@@ -9,6 +9,19 @@
   },
   "samples": [
     {
+      "id": "face-swap",
+      "title": "AI 合成人像",
+      "image": "/demo-samples/face-swap.jpg",
+      "source": "gpt-image-2 合成",
+      "reference": "合成人像演示",
+      "risk_category": "人像合成",
+      "result": "待复测",
+      "score": "风险 2%",
+      "detail": "真实性链待生产复测",
+      "disagreement": false,
+      "masked": false
+    },
+    {
       "id": "generated-animal",
       "title": "AI 生成动物图",
       "image": "/demo-samples/generated-portrait.jpg",
@@ -19,19 +32,6 @@
       "score": "MLLM 72%",
       "detail": "非人像样本 · MLLM 判伪",
       "disagreement": true,
-      "masked": false
-    },
-    {
-      "id": "face-swap",
-      "title": "虚构主持人合成人像",
-      "image": "/demo-samples/face-swap.jpg",
-      "source": "gpt-image-2 合成",
-      "reference": "合成人像演示",
-      "risk_category": "人像合成",
-      "result": "待复测",
-      "score": "风险 2%",
-      "detail": "真实性链待生产复测",
-      "disagreement": false,
       "masked": false
     },
     {

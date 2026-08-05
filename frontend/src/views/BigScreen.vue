@@ -103,7 +103,7 @@ const trendOption = computed<EChartsCoreOption>(() => ({
 }))
 const riskOption = computed<EChartsCoreOption>(() => ({
   backgroundColor: 'transparent', tooltip: { trigger: 'item' }, color: riskColors,
-  legend: { orient: 'vertical', right: 8, top: 'middle', width: '48%', itemGap: 5, selectedMode: false, textStyle: { color: '#7fa2b6', fontSize: 7, overflow: 'truncate', width: 90 }, itemWidth: 7, itemHeight: 7, formatter: (name: string) => categoryNames[name] || name },
+  legend: { type: 'scroll', orient: 'vertical', right: 8, top: 'middle', height: '82%', width: '48%', itemGap: 5, selectedMode: false, pageIconSize: 6, pageTextStyle: { color: '#6f94aa', fontSize: 6 }, textStyle: { color: '#7fa2b6', fontSize: 7, overflow: 'truncate', width: 90 }, itemWidth: 7, itemHeight: 7, formatter: (name: string) => categoryNames[name] || name },
   series: [{ type: 'pie', radius: ['39%', '62%'], center: ['25%', '52%'], label: { show: false }, data: data.value?.risk_distribution.length ? data.value.risk_distribution : [{ name: '无风险事件', value: 1, itemStyle: { color: '#244d68' } }] }],
 }))
 
