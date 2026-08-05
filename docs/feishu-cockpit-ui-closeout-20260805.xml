@@ -1,0 +1,16 @@
+<h3>7.8.1 大屏优化收尾回归（2026-08-05）</h3>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>收尾结论：</b>本轮大屏优化已完成代码、构建、GitHub、生产部署、浏览器回归和证据归档闭环。最终生产提交为 <code>3e0ac77</code>，正式服务为 <code>active</code>，公网 <code>/api/health</code> 返回 <code>{"status":"ok","service":"aigc-safety-system"}</code>。</p>
+</callout>
+<ul>
+  <li>错误的动物缩略图已替换为 <code>MLLM-Defake demo/fake</code> 中的 AI 生成人像，目录标题、风险类别和图片语义一致；三档视口均检测到动物标签 <code>0</code>、破图 <code>0</code>。</li>
+  <li><code>scheduling.ts</code> 新增共享防抖任务，驾驶舱时间窗口刷新使用 220ms 防抖；ECharts 和样本区 ResizeObserver 继续按帧合并。</li>
+  <li>样本卡支持键盘聚焦和清晰焦点样式；轮播在悬停、聚焦、标签页隐藏或减少动态偏好下暂停，并在每次定时执行前再次检查 <code>:hover</code> 与 <code>activeElement</code>。</li>
+  <li>实际聚焦“AI 合成人像，待复测”后等待 8.5 秒，5 张可见样本标题前后完全一致，暂停验证通过。</li>
+  <li>1920×1080、1366×768、1024×640 分别显示 8、6、5 张样本卡；每档均为 3 个 ECharts Canvas、4 个 SVG 流粒子、越界 0、文案溢出 0、控制台错误/警告 0。</li>
+</ul>
+<p><b>截图：</b><code>docs/screenshots/14-cockpit-1920x1080-20260805.png</code>、<code>15-cockpit-1366x768-20260805.png</code>、<code>16-cockpit-1024x640-20260805.png</code>。</p>
+<p><b>机器证据：</b><code>docs/evidence/cockpit-ui-regression-20260805.json</code>。浏览器数据来自独立临时审核员和脱敏本地数据库，仅证明布局、图片、交互和渲染；生产部署、提交、服务状态和公网健康另行实测，不将测试计数冒充生产业务量。</p>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>总目标唯一人工待办：</b>人工试标仍为 <code>0/20</code>、<code>0/200</code>。必须由真实审核员领取样本、查看证据并提交标签，补齐领取后、证据已查看、提交后三张截图；完成后在最终提交上重新执行竞赛封版。该项未完成前，整体项目目标不得标记为全部完成。</p>
+</callout>

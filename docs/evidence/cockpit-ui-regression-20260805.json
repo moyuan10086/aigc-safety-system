@@ -1,8 +1,9 @@
 {
   "evidence_type": "cockpit_ui_reference_and_responsive_regression",
-  "created_at": "2026-08-05T10:20:00+08:00",
+  "created_at": "2026-08-05T11:39:00+08:00",
   "scope": "local visual fixture with production-shaped, content-free dashboard data",
   "result": "passed",
+  "source_commits": ["4d1a6e3", "3e0ac77"],
   "reference_review": [
     {
       "project": "Daidaibg/IofTV-Screen",
@@ -30,8 +31,17 @@
     "frame_scheduler": "frontend/src/lib/scheduling.ts",
     "chart_resize": "ResizeObserver events coalesced to one requestAnimationFrame callback",
     "sample_strip": "resize coalescing, hidden-tab pause and reduced-motion pause",
+    "sample_review_pause": "focusable sample cards plus direct hover/focus guards and an interval-time activeElement/:hover fallback",
+    "sample_semantics": "the animal thumbnail was replaced by the MLLM-Defake demo/fake synthetic portrait and relabeled as AI-generated portrait",
     "central_posture": "SVG data-flow paths and particles with reduced-motion fallback",
     "three_js": "deferred because the current defense pipeline has no three-dimensional data relationship; adding it would increase bundle and GPU cost without stronger evidence"
+  },
+  "interaction_tests": {
+    "focus_pause_wait_ms": 8500,
+    "focus_target": "AI 合成人像，待复测",
+    "cards_before": ["AI 合成人像", "AI 生成人像", "成人夜店边界场景", "受控武器展示", "非血腥冲突后现场"],
+    "cards_after": ["AI 合成人像", "AI 生成人像", "成人夜店边界场景", "受控武器展示", "非血腥冲突后现场"],
+    "result": "passed"
   },
   "viewports": [
     {
@@ -62,6 +72,24 @@
       "sample_copy_overflow": 0
     }
   ],
+  "asset_checks": {
+    "animal_labels_in_visible_samples": 0,
+    "broken_images_across_viewports": 0,
+    "generated_portrait_path": "/demo-samples/generated-portrait.png",
+    "production_content_type": "image/png"
+  },
+  "screenshots": [
+    "docs/screenshots/14-cockpit-1920x1080-20260805.png",
+    "docs/screenshots/15-cockpit-1366x768-20260805.png",
+    "docs/screenshots/16-cockpit-1024x640-20260805.png"
+  ],
+  "production": {
+    "url": "https://aigc.49.51.248.227.sslip.io/dashboard/screen",
+    "commit": "3e0ac77",
+    "service": "active",
+    "health": {"status": "ok", "service": "aigc-safety-system"},
+    "big_screen_asset": "BigScreen-DOUXh9yl.js"
+  },
   "limitations": [
     "The fixture validates layout, rendering and animation only; it is not production business evidence.",
     "Production dashboard values remain authenticated and are not copied into this evidence file.",
