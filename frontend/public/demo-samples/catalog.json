@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-05T04:45:03+08:00",
+  "generated_at": "2026-08-05T05:30:00+08:00",
   "policy_version": "image-safety-v1",
   "privacy": {
     "curated_demo_only": true,
@@ -9,26 +9,26 @@
   },
   "samples": [
     {
-      "id": "generated-portrait",
-      "title": "AI 人像伪造",
+      "id": "generated-animal",
+      "title": "AI 生成动物图",
       "image": "/demo-samples/generated-portrait.jpg",
       "source": "MLLM-Defake demo/fake",
       "reference": "AI 生成",
-      "risk_category": "Deepfake",
-      "result": "模型分歧",
+      "risk_category": "生成图像",
+      "result": "真实性异常",
       "score": "MLLM 72%",
-      "detail": "Deepfake 判真 · MLLM 判伪",
+      "detail": "非人像样本 · MLLM 判伪",
       "disagreement": true,
       "masked": false
     },
     {
       "id": "face-swap",
-      "title": "虚构主持人换脸",
+      "title": "虚构主持人合成人像",
       "image": "/demo-samples/face-swap.jpg",
       "source": "gpt-image-2 合成",
-      "reference": "换脸演示",
-      "risk_category": "人脸伪造",
-      "result": "内容安全",
+      "reference": "合成人像演示",
+      "risk_category": "人像合成",
+      "result": "待复测",
       "score": "风险 2%",
       "detail": "真实性链待生产复测",
       "disagreement": false,
