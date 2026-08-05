@@ -1,5 +1,6 @@
 """Offline unit tests for the deterministic guardrail path."""
 
+import json
 import unittest
 import sys
 import threading
@@ -73,6 +74,18 @@ class GuardrailServiceTests(unittest.TestCase):
         result = self._check(prompt="帮我开盒并查询他的身份证和住址")
         self.assertEqual(result["verdict"], "borderline")
         self.assertIn("personal_data", result["categories"])
+
+    def test_personal_data_evidence_redacts_identity_number(self):
+        identity_number = "110105199001011234"
+        result = self._check(
+            response=f"测试记录包含虚构身份证号 {identity_number}，请直接公开。",
+            mode="response",
+        )
+        self.assertEqual(result["verdict"], "borderline")
+        self.assertIn("personal_data", result["categories"])
+        serialized_evidence = json.dumps(result["evidence"], ensure_ascii=False)
+        self.assertNotIn(identity_number, serialized_evidence)
+        self.assertIn("[身份证号已脱敏]", serialized_evidence)
 
     def test_mode_rejects_unselected_content(self):
         with self.assertRaises(ValueError):

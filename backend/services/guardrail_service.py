@@ -50,6 +50,24 @@ _RAG_HIGH_SIGNAL_SHORT_TERMS = {
 }
 _RAG_CATEGORIES = {"political", "sexual", "violence", "illegal"}
 _RAG_SEMANTIC_MIN_SCORE = 0.72
+_EVIDENCE_REDACTIONS = (
+    (
+        re.compile(
+            r"(?<!\d)[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])"
+            r"(?:0[1-9]|[12]\d|3[01])\d{3}[0-9Xx](?!\d)"
+        ),
+        "[身份证号已脱敏]",
+    ),
+    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[手机号已脱敏]"),
+    (re.compile(r"\b(?:sk|rk|pk)-[A-Za-z0-9_-]{8,}\b", re.IGNORECASE), "[密钥已脱敏]"),
+    (
+        re.compile(
+            r"\b(?:api[_ -]?key|access[_ -]?token|secret)\s*[:=]\s*[^\s,;]{6,}",
+            re.IGNORECASE,
+        ),
+        "[密钥已脱敏]",
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -229,7 +247,7 @@ def _run_singguard_classifier(
                         "source": "singguard",
                         "category": category,
                         "rule_id": f"SINGGUARD-{normalized.upper()}",
-                        "excerpt": analysis or f"NSFA risk: {normalized}",
+                        "excerpt": _redact_evidence_text(analysis) if analysis else f"NSFA risk: {normalized}",
                     })
         return scores, evidence, "ok"
     except Exception:
@@ -319,10 +337,16 @@ def _selected_fields(prompt: str, response: str, mode: str) -> list[tuple[str, s
     return fields
 
 
+def _redact_evidence_text(value: str) -> str:
+    for pattern, replacement in _EVIDENCE_REDACTIONS:
+        value = pattern.sub(replacement, value)
+    return value
+
+
 def _excerpt(text: str, match: re.Match[str], radius: int = 42) -> str:
     start = max(0, match.start() - radius)
     end = min(len(text), match.end() + radius)
-    value = re.sub(r"\s+", " ", text[start:end]).strip()
+    value = _redact_evidence_text(re.sub(r"\s+", " ", text[start:end]).strip())
     return ("..." if start else "") + value + ("..." if end < len(text) else "")
 
 
@@ -434,7 +458,7 @@ def _run_mllm(prompt: str, response: str) -> tuple[dict[str, float], list[dict[s
             "source": "mllm",
             "category": category,
             "rule_id": "MLLM-CLASSIFIER",
-            "excerpt": reason,
+            "excerpt": _redact_evidence_text(reason),
         } for category in scores if scores[category] >= 0.35]
         return scores, evidence, "ok"
     except Exception:

@@ -1,0 +1,61 @@
+{
+  "schema": "aigc.promptfoo-coverage-expansion.v1",
+  "created_at": "2026-08-05T16:13:33+08:00",
+  "source_base_commit": "6f44764",
+  "scope": "offline guardrail and agent-trajectory regression expansion",
+  "result": "passed",
+  "quality_gates": {
+    "promptfoo_guardrail": {
+      "eval_id": "eval-Ji5-2026-08-05T08:06:51",
+      "passed": 18,
+      "failed": 0,
+      "errors": 0,
+      "duration_ms": 3285,
+      "config": "evaluations/promptfooconfig.yaml",
+      "result_file": "evaluations/results/latest.json"
+    },
+    "promptfoo_agent_trajectory": {
+      "eval_id": "eval-1nz-2026-08-05T07:54:26",
+      "passed": 6,
+      "failed": 0,
+      "errors": 0,
+      "duration_ms": 2744,
+      "config": "evaluations/promptfoo-agent-trajectory.yaml",
+      "result_file": "evaluations/results/trajectory-latest.json"
+    },
+    "backend_unittest": {
+      "passed": 111,
+      "failed": 0,
+      "duration_seconds": 30.391,
+      "command": "uv run python -m unittest discover -s tests -v"
+    },
+    "ruff": {
+      "passed": true,
+      "command": "uv run ruff check ."
+    }
+  },
+  "added_guardrail_coverage": [
+    "self-harm method request",
+    "child sexual safety",
+    "illegal identity-document forgery",
+    "explicit sexual-content generation",
+    "safe defensive ransomware analysis",
+    "output-side identity-number leakage without raw evidence echo"
+  ],
+  "added_agent_trajectory_coverage": [
+    "orphan tool result without a corresponding action",
+    "tainted tool result propagated to the final Agent output"
+  ],
+  "defect_and_fix": {
+    "defect": "Guardrail evidence excerpts could echo a raw identity number even when the verdict required review.",
+    "fix": "Rule, SingGuard and MLLM evidence excerpts now redact Chinese identity numbers, mainland mobile numbers and common API key or access-token forms.",
+    "unit_test": "GuardrailServiceTests.test_personal_data_evidence_redacts_identity_number",
+    "regression_assertion": "The output-side personal-data case must contain the personal_data category and must not contain the original identity number."
+  },
+  "limitations": [
+    "These deterministic regression cases validate configured policies and response contracts; they do not establish real-world accuracy, recall or false-positive rates.",
+    "Promptfoo exercised the local deployed evaluation gateway and did not benchmark the optional GPU or NPU model backends in this run.",
+    "Real human labeling remains 0/20 for the pilot and 0/200 for the full validation set.",
+    "A final competition seal must be rerun after real reviewers finish labeling and the final production commit is deployed."
+  ]
+}
