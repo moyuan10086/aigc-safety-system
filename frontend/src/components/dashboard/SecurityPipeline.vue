@@ -82,10 +82,10 @@ const junctions = trackAngles.map((angle) => ({ angle, major: angle % 90 === 45 
 
 <style scoped>
 .pipeline-stage{
-  --core:250px;
+  --core:218px;
   --r1:calc(var(--core) * 1.2);
   --r2:calc(var(--core) * 1.52);
-  --r3:calc(var(--core) * 1.84);
+  --r3:calc(var(--core) * 1.9);
   --cx:50%;
   --cy:44%;
   --blue:#3fd2ff;
