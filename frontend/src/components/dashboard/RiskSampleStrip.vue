@@ -34,6 +34,7 @@ export interface DemoRiskSample {
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { createRafScheduler } from '../../lib/scheduling'
 
 const props = defineProps<{ samples: DemoRiskSample[] }>()
 const page = ref(0)
@@ -41,7 +42,6 @@ const pageSize = ref(8)
 const stripHost = ref<HTMLElement | null>(null)
 let rotationTimer: ReturnType<typeof setInterval> | null = null
 let resizeObserver: ResizeObserver | null = null
-let resizeFrame: number | null = null
 const stripStyle = computed(() => ({ '--sample-columns': String(pageSize.value) }))
 
 const visibleSamples = computed(() => {
@@ -59,20 +59,14 @@ function updateColumns(width: number) {
   }
 }
 
-function scheduleColumns(width: number) {
-  if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
-  resizeFrame = requestAnimationFrame(() => {
-    updateColumns(width)
-    resizeFrame = null
-  })
-}
+const columnScheduler = createRafScheduler(updateColumns)
 
 function observeStrip() {
   if (!stripHost.value) return
   resizeObserver?.disconnect()
   updateColumns(stripHost.value.clientWidth)
   resizeObserver = new ResizeObserver(entries => {
-    scheduleColumns(entries[0]?.contentRect.width || stripHost.value?.clientWidth || 0)
+    columnScheduler.schedule(entries[0]?.contentRect.width || stripHost.value?.clientWidth || 0)
   })
   resizeObserver.observe(stripHost.value)
 }
@@ -84,10 +78,16 @@ function pauseRotation() {
 
 function startRotation() {
   pauseRotation()
+  if (document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
   rotationTimer = setInterval(() => {
     const pages = Math.ceil(props.samples.length / pageSize.value)
     if (pages > 1) page.value = (page.value + 1) % pages
   }, 8_000)
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) pauseRotation()
+  else startRotation()
 }
 
 watch(() => props.samples.length, async () => {
@@ -97,13 +97,15 @@ watch(() => props.samples.length, async () => {
 })
 onMounted(async () => {
   startRotation()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   await nextTick()
   observeStrip()
 })
 onBeforeUnmount(() => {
   pauseRotation()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   resizeObserver?.disconnect()
-  if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
+  columnScheduler.cancel()
 })
 </script>
 

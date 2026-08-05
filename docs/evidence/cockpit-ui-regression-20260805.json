@@ -1,0 +1,70 @@
+{
+  "evidence_type": "cockpit_ui_reference_and_responsive_regression",
+  "created_at": "2026-08-05T10:20:00+08:00",
+  "scope": "local visual fixture with production-shaped, content-free dashboard data",
+  "result": "passed",
+  "reference_review": [
+    {
+      "project": "Daidaibg/IofTV-Screen",
+      "adopted": ["panel componentization", "on-demand chart imports", "debounced viewport adaptation"],
+      "not_adopted": ["whole-project DataV dependency", "fixed 1920 scale transform"]
+    },
+    {
+      "project": "yyhsong/iDataV",
+      "adopted": ["ECharts-led trend, distribution and posture views", "central visual focus"],
+      "not_adopted": ["mock data", "ECharts GL and map effects without operational data"]
+    },
+    {
+      "project": "MTrun/react-big-screen",
+      "adopted": ["separated chart wrapper", "dynamic refresh", "bounded responsive layout"],
+      "not_adopted": ["legacy React/Dva stack", "global component registration"]
+    },
+    {
+      "project": "dromara/go-view",
+      "adopted": ["Vue 3 and TypeScript component boundaries", "lazy routes", "reusable visualization primitives"],
+      "not_adopted": ["low-code editor runtime", "dynamic component registry for a fixed competition cockpit"]
+    }
+  ],
+  "implementation": {
+    "panel_component": "frontend/src/components/dashboard/CockpitPanel.vue",
+    "frame_scheduler": "frontend/src/lib/scheduling.ts",
+    "chart_resize": "ResizeObserver events coalesced to one requestAnimationFrame callback",
+    "sample_strip": "resize coalescing, hidden-tab pause and reduced-motion pause",
+    "central_posture": "SVG data-flow paths and particles with reduced-motion fallback",
+    "three_js": "deferred because the current defense pipeline has no three-dimensional data relationship; adding it would increase bundle and GPU cost without stronger evidence"
+  },
+  "viewports": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "visible_sample_cards": 8,
+      "canvas_count": 3,
+      "svg_flow_particles": 4,
+      "outside_viewport_elements": 0,
+      "sample_copy_overflow": 0
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "visible_sample_cards": 6,
+      "canvas_count": 3,
+      "svg_flow_particles": 4,
+      "outside_viewport_elements": 0,
+      "sample_copy_overflow": 0
+    },
+    {
+      "width": 1024,
+      "height": 640,
+      "visible_sample_cards": 5,
+      "canvas_count": 3,
+      "svg_flow_particles": 4,
+      "outside_viewport_elements": 0,
+      "sample_copy_overflow": 0
+    }
+  ],
+  "limitations": [
+    "The fixture validates layout, rendering and animation only; it is not production business evidence.",
+    "Production dashboard values remain authenticated and are not copied into this evidence file.",
+    "Human labeling remains 0/20 and 0/200 until a real reviewer performs the workflow."
+  ]
+}
