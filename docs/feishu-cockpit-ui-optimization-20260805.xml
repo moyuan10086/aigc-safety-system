@@ -1,0 +1,39 @@
+<h2>7.8 大屏性能与参考框架优化（2026-08-05）</h2>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>部署结论：</b>驾驶舱组件化、SVG 数据流和帧级节流已部署到正式站，提交为 <code>b096c74</code>。公网与服务器本机健康检查均正常，readiness 为 <code>13/13</code>。本节的三档分辨率数据来自与正式接口同结构的脱敏本地视觉夹具，只用于证明布局与渲染，不作为真实审核量证据。</p>
+</callout>
+<h3>参考项目取舍</h3>
+<table>
+  <thead><tr><th background-color="light-gray">参考项目</th><th background-color="light-gray">吸收的模式</th><th background-color="light-gray">未直接引入及原因</th></tr></thead>
+  <tbody>
+    <tr><td>IofTV-Screen</td><td>统一面板、按需图表、延迟适配与全屏布局</td><td>不整包引入 DataV，不使用固定 1920 缩放；现有响应式网格在 1024～1920 区间更清晰</td></tr>
+    <tr><td>iDataV</td><td>ECharts 趋势、占比、雷达和中央态势视觉层级</td><td>不使用 mock 数据，不添加没有真实运营数据支撑的地图飞线、ECharts GL 或 3D 地球</td></tr>
+    <tr><td>react-big-screen</td><td>图表包装、动态刷新、分辨率边界和组件隔离</td><td>不迁移到旧版 React / Dva 技术栈，不使用全局组件注册</td></tr>
+    <tr><td>GoView</td><td>Vue 3 + TypeScript、Hooks 思路、懒加载路由与可复用可视化原语</td><td>比赛驾驶舱结构固定，不加载低代码编辑器、动态组件注册表和配置画布运行时</td></tr>
+  </tbody>
+</table>
+<p><b>Three.js 决策：</b>当前中央区域表达的是二维防御链和四类审核能力，没有必须用三维空间表达的数据关系；本轮使用 SVG + ECharts Canvas 获得动态效果。Three.js 暂缓，直到出现真实拓扑、三维模型或空间态势数据，避免无收益地增加包体、GPU 占用和现场故障面。</p>
+<h3>组件化与节流实现</h3>
+<ul>
+  <li><code>CockpitPanel.vue</code> 统一科技边框、标题和内容插槽，替换页面内联标题组件。</li>
+  <li><code>scheduling.ts</code> 提供共享 <code>requestAnimationFrame</code> 调度器，将同一帧内连续尺寸事件合并为一次执行。</li>
+  <li><code>BaseChart.vue</code> 的 ResizeObserver 不再直接高频调用 ECharts resize，而是按帧合并并传入稳定宽高。</li>
+  <li>样本条尺寸变化按帧节流；标签页隐藏时暂停轮播；系统启用“减少动态效果”时不自动轮播。</li>
+  <li>中央安全审核中枢新增 4 条 SVG 数据流与粒子，低高度视口自动缩小核心和节点；减少动态偏好下关闭粒子与旋转。</li>
+  <li>根容器与面板统一 <code>border-box</code>，修复 1024 宽度下最小宽度叠加 padding 造成的越界。</li>
+</ul>
+<h3>三档分辨率回归</h3>
+<table>
+  <thead><tr><th background-color="light-gray">视口</th><th background-color="light-gray">样本卡</th><th background-color="light-gray">ECharts Canvas</th><th background-color="light-gray">SVG 数据流</th><th background-color="light-gray">越界 / 文本溢出</th><th background-color="light-gray">结论</th></tr></thead>
+  <tbody>
+    <tr><td>1920×1080</td><td>8</td><td>3</td><td>4</td><td>0 / 0</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>1366×768</td><td>6</td><td>3</td><td>4</td><td>0 / 0</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>1024×640</td><td>5</td><td>3</td><td>4</td><td>0 / 0</td><td><span text-color="green">通过</span></td></tr>
+  </tbody>
+</table>
+<p><b>机器可读证据：</b><code>docs/evidence/cockpit-ui-regression-20260805.json</code>。生产构建成功，正式静态资源为 <code>BigScreen-CM1W2pg0.js</code>；正式站入口为 <a href="https://aigc.49.51.248.227.sslip.io/dashboard/screen">数据驾驶舱大屏模式</a>。</p>
+<p><b>参考链接：</b></p>
+<bookmark name="Daidaibg/IofTV-Screen" href="https://github.com/Daidaibg/IofTV-Screen"></bookmark>
+<bookmark name="yyhsong/iDataV" href="https://github.com/yyhsong/iDataV"></bookmark>
+<bookmark name="MTrun/react-big-screen" href="https://gitee.com/MTrun/react-big-screen"></bookmark>
+<bookmark name="dromara/go-view" href="https://gitee.com/dromara/go-view"></bookmark>
