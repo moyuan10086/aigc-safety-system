@@ -156,7 +156,7 @@ const junctions = trackAngles.map((angle) => ({ angle, major: angle % 90 === 45 
   border:1px solid rgba(150,240,255,.35)}
 
 /* ---- vivid electric-blue security core (~250px @1080p) ---- */
-.core-decoration{position:absolute!important;left:var(--cx);top:var(--cy);width:calc(var(--r1) + 34px)!important;height:calc(var(--r1) + 34px)!important;z-index:4;transform:translate(-50%,-50%);filter:drop-shadow(0 0 18px rgba(35,198,255,.22))}
+.core-decoration{position:absolute!important;left:var(--cx);top:var(--cy);width:var(--r1)!important;height:var(--r1)!important;z-index:4;transform:translate(-50%,-50%);filter:drop-shadow(0 0 18px rgba(35,198,255,.22))}
 .pipeline-core{position:absolute;left:50%;top:50%;width:var(--core);aspect-ratio:1;z-index:4;
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   border-radius:50%;transform:translate(-50%,-50%);color:#a9edff;
