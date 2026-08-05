@@ -1,0 +1,78 @@
+{
+  "schema": "aigc.competition-seal.v2",
+  "created_at": "2026-08-05T10:50:00+08:00",
+  "seal_type": "pre-human-review-baseline",
+  "source": {
+    "commit": "3e0b9fd",
+    "branch": "main",
+    "github": "https://github.com/moyuan10086/aigc-safety-system",
+    "server": "49.51.248.227",
+    "server_path": "/root/CH/aigc-safety-system"
+  },
+  "quality_gates": {
+    "ruff": { "passed": true, "command": "uv run ruff check ." },
+    "backend_unittest": {
+      "passed": 110,
+      "failed": 0,
+      "duration_seconds": 17.588,
+      "command": "uv run python -m unittest discover -s tests"
+    },
+    "frontend_build": {
+      "passed": true,
+      "duration_seconds": 7.86,
+      "command": "npm run build"
+    },
+    "promptfoo_guardrail": {
+      "eval_id": "eval-DTi-2026-08-05T02:46:51",
+      "passed": 12,
+      "failed": 0,
+      "errors": 0
+    },
+    "promptfoo_agent_trajectory": {
+      "eval_id": "eval-Ivt-2026-08-05T02:47:16",
+      "passed": 4,
+      "failed": 0,
+      "errors": 0
+    }
+  },
+  "production": {
+    "url": "https://aigc.49.51.248.227.sslip.io",
+    "service": "active",
+    "health": "ok",
+    "readiness": { "status": "ready", "passed": 13, "total": 13, "failed": 0 }
+  },
+  "backup": {
+    "archive": "20260805T024923Z_competition-seal-20260805-3e0b9fd_ce71bfe1",
+    "created_at": "2026-08-05T02:49:23Z",
+    "files": [
+      { "name": "audit.db", "size": 786432, "sha256": "0bd06613cfc6d9eed4099ba8d22d05eb69edf36b2a28ec4bc800f6991c174548", "matches": true },
+      { "name": "api_keys.db", "size": 61440, "sha256": "812b88000ddc919dbf2a17b22e917a4dee1550a0cf031bb6e3dc73e7b5c2f644", "matches": true }
+    ],
+    "files_valid": true,
+    "audit_chain_valid": true,
+    "counts": {
+      "audit_events": 940,
+      "audit_evidence": 227,
+      "guardrail_shadow_reviews": 0,
+      "guardrail_review_claims": 0,
+      "agent_action_approvals": 0,
+      "api_keys": 11,
+      "api_usage": 17,
+      "tenant_scan_jobs": 1,
+      "tenant_reports": 1
+    }
+  },
+  "restore_verification": {
+    "restorable": true,
+    "mode": "isolated-read-only-drill",
+    "production_databases_modified": false,
+    "sqlite_integrity": { "audit.db": "ok", "api_keys.db": "ok" },
+    "counts_match_manifest": true,
+    "temporary_restore_directory_removed": true
+  },
+  "remaining_hard_gate": {
+    "human_pilot_labels": "0/20",
+    "human_full_labels": "0/200",
+    "required_action": "A real reviewer must complete the labeling workflow; then rerun this seal on the final commit and capture the three human-operation screenshots."
+  }
+}

@@ -1,0 +1,23 @@
+<h2>7.10 人工试标前封版基线（2026-08-05）</h2>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>自动化结论：</b>提交 <code>3e0b9fd</code> 已通过代码质量、护栏回归、生产健康、readiness、在线备份、哈希校验和隔离恢复全部自动门槛。该结果是“人工试标前基线”，不是最终比赛封版；真实审核员完成 20/20 和 200/200 后必须在最终提交上重新执行。</p>
+</callout>
+<table>
+  <thead><tr><th background-color="light-gray">门槛</th><th background-color="light-gray">实际结果</th><th background-color="light-gray">状态</th></tr></thead>
+  <tbody>
+    <tr><td>Ruff</td><td><code>All checks passed</code></td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>后端全量测试</td><td>110 passed，0 failed，17.588 秒</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>前端生产构建</td><td>Vite build 成功，7.86 秒</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>中文输入 / 输出护栏</td><td>Promptfoo 12/12，0 error</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>Agent 多步轨迹</td><td>Promptfoo 4/4，0 error</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>生产服务</td><td>systemd active；HTTPS health ok</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>readiness</td><td>13/13，0 failed</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>备份与恢复</td><td>文件哈希、审计链、manifest 计数、SQLite integrity 和临时目录清理均通过</td><td><span text-color="green">通过</span></td></tr>
+    <tr><td>真人试标</td><td>0/20，0/200</td><td><span text-color="blue">待真人执行</span></td></tr>
+  </tbody>
+</table>
+<p><b>新归档：</b><code>20260805T024923Z_competition-seal-20260805-3e0b9fd_ce71bfe1</code>；审计事件 940、加密证据 227、API Key 11、API 用量记录 17。归档只包含加密证据密文与 nonce，不包含危险原文明文。</p>
+<p><b>机器可读证据：</b><code>docs/evidence/competition-seal-20260805-3e0b9fd.json</code>。</p>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+  <p><b>最终封版触发条件：</b>真实审核员完成首批 20 条并核对领取人、证据查看人、首次标签人一致；再完成 200 条，补领取后、证据已查看、提交后三张截图，然后对最终 commit 重跑本节全部门槛并生成新归档。</p>
+</callout>
