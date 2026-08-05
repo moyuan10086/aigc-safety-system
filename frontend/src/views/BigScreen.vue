@@ -50,6 +50,7 @@
       </main>
       <footer class="screen-footer"><span>数据窗口 {{ data.window.start }} → {{ data.window.end }}</span><span>样本：合成演示 / 公开夹具 / 授权仓库 · 敏感图已脱敏</span><strong>原始提示词与危险输出：AES-GCM 加密留存</strong><i :class="{ spin: loading }"></i></footer>
     </template>
+    <LoginDialog :open="loginOpen" @close="loginOpen = false" />
   </div>
 </template>
 
@@ -59,15 +60,17 @@ import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
 import { LoaderCircle, LockKeyhole, Minimize2, ShieldCheck } from 'lucide-vue-next'
 import BaseChart from '../components/dashboard/BaseChart.vue'
+import LoginDialog from '../components/auth/LoginDialog.vue'
 import CockpitPanel from '../components/dashboard/CockpitPanel.vue'
 import RiskSampleStrip, { type DemoRiskSample } from '../components/dashboard/RiskSampleStrip.vue'
 import SecurityPipeline from '../components/dashboard/SecurityPipeline.vue'
 import { useDashboard } from '../composables/useDashboard'
 
 const router = useRouter()
-const { data, loading, error, authRequired, openLogin } = useDashboard()
+const { data, loading, error, authRequired } = useDashboard()
 const now = ref(new Date())
 const demoSamples = ref<DemoRiskSample[]>([])
+const loginOpen = ref(false)
 let clockTimer: ReturnType<typeof setInterval> | null = null
 let sampleController: AbortController | null = null
 const clock = computed(() => now.value.toLocaleTimeString('zh-CN', { hour12: false }))
@@ -138,6 +141,7 @@ async function loadDemoSamples() {
   }
 }
 
+function openLogin() { loginOpen.value = true }
 async function exitScreen() { if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined); router.push('/dashboard') }
 function formatTime(value: string) { return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) }
 function sourceLabel(value?: string) { return sourceScope(value) === 'public' ? (value || '公网') : '内部 / 测试' }
