@@ -230,6 +230,15 @@ const junctions = trackAngles.map((angle) => ({ angle, major: angle % 90 === 45 
   .decision-flow{bottom:3%;gap:8px;font-size:10px}
   .decision-flow span{padding:5px 8px}.decision-flow i{width:18px}}
 
+@media(max-width:1199px){.pipeline-stage{--core:154px;--cy:43%}
+  .capability{width:145px;height:52px;gap:7px;padding:0 8px}
+  .cap-icon{width:28px;height:28px}.cap-icon :deep(svg){width:17px;height:17px}
+  .capability strong{font-size:10px}.capability span{margin-top:2px;font-size:7px}
+  .top-left,.bottom-left{left:1%}.top-right,.bottom-right{right:1%}
+  .top-left,.top-right{top:7%}.bottom-left,.bottom-right{bottom:21%}
+  .core-emblem{width:48px;height:48px}.core-emblem::before{inset:-4px}.core-emblem::after{inset:-8px}
+  .decision-flow{left:2%;right:2%;gap:6px;font-size:9px}.decision-flow span{padding:5px 7px}.decision-flow i{width:14px}}
+
 @media(prefers-reduced-motion:reduce){
   .ring-2,.ring-sweep,.ring-pulse,.pipeline-core::before,.core-scan,.junctions b,.capability i{animation:none}
   .ring-pulse{opacity:.35}
