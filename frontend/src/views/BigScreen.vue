@@ -122,7 +122,9 @@ const radarOption = computed<EChartsCoreOption>(() => {
   const incidentHandled = summary?.alerts ? Math.min(100, Math.round((summary.blocked / summary.alerts) * 100)) : 100
   const latencyHealth = summary ? latencyHealthScore(summary.p95_latency_ms) : 0
   return {
-    backgroundColor: 'transparent', tooltip: { show: false },
+    // A cockpit has fixed visual hierarchy: radar hover cards are not actionable here
+    // and can spill into the engine panel on compact presentation screens.
+    backgroundColor: 'transparent', tooltip: { show: false, triggerOn: 'none', appendToBody: false, alwaysShowContent: false },
     radar: { radius: '62%', center: ['50%', '53%'], indicator: [{ name: '成功率', max: 100 }, { name: '响应健康', max: 100 }, { name: '风险处置', max: 100 }, { name: '审计完整', max: 100 }, { name: '引擎就绪', max: 100 }], axisName: { color: '#b0d2df', fontSize: 10 }, splitArea: { areaStyle: { color: ['rgba(49,198,220,.02)', 'rgba(49,198,220,.08)'] } }, splitLine: { lineStyle: { color: '#285e7a' } }, axisLine: { lineStyle: { color: '#285e7a' } } },
     series: [{ type: 'radar', data: [{ value: [summary?.success_rate || 0, latencyHealth, incidentHandled, data.value?.service_health.audit_chain === 'healthy' ? 100 : 0, models ? Math.round(models.configured_models / models.total_models * 100) : 0], areaStyle: { color: 'rgba(49,198,220,.20)' }, lineStyle: { color: '#31c6dc', width: 2 }, itemStyle: { color: '#4ddeaa' } }] }],
   }
