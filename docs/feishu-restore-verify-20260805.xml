@@ -1,0 +1,19 @@
+<h2>7.9 生产隔离恢复演练（2026-08-05）</h2>
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>结论：</b>比赛封版归档 <code>20260804T205118Z_competition-seal-20260805_f457802f</code> 已在正式服务器执行只读隔离恢复演练，结果为 <code>restorable=true</code>。演练未停止服务、未覆盖生产数据库，临时恢复目录在验证后已删除。</p>
+</callout>
+<table>
+  <thead><tr><th background-color="light-gray">验证项</th><th background-color="light-gray">实际结果</th></tr></thead>
+  <tbody>
+    <tr><td><code>api_keys.db</code> SQLite integrity_check</td><td><span text-color="green">ok</span></td></tr>
+    <tr><td><code>audit.db</code> SQLite integrity_check</td><td><span text-color="green">ok</span></td></tr>
+    <tr><td>SHA-256 审计链</td><td><span text-color="green">有效</span></td></tr>
+    <tr><td>恢复后表计数与 manifest</td><td><span text-color="green">一致</span></td></tr>
+    <tr><td>生产数据库修改</td><td>否</td></tr>
+    <tr><td>临时恢复目录</td><td><span text-color="green">已清理</span></td></tr>
+  </tbody>
+</table>
+<p><b>关键计数：</b>审计事件 915、加密证据 226、API Key 11、API 用量记录 17、租户扫描任务 1、租户报告 1。人工复核标签与领取仍为 0，符合“真人未执行，不伪造人工进度”的事实边界。</p>
+<pre lang="bash" caption="生产只读隔离恢复命令"><code>cd /root/CH/aigc-safety-system/backend
+uv run python maintenance.py restore-verify --archive 20260804T205118Z_competition-seal-20260805_f457802f</code></pre>
+<p><b>机器可读证据：</b><code>docs/evidence/restore-verify-production-20260805.json</code>。</p>

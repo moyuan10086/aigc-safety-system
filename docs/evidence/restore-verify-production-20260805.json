@@ -1,0 +1,34 @@
+{
+  "evidence_type": "production_isolated_restore_verification",
+  "executed_at": "2026-08-05T10:30:00+08:00",
+  "server": "49.51.248.227",
+  "server_path": "/root/CH/aigc-safety-system",
+  "server_commit": "4874451",
+  "archive": "20260804T205118Z_competition-seal-20260805_f457802f",
+  "command": "cd /root/CH/aigc-safety-system/backend && uv run python maintenance.py restore-verify --archive 20260804T205118Z_competition-seal-20260805_f457802f",
+  "result": {
+    "restorable": true,
+    "mode": "isolated-read-only-drill",
+    "service_stopped": false,
+    "production_databases_modified": false,
+    "integrity": {
+      "api_keys.db": { "ok": true, "result": ["ok"] },
+      "audit.db": { "ok": true, "result": ["ok"] }
+    },
+    "audit_chain_valid": true,
+    "counts_match_manifest": true,
+    "counts": {
+      "audit_events": 915,
+      "audit_evidence": 226,
+      "guardrail_shadow_reviews": 0,
+      "guardrail_review_claims": 0,
+      "agent_action_approvals": 0,
+      "api_keys": 11,
+      "api_usage": 17,
+      "tenant_scan_jobs": 1,
+      "tenant_reports": 1
+    },
+    "temporary_restore_directory_removed": true
+  },
+  "conclusion": "The competition-seal archive is internally consistent and can be restored into an isolated directory without stopping the service or modifying production databases."
+}
