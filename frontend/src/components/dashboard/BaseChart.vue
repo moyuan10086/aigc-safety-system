@@ -6,7 +6,7 @@ import { init, type ECharts, type EChartsCoreOption } from 'echarts/core'
 import '../../lib/echarts'
 import { createRafScheduler } from '../../lib/scheduling'
 
-const props = defineProps<{ option: EChartsCoreOption; ariaLabel: string; dark?: boolean }>()
+const props = defineProps<{ option: EChartsCoreOption; ariaLabel: string; dark?: boolean; suppressTooltip?: boolean }>()
 const host = ref<HTMLElement | null>(null)
 let chart: ECharts | null = null
 let observer: ResizeObserver | null = null
@@ -17,12 +17,16 @@ const resizeScheduler = createRafScheduler((width: number, height: number) => {
 function render() {
   if (!chart) return
   chart.setOption(props.option, { notMerge: true, lazyUpdate: true })
+  if (props.suppressTooltip) chart.dispatchAction({ type: 'hideTip' })
 }
 
 onMounted(async () => {
   await nextTick()
   if (!host.value) return
   chart = init(host.value, props.dark ? 'dark' : undefined, { renderer: 'canvas' })
+  if (props.suppressTooltip) {
+    chart.getZr().on('mousemove', () => chart?.dispatchAction({ type: 'hideTip' }))
+  }
   render()
   observer = new ResizeObserver(entries => {
     const rect = entries[0]?.contentRect

@@ -42,7 +42,7 @@
             <div v-if="data.recent_alerts.length" class="ticker"><div v-for="alert in data.recent_alerts.slice(0, 7)" :key="alert.id"><time>{{ formatTime(alert.occurred_at) }}</time><b :class="alert.severity">{{ alert.risk_code || alert.module }}</b><span>{{ alert.summary }}</span><code>{{ sourceLabel(alert.client_ip) }}</code></div></div>
             <div v-else class="screen-empty">当前窗口暂无风险告警</div>
           </CockpitPanel>
-          <CockpitPanel class="radar" title="防护能力态势" code="CONTROL POSTURE"><BaseChart :option="radarOption" aria-label="防护能力雷达图" dark /></CockpitPanel>
+          <CockpitPanel class="radar" title="防护能力态势" code="CONTROL POSTURE"><BaseChart :option="radarOption" aria-label="防护能力雷达图" dark suppress-tooltip /></CockpitPanel>
           <CockpitPanel class="engines" title="模型与引擎" code="ENGINE STATUS"><div class="engine-grid"><div v-for="model in data.models.slice(0, 8)" :key="model.id"><i :class="model.status"></i><span>{{ model.label }}</span><strong>{{ statusLabel(model.status) }}</strong><small>{{ model.model }}</small></div></div></CockpitPanel>
         </div>
 
