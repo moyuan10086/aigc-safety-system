@@ -2,7 +2,11 @@
   <div class="big-screen">
     <header class="screen-header">
       <div class="brand-lockup"><ShieldCheck :size="24" /><div><strong>AIGC 安全运营台</strong><span>MULTIMODAL CONTENT SAFETY</span></div></div>
-      <div class="screen-title">AIGC 安全可视化驾驶舱</div>
+      <div class="title-lockup">
+        <Decoration8 class="title-wing" :color="['#1684b8', '#23c6ff']" />
+        <div class="screen-title">AIGC 安全可视化驾驶舱<small>AI SECURITY COMMAND CENTER</small></div>
+        <Decoration8 class="title-wing right" :color="['#1684b8', '#23c6ff']" reverse />
+      </div>
       <div class="screen-clock"><strong>{{ clock }}</strong><span>{{ date }}</span><button title="退出大屏" @click="exitScreen"><Minimize2 :size="17" /></button></div>
     </header>
 
@@ -10,12 +14,12 @@
     <div v-else-if="!data" class="screen-state"><LoaderCircle :size="28" class="spin" /><strong>{{ error || '正在汇聚安全数据' }}</strong></div>
     <template v-else>
       <div class="screen-kpis">
-        <div><span>审核任务</span><strong>{{ data.summary.business_reviews }}</strong><small>{{ data.window.hours }}H WINDOW</small></div>
-        <div><span>安全事件</span><strong>{{ data.summary.total_events }}</strong><small>REAL AUDIT</small></div>
-        <div class="risk"><span>风险告警</span><strong>{{ data.summary.alerts }}</strong><small>阻断 {{ data.summary.blocked }}</small></div>
-        <div><span>来源主体</span><strong>{{ data.summary.unique_clients }}</strong><small>PUBLIC + INTERNAL</small></div>
-        <div><span>P95 延迟</span><strong>{{ data.summary.p95_latency_ms }}</strong><small>MS · 健康 {{ latencyHealthScore(data.summary.p95_latency_ms) }}</small></div>
-        <div><span>检测报告</span><strong>{{ data.reports.in_window }}</strong><small>{{ data.reports.total }} TOTAL</small></div>
+        <CockpitMetric label="审核任务" :subtitle="`${data.window.hours}H WINDOW`" :value="data.summary.business_reviews"><template #icon><ClipboardCheck /></template></CockpitMetric>
+        <CockpitMetric label="安全事件" subtitle="REAL AUDIT" :value="data.summary.total_events" tone="cyan"><template #icon><ShieldAlert /></template></CockpitMetric>
+        <CockpitMetric label="风险告警" :subtitle="`阻断 ${data.summary.blocked}`" :value="data.summary.alerts" tone="red"><template #icon><Siren /></template></CockpitMetric>
+        <CockpitMetric label="来源主体" subtitle="PUBLIC + INTERNAL" :value="data.summary.unique_clients" tone="mint"><template #icon><Network /></template></CockpitMetric>
+        <CockpitMetric label="P95 延迟" :subtitle="`MS · 健康 ${latencyHealthScore(data.summary.p95_latency_ms)}`" :value="data.summary.p95_latency_ms"><template #icon><Gauge /></template></CockpitMetric>
+        <CockpitMetric label="检测报告" :subtitle="`${data.reports.total} TOTAL`" :value="data.reports.in_window" tone="cyan"><template #icon><FileCheck2 /></template></CockpitMetric>
       </div>
 
       <main class="screen-grid">
@@ -58,8 +62,10 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
-import { LoaderCircle, LockKeyhole, Minimize2, ShieldCheck } from 'lucide-vue-next'
+import { Decoration8 } from '@kjgl77/datav-vue3'
+import { ClipboardCheck, FileCheck2, Gauge, LoaderCircle, LockKeyhole, Minimize2, Network, ShieldAlert, ShieldCheck, Siren } from 'lucide-vue-next'
 import BaseChart from '../components/dashboard/BaseChart.vue'
+import CockpitMetric from '../components/dashboard/CockpitMetric.vue'
 import LoginDialog from '../components/auth/LoginDialog.vue'
 import CockpitPanel from '../components/dashboard/CockpitPanel.vue'
 import RiskSampleStrip, { type DemoRiskSample } from '../components/dashboard/RiskSampleStrip.vue'
@@ -161,9 +167,11 @@ onBeforeUnmount(() => { if (clockTimer) clearInterval(clockTimer); sampleControl
 .platform-intro p{color:#9fc2d0}.platform-intro .intro-future{margin-top:5px;color:#6f9eb1;border-left:2px solid rgba(77,222,170,.7);padding-left:6px}.capability-tags span{color:#a1f4fb;background:rgba(49,198,220,.08);border-color:rgba(82,222,239,.35)}.platform-intro dl>div{background:linear-gradient(135deg,rgba(10,48,67,.8),rgba(6,28,42,.7));border-color:rgba(54,122,151,.65)}.platform-intro dd{color:#e4f8ff}
 .big-screen{--ink:#edf8ff;--muted:#9bb9c9;--blue:#23c6ff;--mint:#54e7b8;--amber:#f4b84f;--danger:#ff5d74;font-family:"HarmonyOS Sans SC","Noto Sans SC","Source Han Sans SC","Microsoft YaHei",sans-serif;background-color:#031222;background-image:radial-gradient(ellipse at 50% 40%,rgba(17,104,171,.18),transparent 39%),linear-gradient(rgba(50,130,172,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(50,130,172,.035) 1px,transparent 1px);background-size:auto,56px 56px,56px 56px}
 .screen-header{height:68px;border-bottom-color:rgba(58,143,190,.5);background:linear-gradient(90deg,rgba(8,42,69,.36),transparent 28%,transparent 72%,rgba(8,42,69,.36))}.screen-header::before{content:'';position:absolute;left:24%;right:24%;top:7px;height:24px;pointer-events:none;background:linear-gradient(120deg,transparent 0 18%,rgba(35,198,255,.75) 18.1% 18.4%,transparent 18.5% 81.5%,rgba(35,198,255,.75) 81.6% 81.9%,transparent 82%)}.screen-header::after{left:32%;right:32%;height:3px;background:var(--blue);box-shadow:0 0 17px rgba(35,198,255,.7)}.brand-lockup{gap:12px}.brand-lockup strong{font-size:16px;font-weight:700;color:var(--blue)}.brand-lockup span{font-size:9px;color:#79a7be}.screen-title{position:relative;z-index:1;font-size:29px;font-weight:650;color:var(--ink)}.screen-clock strong{font-size:23px;color:#c7f5ff}.screen-clock span{font-size:10px;color:var(--muted)}
+.title-lockup{position:relative;z-index:1;width:min(720px,49vw);display:grid;grid-template-columns:minmax(48px,1fr) auto minmax(48px,1fr);align-items:center;gap:14px}.title-wing{width:100%;height:18px;opacity:.9}.title-wing.right{transform:scaleY(-1)}.screen-title{display:flex;flex-direction:column;align-items:center;white-space:nowrap;text-shadow:0 0 18px rgba(35,198,255,.2)}.screen-title small{margin-top:4px;color:#6ca1b8;font:7px/1 ui-monospace,monospace;letter-spacing:.18em}
 .screen-kpis{height:82px;gap:9px;padding:9px 0}.screen-kpis>div{padding:8px 13px;background:linear-gradient(132deg,rgba(9,49,75,.96),rgba(4,23,39,.98) 76%);border-color:rgba(51,142,192,.72);border-left-width:3px;box-shadow:inset 0 1px rgba(122,223,255,.08)}.screen-kpis span{font-size:11px;color:#b7d2df}.screen-kpis strong{font-size:29px;font-weight:600;color:#f3fbff}.screen-kpis small{font-size:8px;color:#74a0b5}.screen-kpis .risk{border-left-color:var(--danger)}.screen-kpis .risk strong{color:#ff7186}
 .screen-grid{gap:12px;grid-template-rows:minmax(0,1fr) clamp(206px,24vh,244px)}.screen-column{gap:12px}.platform-intro{padding:12px 14px}.platform-intro p{font-size:11px;line-height:1.65}.platform-intro .intro-future{margin-top:7px;padding-left:8px}.capability-tags{gap:6px;margin-top:9px}.capability-tags span{padding:4px 7px;font-size:9px}.platform-intro dl{gap:7px}.platform-intro dl>div{padding:7px 8px}.platform-intro dt{font-size:8px}.platform-intro dd{font-size:13px}
 .situation-foot{bottom:11px;gap:26px;font-size:9px}.situation-foot i{width:7px;height:7px}.ticker{padding:7px 12px}.ticker>div{min-height:30px;grid-template-columns:62px 92px minmax(0,1fr);gap:8px;font-size:9px}.ticker time{color:#78a5ba}.ticker span{color:#c3dbe4}.ticker code{font-size:8px;color:#6e9eb5}.engine-grid{padding:7px 12px;gap:4px 12px}.engine-grid>div{grid-template-columns:8px 1fr auto;column-gap:7px}.engine-grid i{width:7px;height:7px}.engine-grid span{font-size:10px;color:#d5eaf2}.engine-grid strong{font-size:9px}.engine-grid small{font-size:8px;color:#79a5b9}.screen-footer{height:30px;font-size:8px;color:#6f9cb1}.screen-footer strong{color:#b0ceda}
 @media(max-height:760px){.screen-header{height:60px}.screen-title{font-size:24px}.screen-kpis{height:76px;padding:8px 0}.screen-kpis strong{font-size:25px}.screen-kpis span{font-size:9px}.platform-intro{padding:8px 10px}.platform-intro p{font-size:9px}.ticker>div{min-height:26px;font-size:8px}.engine-grid span{font-size:8px}}
 @media(max-width:1199px){.big-screen{padding:8px 10px 6px}.screen-grid{gap:8px;grid-template-columns:minmax(0,25fr) minmax(0,50fr) minmax(0,25fr);grid-template-rows:minmax(0,1fr) 180px}.screen-column{gap:8px}.left-column{grid-template-rows:.74fr 1fr .88fr}.right-column{grid-template-rows:1.16fr .9fr .9fr}.screen-kpis{gap:7px}.screen-kpis>div{padding:7px 9px}.screen-kpis strong{font-size:23px}.platform-intro p{font-size:8px}.platform-intro .intro-future{display:none}.capability-tags{margin-top:5px}.capability-tags span{padding:3px 4px;font-size:7px}.platform-intro dl>div{padding:5px}.platform-intro dd{font-size:10px}.ticker>div{grid-template-columns:48px 65px minmax(0,1fr);gap:4px;font-size:7px}.ticker code{font-size:6px}.engine-grid{padding:5px 8px;gap:2px 7px}.engine-grid span{font-size:8px}.engine-grid strong{font-size:7px}.engine-grid small{font-size:6px}.situation-foot{gap:12px;font-size:7px}.screen-footer{font-size:6px}}
+@media(max-width:1199px){.title-lockup{width:430px;gap:8px}.title-wing{height:14px}.screen-title{font-size:22px}.screen-title small{font-size:6px}.screen-kpis>div{padding:0}.screen-kpis strong,.screen-kpis span{font-size:inherit}}
 </style>

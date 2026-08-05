@@ -43,13 +43,15 @@
 
     <div class="platform"></div>
 
-    <div class="pipeline-core">
-      <span class="core-scan"></span>
-      <ShieldCheck class="core-icon" :size="40" />
-      <strong>安全审核中枢</strong>
-      <span class="core-code">POLICY ORCHESTRATOR</span>
-      <b>引擎 {{ configured }}/{{ total }} 在线</b>
-    </div>
+    <Decoration9 class="core-decoration" :color="['#23c6ff', 'rgba(73, 166, 255, .55)']" :dur="7">
+      <div class="pipeline-core">
+        <span class="core-scan"></span>
+        <span class="core-emblem"><ShieldCheck class="core-icon" :size="40" /></span>
+        <strong>安全审核中枢</strong>
+        <span class="core-code">POLICY ORCHESTRATOR</span>
+        <b>引擎 {{ configured }}/{{ total }} 在线</b>
+      </div>
+    </Decoration9>
 
     <div v-for="item in capabilities" :key="item.code" class="capability" :class="item.position">
       <span class="cap-icon"><component :is="item.icon" :size="22" /></span>
@@ -64,6 +66,7 @@
 </template>
 
 <script setup lang="ts">
+import { Decoration9 } from '@kjgl77/datav-vue3'
 import { BadgeCheck, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
 
 defineProps<{ configured: number; total: number }>()
@@ -153,7 +156,8 @@ const junctions = trackAngles.map((angle) => ({ angle, major: angle % 90 === 45 
   border:1px solid rgba(150,240,255,.35)}
 
 /* ---- vivid electric-blue security core (~250px @1080p) ---- */
-.pipeline-core{position:absolute;left:var(--cx);top:var(--cy);width:var(--core);aspect-ratio:1;z-index:4;
+.core-decoration{position:absolute!important;left:var(--cx);top:var(--cy);width:calc(var(--r1) + 34px)!important;height:calc(var(--r1) + 34px)!important;z-index:4;transform:translate(-50%,-50%);filter:drop-shadow(0 0 18px rgba(35,198,255,.22))}
+.pipeline-core{position:absolute;left:50%;top:50%;width:var(--core);aspect-ratio:1;z-index:4;
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   border-radius:50%;transform:translate(-50%,-50%);color:#a9edff;
   background:
@@ -166,8 +170,11 @@ const junctions = trackAngles.map((angle) => ({ angle, major: angle % 90 === 45 
 .core-scan{position:absolute;inset:11px;border-radius:50%;overflow:hidden;
   background:linear-gradient(180deg,transparent 46%,rgba(170,245,255,.30) 50%,transparent 54%);
   animation:core-scan 3.6s ease-in-out infinite}
-.core-icon{color:#c9f5ff;filter:drop-shadow(0 0 10px rgba(120,232,255,.85))}
-.pipeline-core strong{position:relative;margin-top:10px;color:var(--ink);font-size:17px;font-weight:700;letter-spacing:.06em;text-shadow:0 0 14px rgba(63,210,255,.6)}
+.core-emblem{position:relative;width:56px;height:56px;display:grid;place-items:center;margin-bottom:2px;border-radius:50%;background:radial-gradient(circle,rgba(91,220,255,.24),rgba(10,62,94,.08) 68%,transparent 70%)}
+.core-emblem::before,.core-emblem::after{content:'';position:absolute;inset:-5px;border-radius:50%;border-top:1px solid rgba(154,239,255,.82);border-bottom:1px solid rgba(35,168,230,.34);transform:rotate(-24deg)}
+.core-emblem::after{inset:-10px;border-top-color:rgba(35,198,255,.46);border-bottom-color:transparent;transform:rotate(142deg)}
+.core-icon{position:relative;z-index:1;color:#d7f8ff;stroke-width:1.9;filter:drop-shadow(0 0 10px rgba(120,232,255,.9))}
+.pipeline-core strong{position:relative;margin-top:5px;color:var(--ink);font-size:17px;font-weight:700;letter-spacing:.06em;text-shadow:0 0 14px rgba(63,210,255,.6)}
 .core-code{position:relative;margin-top:5px;color:#7fbcd8;font:9px/1 ui-monospace,monospace;letter-spacing:.14em}
 .pipeline-core b{position:relative;margin-top:11px;padding:4px 10px;border-radius:2px;color:#63f2c0;
   background:rgba(77,222,170,.10);border:1px solid rgba(77,222,170,.42);font:11px ui-monospace,monospace}
