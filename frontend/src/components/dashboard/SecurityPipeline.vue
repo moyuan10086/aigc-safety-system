@@ -48,7 +48,7 @@
       <ShieldCheck class="core-icon" :size="40" />
       <strong>安全审核中枢</strong>
       <span class="core-code">POLICY ORCHESTRATOR</span>
-      <b>{{ configured }}/{{ total }} 引擎就绪</b>
+      <b>引擎 {{ configured }}/{{ total }} 在线</b>
     </div>
 
     <div v-for="item in capabilities" :key="item.code" class="capability" :class="item.position">

@@ -31,10 +31,10 @@ defineProps<{ title: string; code: string }>()
    content with calc(100% - 34px). */
 .panel-title{position:relative;height:34px;display:flex;align-items:center;padding:0 15px 0 12px;border-bottom:1px solid rgba(58,125,158,.55);background:linear-gradient(90deg,rgba(18,69,94,.22),transparent 65%)}
 .panel-title::before{content:'';flex:none;width:5px;height:12px;margin-right:7px;background:#48d8e9;box-shadow:0 0 10px rgba(72,216,233,.75);clip-path:polygon(0 0,100% 20%,100% 80%,0 100%)}
-.panel-title strong{min-width:0;overflow:hidden;font-size:10px;color:#e0f8ff;letter-spacing:.3px;white-space:nowrap;text-overflow:ellipsis}
+.panel-title strong{min-width:0;overflow:hidden;font-family:"HarmonyOS Sans SC","Noto Sans SC","Source Han Sans SC","Microsoft YaHei",sans-serif;font-size:13px;font-weight:650;color:#edfaff;letter-spacing:0;white-space:nowrap;text-overflow:ellipsis}
 /* Long codes (e.g. "CURATED BENCHMARK · SANITIZED") ellipsize instead of pushing the
    title out of the panel. #8fb8cc measures ~5:1 against the lightest part of the header
    gradient -- this text is 7px, so it needs the 4.5:1 normal-text threshold. */
-.panel-title span{flex:0 1 auto;min-width:0;margin-left:auto;padding-left:8px;overflow:hidden;color:#8fb8cc;font:7px/1 ui-monospace,monospace;letter-spacing:.6px;white-space:nowrap;text-overflow:ellipsis}
+.panel-title span{flex:0 1 auto;min-width:0;margin-left:auto;padding-left:8px;overflow:hidden;color:#8fb8cc;font:8px/1 ui-monospace,monospace;letter-spacing:0;white-space:nowrap;text-overflow:ellipsis}
 @media(prefers-reduced-motion:reduce){.screen-panel::after{animation:none;background-size:100% 100%;background-position:0 0;background-image:linear-gradient(90deg,rgba(65,204,228,.6),rgba(65,204,228,.08) 76%,transparent)}}
 </style>
