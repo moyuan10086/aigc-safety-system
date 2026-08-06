@@ -122,7 +122,7 @@ function draw(now: number) {
   const cy = height * CY_RATIO
   const base = coreBase(width, height)
   const energy = palette.accent
-  const focus = props.alert ? palette.danger : palette.cyan
+  const focus = props.alert ? palette.danger : palette.accent
 
   c.clearRect(0, 0, width, height)
 
@@ -228,8 +228,8 @@ function draw(now: number) {
     const x = cx + Math.cos(angle) * r
     const y = cy + Math.sin(angle) * r * SQUASH
     // 越靠近核心越亮：视觉上读作"被吸入"
-    const strength = 0.3 + eased * 0.9
-    glowDot(c, x, y, particle.size, particle.lane % 2 === 0 ? palette.cyan : energy, strength)
+    const strength = 0.24 + eased * 0.82
+    glowDot(c, x, y, particle.size, particle.lane % 4 === 0 ? palette.cyan : energy, strength)
   }
 
   // ---- 7. 通道导引线：极淡的虚线，提示粒子路径 ----
