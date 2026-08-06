@@ -65,7 +65,8 @@ cp backend/.env.example backend/.env
 # 编辑 backend/.env，填入 API Key
 MLLM_API_KEY=your_api_key
 MLLM_BASE_URL=https://api.openai.com/v1
-MLLM_MODEL=gpt-4o
+MLLM_MODEL=gpt-5.6-sol
+CHAT_MODEL_NAME=gpt-5.6-sol
 ```
 
 ### 2. 启动系统

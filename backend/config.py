@@ -5,17 +5,19 @@ import socket
 
 load_dotenv(Path(__file__).parent / ".env")
 
+DEFAULT_GENERATION_MODEL = "gpt-5.6-sol"
+
 # MLLM API (OpenAI-compatible)
 MLLM_API_KEY = os.getenv("MLLM_API_KEY", "")
 MLLM_BASE_URL = os.getenv("MLLM_BASE_URL", "https://api.openai.com/v1")
-MLLM_MODEL = os.getenv("MLLM_MODEL", "gpt-4o")
+MLLM_MODEL = os.getenv("MLLM_MODEL", DEFAULT_GENERATION_MODEL)
 MLLM_TIMEOUT_SECONDS = float(os.getenv("MLLM_TIMEOUT_SECONDS", "90"))
 
 # Text generation model. It can point to a dedicated local vLLM service while
 # image analysis continues to use the MLLM settings above.
 CHAT_MODEL_API_KEY = os.getenv("CHAT_MODEL_API_KEY", MLLM_API_KEY)
 CHAT_MODEL_BASE_URL = os.getenv("CHAT_MODEL_BASE_URL", MLLM_BASE_URL)
-CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", MLLM_MODEL)
+CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", DEFAULT_GENERATION_MODEL)
 CHAT_MODEL_TIMEOUT_SECONDS = float(os.getenv("CHAT_MODEL_TIMEOUT_SECONDS", "60"))
 CHAT_MODEL_MAX_TOKENS = int(os.getenv("CHAT_MODEL_MAX_TOKENS", "700"))
 GUARDRAIL_CHAT_RATE_LIMIT = int(os.getenv("GUARDRAIL_CHAT_RATE_LIMIT", "10"))
