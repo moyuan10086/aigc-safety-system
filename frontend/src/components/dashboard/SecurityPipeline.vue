@@ -376,4 +376,15 @@ onBeforeUnmount(() => observer?.disconnect())
   .orb-ring,.orb-scan,.cap-node,.core-orb b i,.decision-flow i::before{animation:none}
   .orb-scan{opacity:.3}
 }
+
+/* CockpitShell scales a fixed 1920x1080 scene; do not reflow its internal geometry per viewport. */
+@media(max-width:1199px),(max-height:820px){
+  .capability{width:clamp(158px,15vw,218px);padding:11px 13px;gap:11px}
+  .cap-icon{width:36px;height:36px}.cap-icon :deep(svg){width:20px;height:20px}
+  .orb-emblem{width:56px;height:56px}.orb-emblem :deep(svg){width:38px;height:38px}
+  .core-orb strong{margin-top:9px}.core-orb b{margin-top:11px;padding:4px 11px}
+  .top-left,.top-right{top:9%}.bottom-left,.bottom-right{bottom:23%}
+  .top-left,.bottom-left{left:3%}.top-right,.bottom-right{right:3%}
+  .decision-flow{left:4%;right:4%;bottom:4%;gap:10px}.decision-flow span{padding:7px 13px}
+}
 </style>

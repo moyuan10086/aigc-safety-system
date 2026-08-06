@@ -75,4 +75,5 @@ onMounted(()=>{clockTimer=setInterval(()=>{now.value=new Date()},1000);loadDemoS
 .cockpit-layout{grid-template-rows:minmax(0,1fr) clamp(190px,23vh,248px)}
 .samples-panel{min-height:0}
 @media(max-width:1199px){.cockpit-layout{grid-template-rows:minmax(0,1fr) 184px}.samples-panel{min-height:0}}
+@media(max-width:1199px),(max-height:800px){.cockpit-layout{grid-template-columns:minmax(0,27fr) minmax(560px,46fr) minmax(0,27fr);grid-template-rows:minmax(0,1fr) clamp(190px,23vh,248px)}.samples-panel{min-height:0}.situation-foot{display:flex}.left-column,.right-column{gap:var(--screen-gap)}.platform-intro .intro-future{display:block}.capability-tags{margin:10px 0}}
 </style>

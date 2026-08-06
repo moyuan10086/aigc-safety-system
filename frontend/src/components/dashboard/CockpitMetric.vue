@@ -175,4 +175,5 @@ onBeforeUnmount(() => counter?.reset())
 .metric-copy b{font-size:var(--fs-screen-body)}
 .cockpit-metric.warning .metric-value{color:var(--risk-medium)}
 .cockpit-metric.critical .metric-value{color:var(--risk-critical)}
+@media(max-width:1199px),(max-height:820px){.cockpit-metric{grid-template-columns:auto minmax(0,1fr) auto;column-gap:12px;padding:0 var(--sc-pad)}.metric-emblem{width:40px;height:45px}.metric-emblem :deep(svg){width:20px;height:20px}.metric-value{grid-column:auto;grid-row:auto}.metric-copy{grid-column:auto;grid-row:auto;gap:6px}.metric-copy small{display:block}}
 </style>
