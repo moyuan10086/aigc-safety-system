@@ -56,7 +56,7 @@ function readPalette() {
 }
 
 function seedParticles() {
-  const count = Math.round(26 + props.intensity * 30)
+  const count = Math.round(16 + props.intensity * 18)
   // speed 的单位是"每秒走完通道的比例"：0.3 ≈ 3.3 秒走完一条通道
   particles = Array.from({ length: count }, (_, index) => ({
     lane: index % LANES.length,
@@ -86,7 +86,7 @@ function resize() {
 function glowDot(c: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, strength = 1) {
   const gradient = c.createRadialGradient(x, y, 0, x, y, r * 5)
   gradient.addColorStop(0, color)
-  gradient.addColorStop(0.22, withAlpha(color, 0.42 * strength))
+  gradient.addColorStop(0.22, withAlpha(color, 0.28 * strength))
   gradient.addColorStop(1, withAlpha(color, 0))
   c.fillStyle = gradient
   c.beginPath()
@@ -128,8 +128,8 @@ function draw(now: number) {
 
   // ---- 1. 中心体积光：让中枢"发亮"而不是"贴了个圆" ----
   const halo = c.createRadialGradient(cx, cy, 0, cx, cy, base * 1.5)
-  halo.addColorStop(0, withAlpha(energy, 0.20))
-  halo.addColorStop(0.34, withAlpha(energy, 0.09))
+  halo.addColorStop(0, withAlpha(energy, 0.12))
+  halo.addColorStop(0.34, withAlpha(energy, 0.055))
   halo.addColorStop(0.62, withAlpha(palette.violet, 0.05))
   halo.addColorStop(1, 'rgba(0,0,0,0)')
   c.fillStyle = halo
@@ -137,9 +137,9 @@ function draw(now: number) {
 
   // ---- 2. 三层轨道环：不同速度与虚实，制造纵深 ----
   const rings = [
-    { r: base * NODE_RING, w: 1.4, alpha: 0.50, dash: [] as number[], spin: 0 },
-    { r: base * 0.76, w: 1, alpha: 0.34, dash: [3, 9], spin: time * 0.16 },
-    { r: base * 0.95, w: 1, alpha: 0.20, dash: [1, 7], spin: -time * 0.1 },
+    { r: base * NODE_RING, w: 1.2, alpha: 0.34, dash: [] as number[], spin: 0 },
+    { r: base * 0.76, w: 1, alpha: 0.22, dash: [3, 9], spin: time * 0.16 },
+    { r: base * 0.95, w: 1, alpha: 0.12, dash: [1, 7], spin: -time * 0.1 },
   ]
   for (const ring of rings) {
     c.save()
@@ -228,7 +228,7 @@ function draw(now: number) {
     const x = cx + Math.cos(angle) * r
     const y = cy + Math.sin(angle) * r * SQUASH
     // 越靠近核心越亮：视觉上读作"被吸入"
-    const strength = 0.24 + eased * 0.82
+    const strength = 0.16 + eased * 0.56
     glowDot(c, x, y, particle.size, particle.lane % 4 === 0 ? palette.cyan : energy, strength)
   }
 
@@ -236,7 +236,7 @@ function draw(now: number) {
   c.save()
   c.translate(cx, cy)
   c.setLineDash([])
-  c.strokeStyle = withAlpha(energy, 0.34)
+  c.strokeStyle = withAlpha(energy, 0.20)
   c.lineWidth = 1
   for (const lane of LANES) {
     const angle = (lane * Math.PI) / 180
