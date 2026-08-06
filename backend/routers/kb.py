@@ -40,6 +40,21 @@ async def get_files(category: str = None):
     return await asyncio.to_thread(kb_service.list_files, category)
 
 
+@router.get("/stats")
+async def get_stats():
+    return await asyncio.to_thread(kb_service.stats)
+
+
+@router.post("/search")
+async def search_knowledge(
+    question: str = Form(...), top_k: int = Form(5),
+    category: str | None = Form(None), score_threshold: float = Form(0.32),
+):
+    return await asyncio.to_thread(
+        kb_service.search, question, top_k, category or None, score_threshold,
+    )
+
+
 @router.get("/files/{file_id}/chunks")
 async def get_chunks(file_id: str):
     return await asyncio.to_thread(kb_service.list_chunks, file_id)

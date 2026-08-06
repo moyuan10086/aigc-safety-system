@@ -1,0 +1,6 @@
+{
+  "model_path": "models/hybrid_safety_model_xgboost_color.json",
+  "alert_confidence_threshold": 0.60,
+  "enable_alert": true,
+  "include_votes": true
+}

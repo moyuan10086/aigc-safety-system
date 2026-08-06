@@ -14,6 +14,7 @@ from typing import Any
 import config
 
 ENGINE_NAME = "local_xgboost_hybrid_20260701"
+BACKEND_DIR = Path(__file__).parents[1]
 _SAFE_ERROR_CODES = {
     "module_path_unavailable",
     "model_path_unavailable",
@@ -57,9 +58,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _runtime_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    return path.resolve() if path.is_absolute() else (BACKEND_DIR / path).resolve()
+
+
 def _create_auditor() -> Any:
-    module_root = Path(config.GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH).expanduser().resolve()
-    model_path = Path(config.GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH).expanduser().resolve()
+    module_root = _runtime_path(config.GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH)
+    model_path = _runtime_path(config.GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH)
     expected_digest = config.GUARDRAIL_XGBOOST_SHADOW_SHA256.strip().lower()
     if not module_root.is_dir():
         raise RuntimeError("module_path_unavailable")

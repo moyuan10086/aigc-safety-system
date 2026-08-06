@@ -25,6 +25,24 @@ class XGBoostShadowServiceTests(unittest.TestCase):
         self.assertEqual(result["status"], "disabled")
         self.assertIsNone(result["decision"])
 
+    def test_repository_bundled_model_loads_and_runs(self):
+        with patch.multiple(
+            xgboost_shadow_service.config,
+            GUARDRAIL_ENABLE_XGBOOST_SHADOW=True,
+            GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH="../vendor/aigc-local-auditor",
+            GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH=(
+                "../vendor/aigc-local-auditor/security_audit_system/models/"
+                "hybrid_safety_model_xgboost_color.json"
+            ),
+            GUARDRAIL_XGBOOST_SHADOW_SHA256=(
+                "570bd09b358186af1f902ff3bc2b9a463da09a8921d22b72f04978248e5c8180"
+            ),
+        ):
+            result = xgboost_shadow_service.evaluate("请介绍网络谣言识别方法", "safe")
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["decision"], "pass")
+        self.assertEqual(result["route"], "local")
+
     def test_shadow_result_does_not_replace_primary_verdict(self):
         fake = SimpleNamespace(
             audit_dict=lambda _text: {

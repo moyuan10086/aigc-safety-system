@@ -182,6 +182,8 @@ const scopeOptions = [
   { value:'image:mllm', label:'多模态图片审核' },
   { value:'image:content-safety', label:'图片内容安全' },
   { value:'image:provenance', label:'AI 来源证据验证' },
+  { value:'image:audit-watermark', label:'CRT 审计水印生成与核验' },
+  { value:'image:watermark', label:'第三方水印辅助检测' },
   { value:'usage:read', label:'用量查询' },
   { value:'scan:run', label:'主动扫描提交' },
   { value:'scan:read', label:'主动扫描查询' },

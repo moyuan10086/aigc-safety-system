@@ -11,7 +11,6 @@ import config
 from services import audit_log_service, guarded_chat_service
 
 REPORTS_DIR = Path(__file__).parents[1] / "reports"
-DEEPFAKE_WEIGHTS = Path(__file__).parents[2] / "deepfake-detection" / "weights" / "model.ckpt"
 
 
 def _report_statistics(start: datetime) -> dict[str, Any]:
@@ -58,7 +57,10 @@ def _report_statistics(start: datetime) -> dict[str, Any]:
 
 
 def _model_states() -> list[dict[str, Any]]:
+    from services import deepfake_service
+
     chat = guarded_chat_service.model_status()
+    deepfake = deepfake_service.runtime_status()
     return [
         {
             "id": "generator",
@@ -100,7 +102,7 @@ def _model_states() -> list[dict[str, Any]]:
             "id": "deepfake",
             "label": "Deepfake 检测",
             "model": "DFDet model.ckpt",
-            "status": "configured" if DEEPFAKE_WEIGHTS.exists() else "degraded",
+            "status": "enabled" if deepfake["state"] == "ready" else "configured" if config.DEEPFAKE_MODEL_PATH else "degraded",
         },
         {
             "id": "rag",

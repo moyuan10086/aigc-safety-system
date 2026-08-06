@@ -5,12 +5,14 @@ on:
     paths:
       - "backend/**"
       - "evaluations/**"
+      - "vendor/aigc-local-auditor/**"
       - ".github/workflows/guardrail-evaluation.yml"
   push:
     branches: [main]
     paths:
       - "backend/**"
       - "evaluations/**"
+      - "vendor/aigc-local-auditor/**"
       - ".github/workflows/guardrail-evaluation.yml"
   workflow_dispatch:
 
@@ -26,7 +28,10 @@ jobs:
       GUARDRAIL_ENABLE_MLLM: "false"
       GUARDRAIL_ENABLE_QWEN_CLASSIFIER: "false"
       GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER: "false"
-      GUARDRAIL_ENABLE_XGBOOST_SHADOW: "false"
+      GUARDRAIL_ENABLE_XGBOOST_SHADOW: "true"
+      GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH: "../vendor/aigc-local-auditor"
+      GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH: "../vendor/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json"
+      GUARDRAIL_XGBOOST_SHADOW_SHA256: "570bd09b358186af1f902ff3bc2b9a463da09a8921d22b72f04978248e5c8180"
       PROMPTFOO_DISABLE_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
     steps:
@@ -48,6 +53,9 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: uv sync --frozen
+      - name: Verify bundled shadow model
+        working-directory: vendor/aigc-local-auditor
+        run: sha256sum -c MODEL_SHA256
       - name: Run backend lint
         working-directory: backend
         run: uv run ruff check .

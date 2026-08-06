@@ -49,12 +49,24 @@
       <div class="chat-box" ref="chatBox">
         <div v-for="(m, i) in messages" :key="i" :class="['msg', m.role]">
           <span>{{ m.content }}</span>
+          <div v-if="m.role === 'assistant' && m.sources?.length" class="answer-sources">
+            <b>参考证据</b>
+            <button v-for="source in m.sources" :key="source.chunk_id" type="button" @click="selectedSource = source">
+              [{{ source.rank }}] {{ source.filename }} · #{{ source.chunk_index }}
+            </button>
+          </div>
         </div>
       </div>
       <div class="input-row">
         <input v-model="question" class="q-input" placeholder="输入问题..." @keyup.enter="sendQuestion" />
         <button class="send-btn" :disabled="asking" @click="sendQuestion">发送</button>
       </div>
+    </div>
+    <div v-if="selectedSource" class="source-drawer card">
+      <div class="card-title">引用证据 [{{ selectedSource.rank }}]<button class="refresh-btn" @click="selectedSource = null">关闭</button></div>
+      <p><b>{{ selectedSource.filename }}</b> · {{ selectedSource.category }} · 分块 #{{ selectedSource.chunk_index }}</p>
+      <div class="source-score">融合 {{ Math.round(selectedSource.score * 100) }}% · 向量 {{ Math.round(selectedSource.vector_score * 100) }}% · 词法 {{ Math.round(selectedSource.keyword_score * 100) }}%</div>
+      <pre>{{ selectedSource.snippet }}</pre>
     </div>
   </div>
 </template>
@@ -69,12 +81,13 @@ const chunks = ref<any[]>([])
 const selectedFile = ref<any>(null)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
-const messages = ref<{role:string,content:string}[]>([])
+const messages = ref<{role:string,content:string,sources?:any[]}[]>([])
 const question = ref('')
 const asking = ref(false)
 const chatBox = ref<HTMLElement>()
 const category = ref('默认')
 const filterCategory = ref('')
+const selectedSource = ref<any>(null)
 
 onMounted(loadFiles)
 
@@ -130,8 +143,16 @@ async function sendQuestion() {
   const q = question.value
   question.value = ''
   asking.value = true
-  messages.value.push({ role: 'assistant', content: '' })
+  messages.value.push({ role: 'assistant', content: '', sources: [] })
   const idx = messages.value.length - 1
+
+  try {
+    const searchBody = new FormData()
+    searchBody.append('question', q)
+    searchBody.append('top_k', '3')
+    const searchResponse = await fetch(API + '/search', { method: 'POST', body: searchBody })
+    if (searchResponse.ok) messages.value[idx].sources = (await searchResponse.json()).hits || []
+  } catch {}
 
   const fd = new FormData()
   fd.append('question', q)
@@ -189,4 +210,8 @@ async function sendQuestion() {
 .msg.user{background:rgba(8,126,174,.09)}
 .msg.assistant,.q-input{background:var(--surface-2)}
 .send-btn{color:#fff}
+.answer-sources{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;padding-top:8px;border-top:1px solid var(--line)}
+.answer-sources b{width:100%;color:var(--muted);font-size:10px}
+.answer-sources button{padding:4px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--primary);font-size:10px;cursor:pointer}
+.source-drawer{margin-top:16px}.source-drawer .card-title{display:flex;justify-content:space-between}.source-drawer p{color:var(--muted);font-size:11px}.source-score{margin-bottom:9px;color:var(--primary);font-size:10px}.source-drawer pre{max-height:280px;overflow:auto;margin:0;padding:12px;border-radius:5px;background:var(--surface-2);color:var(--text);font:11px/1.65 ui-monospace,monospace;white-space:pre-wrap}
 </style>

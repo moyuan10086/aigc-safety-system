@@ -12,7 +12,13 @@ from fastapi.testclient import TestClient
 
 import config
 from routers.system import router
-from services import audit_log_service, auth_service, guarded_chat_service, readiness_service
+from services import (
+    audit_log_service,
+    auth_service,
+    deepfake_service,
+    guarded_chat_service,
+    readiness_service,
+)
 
 
 class ReadinessTests(unittest.TestCase):
@@ -29,6 +35,17 @@ class ReadinessTests(unittest.TestCase):
         self.rag.mkdir()
         self.deepfake = root / "model.ckpt"
         self.deepfake.write_bytes(b"test-weights")
+        self.deepfake_digest = hashlib.sha256(self.deepfake.read_bytes()).hexdigest()
+        self.face_model = root / "face.onnx"
+        self.face_model.write_bytes(b"test-face-model")
+        self.face_model_digest = hashlib.sha256(self.face_model.read_bytes()).hexdigest()
+        self.shadow_module = root / "aigc-local-auditor"
+        shadow_package = self.shadow_module / "security_audit_system"
+        shadow_package.mkdir(parents=True)
+        (shadow_package / "audit_system.py").write_text("# test auditor\n", encoding="utf-8")
+        self.shadow_model = root / "shadow-model.json"
+        self.shadow_model.write_bytes(b"test-shadow-model")
+        self.shadow_digest = hashlib.sha256(self.shadow_model.read_bytes()).hexdigest()
         self.config_patch = patch.multiple(
             config,
             AUDIT_LOG_DB_PATH=str(self.audit_db),
@@ -51,6 +68,9 @@ class ReadinessTests(unittest.TestCase):
             MLLM_BASE_URL="https://mllm.invalid/v1",
             MLLM_MODEL="competition-mllm",
             DEEPFAKE_MODEL_PATH=str(self.deepfake),
+            DEEPFAKE_MODEL_SHA256=self.deepfake_digest,
+            DEEPFAKE_FACE_MODEL_PATH=str(self.face_model),
+            DEEPFAKE_FACE_MODEL_SHA256=self.face_model_digest,
             CHROMA_PATH=str(self.rag),
             LEXICON_PATH=str(self.lexicon),
             GUARDRAIL_ENABLE_RAG=True,
@@ -62,15 +82,22 @@ class ReadinessTests(unittest.TestCase):
             GUARDRAIL_SINGGUARD_API_KEY="singguard-secret",
             GUARDRAIL_SINGGUARD_BASE_URL="https://singguard.invalid/v1",
             GUARDRAIL_SINGGUARD_MODEL="singguard-test",
+            GUARDRAIL_ENABLE_XGBOOST_SHADOW=True,
+            GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH=str(self.shadow_module),
+            GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH=str(self.shadow_model),
+            GUARDRAIL_XGBOOST_SHADOW_SHA256=self.shadow_digest,
         )
         self.config_patch.start()
         self.path_patch = patch.multiple(
             readiness_service,
             FRONTEND_INDEX=self.frontend_index,
             BUNDLED_LEXICON=self.lexicon,
-            DEEPFAKE_WEIGHTS=self.deepfake,
         )
         self.path_patch.start()
+        self.deepfake_runtime_patch = patch.dict(
+            deepfake_service._runtime, {"state": "ready", "model_loaded": True}
+        )
+        self.deepfake_runtime_patch.start()
         self.face_patch = patch.object(
             readiness_service, "_face_detector_available", return_value=True
         )
@@ -86,6 +113,7 @@ class ReadinessTests(unittest.TestCase):
         readiness_service.reset_for_tests()
         audit_log_service.reset_for_tests()
         self.face_patch.stop()
+        self.deepfake_runtime_patch.stop()
         self.path_patch.stop()
         self.config_patch.stop()
         self.temp_dir.cleanup()
@@ -154,6 +182,7 @@ class ReadinessTests(unittest.TestCase):
             MLLM_API_KEY="",
             GUARDRAIL_ENABLE_QWEN_CLASSIFIER=False,
             GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER=False,
+            GUARDRAIL_ENABLE_XGBOOST_SHADOW=False,
         ):
             result = readiness_service.snapshot(refresh=True)
         self.assertEqual(result["status"], "degraded")
@@ -171,13 +200,32 @@ class ReadinessTests(unittest.TestCase):
             "ready",
         )
 
-    def test_deepfake_check_uses_the_weight_loaded_by_the_real_service(self):
-        with patch.object(config, "DEEPFAKE_MODEL_PATH", "obsolete/model.torchscript"):
+    def test_shadow_digest_mismatch_degrades_without_exposing_paths(self):
+        with patch.object(config, "GUARDRAIL_XGBOOST_SHADOW_SHA256", "0" * 64):
+            result = readiness_service.snapshot(refresh=True)
+        shadow = next(item for item in result["checks"] if item["id"] == "xgboost_shadow")
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(shadow["status"], "fail")
+        serialized = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn(str(self.shadow_module), serialized)
+        self.assertNotIn(str(self.shadow_model), serialized)
+
+    def test_deepfake_check_warns_until_real_inference_has_run(self):
+        with patch.dict(deepfake_service._runtime, {"state": "not_loaded"}):
             result = readiness_service.snapshot(refresh=True)
         deepfake = next(
             item for item in result["checks"] if item["id"] == "deepfake_model"
         )
-        self.assertEqual(deepfake["status"], "pass")
+        self.assertEqual(deepfake["status"], "warn")
+        self.assertIn("尚未完成本进程真实推理", deepfake["message"])
+
+    def test_deepfake_digest_mismatch_is_not_reported_as_ready(self):
+        with patch.object(config, "DEEPFAKE_MODEL_SHA256", "0" * 64):
+            result = readiness_service.snapshot(refresh=True)
+        deepfake = next(
+            item for item in result["checks"] if item["id"] == "deepfake_model"
+        )
+        self.assertEqual(deepfake["status"], "fail")
 
     def test_required_failure_is_not_ready(self):
         with patch.object(audit_log_service, "verify_chain", return_value=False):

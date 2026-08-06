@@ -16,6 +16,26 @@ MARKER_KEY = "aigc_safety_provenance"
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 
 
+def _iptc_summary(image: Image.Image, info: dict[str, Any]) -> dict[str, Any]:
+    """Return a bounded IPTC summary without retaining raw metadata values."""
+    raw = info.get("iptc") or info.get("photoshop")
+    if raw is None:
+        return {"status": "not_found", "field_count": 0, "fields": [], "value_hash": None}
+    try:
+        if isinstance(raw, dict):
+            names = [str(key)[:80] for key in raw.keys()]
+        elif isinstance(raw, (bytes, bytearray)):
+            # APP13/Photoshop blocks are evidence of an IPTC-bearing payload;
+            # field names are intentionally omitted when parsing is ambiguous.
+            names = ["APP13/Photoshop resource"]
+        else:
+            names = ["IPTC metadata"]
+        digest = hashlib.sha256(bytes(raw) if isinstance(raw, (bytes, bytearray)) else str(raw).encode("utf-8", "ignore")).hexdigest()
+        return {"status": "present", "field_count": len(names), "fields": names[:16], "value_hash": digest}
+    except Exception:
+        return {"status": "inconclusive", "field_count": 0, "fields": [], "value_hash": None}
+
+
 class ProvenanceError(ValueError):
     pass
 
@@ -117,6 +137,7 @@ def verify(path: str | Path) -> dict[str, Any]:
                 "has_icc_profile": bool(info.get("icc_profile")),
                 "has_xmp": bool(info.get("xmp")),
                 "has_comment": bool(info.get("comment")),
+                "iptc": _iptc_summary(image, info),
                 "local_marker": marker,
             }
     except Exception as exc:

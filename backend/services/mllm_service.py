@@ -5,14 +5,15 @@ import base64
 import hashlib
 import io
 import json
-import re
 import sys
+import time
 from pathlib import Path
 
 import httpx
 from PIL import Image
 from openai import OpenAI
-from config import MLLM_API_KEY, MLLM_BASE_URL, MLLM_MODEL, MLLM_TIMEOUT_SECONDS, PROXY_URL
+
+import config
 
 MLLM_ROOT = Path(__file__).parents[2] / "mllm-defake"
 sys.path.insert(0, str(MLLM_ROOT))
@@ -31,12 +32,12 @@ CONTENT_SAFETY_CATEGORIES = {
 
 
 def _make_client() -> OpenAI:
-    if PROXY_URL:
-        return OpenAI(api_key=MLLM_API_KEY, base_url=MLLM_BASE_URL,
-                      timeout=MLLM_TIMEOUT_SECONDS, max_retries=1,
-                      http_client=httpx.Client(proxy=PROXY_URL, timeout=MLLM_TIMEOUT_SECONDS))
-    return OpenAI(api_key=MLLM_API_KEY, base_url=MLLM_BASE_URL,
-                  timeout=MLLM_TIMEOUT_SECONDS, max_retries=1)
+    if config.PROXY_URL:
+        return OpenAI(api_key=config.MLLM_API_KEY, base_url=config.MLLM_BASE_URL,
+                      timeout=config.MLLM_TIMEOUT_SECONDS, max_retries=1,
+                      http_client=httpx.Client(proxy=config.PROXY_URL, timeout=config.MLLM_TIMEOUT_SECONDS))
+    return OpenAI(api_key=config.MLLM_API_KEY, base_url=config.MLLM_BASE_URL,
+                  timeout=config.MLLM_TIMEOUT_SECONDS, max_retries=1)
 
 
 def _encode_compressed(path: str, max_bytes: int = 4 * 1024 * 1024) -> str:
@@ -55,12 +56,11 @@ def _encode_compressed(path: str, max_bytes: int = 4 * 1024 * 1024) -> str:
     return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
 
-def analyze(image_path: str) -> dict:
+def _request_authenticity(image_path: str) -> str:
     client = _make_client()
     image_url = _encode_compressed(image_path)
-
     resp = client.chat.completions.create(
-        model=MLLM_MODEL,
+        model=config.MLLM_MODEL,
         messages=[
             {"role": "system", "content": "You are an expert in detecting AI-generated and deepfake images."},
             {"role": "user", "content": [
@@ -75,15 +75,7 @@ def analyze(image_path: str) -> dict:
         ],
         max_tokens=1024,
     )
-    raw = resp.choices[0].message.content
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    if m:
-        try:
-            return json.loads(m.group())
-        except json.JSONDecodeError:
-            pass
-    return {"verdict": "uncertain", "confidence": 0.5, "evidence": [],
-            "regions": [], "explanation": raw}
+    return resp.choices[0].message.content or ""
 
 
 def _json_object(raw: str) -> dict:
@@ -108,7 +100,83 @@ def _score(value, default: float = 0.0) -> float:
         return default
 
 
-def normalize_content_safety(payload: dict, *, model: str = MLLM_MODEL) -> dict:
+def _short_list(value, *, limit: int = 16) -> list:
+    if not isinstance(value, list):
+        return []
+    normalized = []
+    for item in value[:limit]:
+        if isinstance(item, str) and item.strip():
+            normalized.append(item.strip()[:240])
+        elif isinstance(item, dict):
+            normalized.append({str(key)[:40]: str(raw)[:160] for key, raw in list(item.items())[:8]})
+    return normalized
+
+
+def normalize_authenticity(payload: dict, *, model: str | None = None) -> dict:
+    """Normalize untrusted multimodal output into the authenticity contract."""
+    verdict = str(payload.get("verdict") or "").strip().lower()
+    if verdict not in {"real", "fake", "uncertain"}:
+        verdict = "uncertain"
+    confidence = _score(payload.get("confidence"), default=0.5)
+    evidence = _short_list(payload.get("evidence"))
+    explanation = str(payload.get("explanation") or "").strip()[:1200]
+    if verdict in {"real", "fake"} and (confidence < 0.55 or not evidence):
+        verdict = "uncertain"
+    return {
+        "verdict": verdict,
+        "confidence": confidence,
+        "evidence": evidence,
+        "regions": _short_list(payload.get("regions")),
+        "explanation": explanation or "模型未提供足够的可解释证据，已转人工复核",
+        "model": model or config.MLLM_MODEL,
+        "requires_human_review": verdict == "uncertain",
+    }
+
+
+def analyze(image_path: str) -> dict:
+    """Run MLLM authenticity analysis and fail closed to an uncertain result."""
+    started = time.perf_counter()
+    content_hash = hashlib.sha256(Path(image_path).read_bytes()).hexdigest()
+    model = config.MLLM_MODEL
+    try:
+        raw = _request_authenticity(image_path)
+    except Exception:
+        return {
+            "verdict": "uncertain",
+            "confidence": 0.0,
+            "evidence": [],
+            "regions": [],
+            "explanation": "多模态真实性模型暂时不可用，已转人工复核",
+            "model": model,
+            "model_called": False,
+            "model_attempted": True,
+            "requires_human_review": True,
+            "status": "degraded",
+            "error_code": "model_unavailable",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "content_hash": content_hash,
+        }
+    payload = _json_object(raw)
+    result = normalize_authenticity(payload, model=model)
+    valid_output = bool(payload)
+    if not valid_output:
+        result.update({
+            "verdict": "uncertain",
+            "requires_human_review": True,
+            "explanation": "模型输出无法结构化解析，已转人工复核",
+        })
+    result.update({
+        "model_called": True,
+        "model_attempted": True,
+        "status": "completed" if valid_output else "degraded",
+        "error_code": None if valid_output else "invalid_model_output",
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        "content_hash": content_hash,
+    })
+    return result
+
+
+def normalize_content_safety(payload: dict, *, model: str | None = None) -> dict:
     """Normalize untrusted model JSON into the public content-safety contract."""
     categories = []
     seen = set()
@@ -150,7 +218,7 @@ def normalize_content_safety(payload: dict, *, model: str = MLLM_MODEL) -> dict:
         "risk_score": risk_score,
         "categories": categories,
         "summary": str(payload.get("summary") or "模型未提供摘要").strip()[:500],
-        "model": model,
+        "model": model or config.MLLM_MODEL,
         "requires_human_review": requested == "review",
         "policy_version": "image-safety-v1",
     }
@@ -161,7 +229,7 @@ def _request_content_safety(image_path: str) -> str:
     image_url = _encode_compressed(image_path)
     category_list = ", ".join(CONTENT_SAFETY_CATEGORIES)
     response = client.chat.completions.create(
-        model=MLLM_MODEL,
+        model=config.MLLM_MODEL,
         messages=[
             {
                 "role": "system",
@@ -193,7 +261,9 @@ def _request_content_safety(image_path: str) -> str:
 
 def analyze_content_safety(image_path: str) -> dict:
     """Run an actual multimodal content-safety classification call."""
+    started = time.perf_counter()
     content_hash = hashlib.sha256(Path(image_path).read_bytes()).hexdigest()
+    model = config.MLLM_MODEL
     try:
         raw = _request_content_safety(image_path)
     except Exception:
@@ -203,15 +273,18 @@ def analyze_content_safety(image_path: str) -> dict:
             "risk_score": 0.0,
             "categories": [],
             "summary": "视觉内容安全模型暂时不可用，已转人工复核",
-            "model": MLLM_MODEL,
+            "model": model,
+            "model_called": False,
+            "model_attempted": True,
             "requires_human_review": True,
             "policy_version": "image-safety-v1",
             "status": "degraded",
             "error_code": "model_unavailable",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
             "content_hash": content_hash,
         }
     payload = _json_object(raw)
-    normalized = normalize_content_safety(payload)
+    normalized = normalize_content_safety(payload, model=model)
     if not payload:
         normalized.update({
             "verdict": "review",
@@ -221,5 +294,8 @@ def analyze_content_safety(image_path: str) -> dict:
         })
     normalized["status"] = "completed" if payload else "degraded"
     normalized["error_code"] = None if payload else "invalid_model_output"
+    normalized["model_called"] = True
+    normalized["model_attempted"] = True
+    normalized["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
     normalized["content_hash"] = content_hash
     return normalized

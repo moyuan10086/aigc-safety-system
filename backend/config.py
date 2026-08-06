@@ -129,17 +129,55 @@ GUARDRAIL_ENABLE_XGBOOST_SHADOW = os.getenv(
     "GUARDRAIL_ENABLE_XGBOOST_SHADOW", "false"
 ).lower() in {"1", "true", "yes", "on"}
 GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH", ""
+    "GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH", "../vendor/aigc-local-auditor"
 )
 GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH", ""
+    "GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH",
+    "../vendor/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json",
 )
 GUARDRAIL_XGBOOST_SHADOW_SHA256 = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_SHA256", ""
+    "GUARDRAIL_XGBOOST_SHADOW_SHA256",
+    "570bd09b358186af1f902ff3bc2b9a463da09a8921d22b72f04978248e5c8180",
 ).lower()
 
-# Deepfake detection model path
-DEEPFAKE_MODEL_PATH = os.getenv("DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt")
+# Deepfake detector artifacts and decision policy. Both remote artifacts are
+# pinned and verified before they can be loaded by the runtime.
+DEEPFAKE_MODEL_PATH = os.getenv(
+    "DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt"
+)
+DEEPFAKE_MODEL_REPO = os.getenv(
+    "DEEPFAKE_MODEL_REPO", "yermandy/deepfake-detection"
+)
+DEEPFAKE_MODEL_REVISION = os.getenv(
+    "DEEPFAKE_MODEL_REVISION", "9a6857ec642deb57373c5437be803a199468b8c6"
+)
+DEEPFAKE_MODEL_FILENAME = os.getenv("DEEPFAKE_MODEL_FILENAME", "model.ckpt")
+DEEPFAKE_MODEL_SHA256 = os.getenv(
+    "DEEPFAKE_MODEL_SHA256",
+    "57a0d00f2f5b4046afd2c344ff9877a35e8889e075916cf816796c54816c9955",
+).lower()
+DEEPFAKE_BACKBONE_REVISION = os.getenv(
+    "DEEPFAKE_BACKBONE_REVISION", "32bd64288804d66eefd0ccbe215aa642df71cc41"
+)
+DEEPFAKE_FACE_MODEL_PATH = os.getenv(
+    "DEEPFAKE_FACE_MODEL_PATH",
+    "../deepfake-detection/weights/face_detection_yunet_2023mar.onnx",
+)
+DEEPFAKE_FACE_MODEL_URL = os.getenv(
+    "DEEPFAKE_FACE_MODEL_URL",
+    "https://media.githubusercontent.com/media/opencv/opencv_zoo/"
+    "47534e27c9851bb1128ccc0102f1145e27f23f98/"
+    "models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+)
+DEEPFAKE_FACE_MODEL_SHA256 = os.getenv(
+    "DEEPFAKE_FACE_MODEL_SHA256",
+    "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+).lower()
+DEEPFAKE_REAL_THRESHOLD = float(os.getenv("DEEPFAKE_REAL_THRESHOLD", "0.20"))
+DEEPFAKE_FAKE_THRESHOLD = float(os.getenv("DEEPFAKE_FAKE_THRESHOLD", "0.80"))
+DEEPFAKE_FACE_MARGIN = float(os.getenv("DEEPFAKE_FACE_MARGIN", "0.15"))
+DEEPFAKE_MAX_FACES = max(1, min(int(os.getenv("DEEPFAKE_MAX_FACES", "8")), 32))
+DEEPFAKE_CACHE_SIZE = max(1, min(int(os.getenv("DEEPFAKE_CACHE_SIZE", "128")), 1024))
 
 # ChromaDB path
 CHROMA_PATH = os.getenv("CHROMA_PATH", "./rag_db")

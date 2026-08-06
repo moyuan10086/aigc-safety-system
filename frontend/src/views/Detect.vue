@@ -166,6 +166,9 @@
         <button class="source-btn" :disabled="!file || provenanceLoading" @click="runProvenance">
           {{ provenanceLoading ? '验证中...' : '验证 AI 来源' }}
         </button>
+        <button class="source-btn" :disabled="!file || watermarkLoading" @click="generateAuditWatermark">
+          {{ watermarkLoading ? '生成中...' : '生成审计副本' }}
+        </button>
         <button class="detect-btn" :disabled="(!file && !auditText.trim()) || loading || modules.length===0" @click="runAudit">
           <span v-if="loading" class="btn-spin"><LoaderIcon :size="16" /></span>
           <span>{{ loading ? '检测中...' : '开始检测' }}</span>
@@ -197,10 +200,12 @@
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400}}">
         <div class="card-title">Deepfake 检测</div>
         <div class="result-body">
-          <span class="badge" :class="results.deepfake.label === 'fake' ? 'badge-danger' : results.deepfake.label === 'skipped' ? 'badge-warn' : 'badge-success'">
-            {{ results.deepfake.label === 'fake' ? '伪造' : results.deepfake.label === 'skipped' ? '非人脸' : '真实' }}
+          <span class="badge" :class="deepfakeClass(results.deepfake.label)">
+            {{ deepfakeLabel(results.deepfake.label) }}
           </span>
           <span class="result-meta">置信度 {{ (results.deepfake.confidence * 100).toFixed(1) }}%</span>
+          <span v-if="results.deepfake.face_count" class="result-meta">逐脸分析 {{ results.deepfake.face_count }} 张</span>
+          <p v-if="results.deepfake.reason" class="result-text">{{ results.deepfake.reason }}</p>
         </div>
       </div>
 
@@ -212,6 +217,7 @@
             {{ verdictLabel(results.mllm.verdict) }}
           </span>
           <p class="result-text">{{ results.mllm.explanation }}</p>
+          <span class="result-meta">模型 {{ results.mllm.model || mllmModel }}</span>
           <div v-if="results.mllm.evidence?.length" class="tags">
             <span v-for="e in results.mllm.evidence" :key="e" class="tag">{{ e }}</span>
           </div>
@@ -284,24 +290,67 @@ const file = ref<File | null>(null)
 const preview = ref('')
 const loading = ref(false)
 const results = reactive<Record<string, any>>({})
-const mllmModel = ref('GPT-4o')
+const mllmModel = ref('未配置')
 const auditText = ref('')
 const modules = ref(['deepfake', 'mllm', 'rag', 'content_safety'])
 const currentStep = ref('')
 const provenanceLoading = ref(false)
+const watermarkLoading = ref(false)
 let lastProvenanceRun = 0
+
+const generateAuditWatermark = async () => {
+  if (!file.value || watermarkLoading.value) return
+  watermarkLoading.value = true
+  try {
+    const eventId = crypto.randomUUID()
+    const fd = new FormData()
+    fd.append('image', file.value)
+    fd.append('payload', JSON.stringify({
+      event_id: eventId,
+      sample_id: file.value.name.slice(0, 120),
+      platform_version: 'aigc-safety-system',
+    }))
+    const response = await fetch('/api/detect/audit-watermark/embed', { method: 'POST', body: fd })
+    if (!response.ok) throw new Error((await response.json()).detail || '生成失败')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `audit-watermark-${eventId.slice(0, 8)}.zip`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('审计副本已生成，原图未被修改')
+  } catch (error:any) {
+    ElMessage.error(error?.message || '审计副本生成失败')
+  } finally {
+    watermarkLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
     const r = await fetch('/api/system/info')
     const d = await r.json()
-    mllmModel.value = d.mllm_model
+    mllmModel.value = d.mllm_model || '未配置'
   } catch {}
 })
 
 const doneCount = computed(() =>
   [results.deepfake, results.mllm, results.rag, results.content_safety].filter(Boolean).length
 )
+
+const deepfakeLabel = (label: string) => ({
+  fake: '伪造',
+  real: '真实',
+  review: '人工复核',
+  inconclusive: '结论不足',
+  skipped: '非人脸',
+}[label] || '结论不足')
+const deepfakeClass = (label: string) => label === 'fake'
+  ? 'badge-danger'
+  : label === 'real'
+    ? 'badge-success'
+    : 'badge-warn'
 
 const quotes = [
   { text: '凡是过往，皆为序章。', from: '暴风雨', author: '莎士比亚' },

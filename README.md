@@ -14,24 +14,29 @@ aigc-safety-system/
 │   ├── routers/          # API 路由
 │   ├── config.py         # 配置
 │   └── main.py           # 入口
-└── frontend/             # Vue3 前端
-    ├── src/views/
-    │   ├── Detect.vue    # 检测页面
-    │   └── Report.vue    # 报告页面
-    └── dist/             # 构建产物
+├── frontend/             # Vue3 前端
+│   ├── src/views/
+│   │   ├── Detect.vue    # 检测页面
+│   │   └── Report.vue    # 报告页面
+│   └── dist/             # 构建产物
+└── vendor/
+    └── aigc-local-auditor/ # 固定版本的本地 XGBoost Shadow 审核器
 ```
 
 ## 核心功能
 
 ### 1. Deepfake 检测（第三章）
 - 基于 CLIP 视觉编码器 + LN-tuning
-- 调用 `deepfake-detection/` 训练好的模型
-- 返回：真实/伪造标签、置信度、得分
+- 使用第三方 `yermandy/deepfake-detection` 预训练权重；本项目负责固定版本、摘要校验、预处理与服务集成，不宣称自行训练该模型
+- 使用固定版本 YuNet 提取五点关键点，执行 DeepfakeBench 兼容的人脸对齐和逐脸批量推理，按最高伪造概率聚合
+- 返回 `real/review/fake/inconclusive`、逐脸证据、阈值版本、模型来源与运行耗时
+- 该模型面向人脸局部操纵，不是通用 AI 生图检测器；论文 AUC 不能直接作为本系统在全生成肖像或证件图上的效果指标
 
 ### 2. MLLM 可解释性检测（第四章）
 - 通过 OpenAI 兼容接口调用多模态大模型
-- 支持 GPT-4o / Claude Opus 4.6 / Gemini 3.1 Pro
-- 返回：判断结果、证据列表、可疑区域、中文解释
+- 模型、网关和超时统一读取主系统 `MLLM_*` 配置，并与纯文本 `CHAT_MODEL_*` 配置保持职责隔离
+- 返回：判断结果、证据列表、可疑区域、中文解释、实际模型名、调用状态、错误码与耗时
+- 网关失败或输出不可解析时保守返回 `uncertain` 并进入人工复核，不再中断完整审计流
 
 ### 3. RAG 内容安全审核（第五章）
 - ChromaDB 向量数据库 + 敏感词库
@@ -100,7 +105,7 @@ systemctl status aigc-safety.service
 journalctl -u aigc-safety.service -f
 ```
 
-服务默认监听 `0.0.0.0:8010`，健康检查为 `GET /api/health`。模型权重、API 密钥、上传文件、报告和向量数据库均被 Git 忽略，不会推送到 GitHub。
+服务默认监听 `0.0.0.0:8010`，健康检查为 `GET /api/health`。大型模型权重、API 密钥、上传文件、报告和向量数据库均被 Git 忽略；`vendor/aigc-local-auditor/` 中经过 SHA-256 固定的轻量 Shadow 模型是受版本管理的例外。
 
 ### GPU 护栏服务
 
@@ -244,16 +249,16 @@ npm run eval:guardrail
 npm run eval:trajectory
 ```
 
-本地交付包可作为影子评测器并行运行，但不会改变在线 `safe/borderline/unsafe` 结果。模型使用 pickle 载荷，只有可信文件才可启用；系统在加载前强制校验 SHA-256：
+仓库内 `vendor/aigc-local-auditor/` 提供固定版本的影子评测器，不会改变在线 `safe/borderline/unsafe` 结果。模型使用 pickle 载荷，只有仓库内经摘要校验的可信文件才可启用；启动和部署时都会校验 SHA-256：
 
 ```bash
 GUARDRAIL_ENABLE_XGBOOST_SHADOW=true
-GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH=/opt/aigc-local-auditor
-GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH=/opt/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json
-GUARDRAIL_XGBOOST_SHADOW_SHA256=<64位模型摘要>
+GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH=../vendor/aigc-local-auditor
+GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH=../vendor/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json
+GUARDRAIL_XGBOOST_SHADOW_SHA256=570bd09b358186af1f902ff3bc2b9a463da09a8921d22b72f04978248e5c8180
 ```
 
-影子输出只包含决策、置信度、一致性、耗时和模型摘要；原始提示词与模型危险输出仍只保存在 AES-GCM 加密的 `audit_evidence`，不会进入 API 用量、CSV 导出或租户报告。
+`backend` 相对路径由服务工作目录解析，因此开发、CI 和生产部署使用同一份仓库资产。影子输出只包含决策、置信度、一致性、耗时和模型摘要；原始提示词与模型危险输出仍只保存在 AES-GCM 加密的 `audit_evidence`，不会进入 API 用量、CSV 导出或租户报告。
 
 ### 真实模型人工复核样本活动
 
@@ -285,7 +290,15 @@ POST /api/detect/deepfake
 Content-Type: multipart/form-data
 Body: image=<file>
 
-Response: {"score": 0.85, "label": "fake", "confidence": 0.70}
+Response: {
+  "score": 0.85,
+  "label": "fake",
+  "confidence": 0.85,
+  "face_count": 2,
+  "aggregation": "max_fake_probability",
+  "thresholds": {"real_max": 0.2, "fake_min": 0.8},
+  "calibration_status": "production_benchmark_pending"
+}
 ```
 
 **MLLM 检测**
@@ -299,7 +312,11 @@ Response: {
   "confidence": 0.9,
   "evidence": ["不自然的面部边缘", "光照不一致"],
   "regions": ["眼睛周围", "嘴部"],
-  "explanation": "该图像存在明显的AI生成痕迹..."
+  "explanation": "该图像存在明显的AI生成痕迹...",
+  "model": "当前 MLLM_MODEL",
+  "model_called": true,
+  "status": "completed",
+  "latency_ms": 6316.1
 }
 ```
 

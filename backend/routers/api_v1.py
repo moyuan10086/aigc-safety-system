@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 import os
+import tempfile
 import time
+import zipfile
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
+from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
@@ -60,6 +64,8 @@ async def _metered(
     status_code = 200
     try:
         data = await run()
+        if isinstance(data, Response):
+            return data
         payload = _envelope(request, data)
         return JSONResponse(status_code=response_status, content=payload) if response_status != 200 else payload
     except HTTPException as exc:
@@ -125,6 +131,9 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/mllm", "scope": "image:mllm"},
                 {"method": "POST", "path": "/api/v1/images/content-safety", "scope": "image:content-safety"},
                 {"method": "POST", "path": "/api/v1/images/provenance/verify", "scope": "image:provenance"},
+                {"method": "POST", "path": "/api/v1/images/audit-watermark/embed", "scope": "image:audit-watermark"},
+                {"method": "POST", "path": "/api/v1/images/audit-watermark/decode", "scope": "image:audit-watermark"},
+                {"method": "POST", "path": "/api/v1/images/watermarks/check", "scope": "image:watermark"},
                 {"method": "GET", "path": "/api/v1/usage", "scope": "usage:read"},
                 {"method": "POST", "path": "/api/v1/scans", "scope": "scan:run"},
                 {"method": "GET", "path": "/api/v1/scans", "scope": "scan:read"},
@@ -305,6 +314,86 @@ async def image_provenance(request: Request, image: UploadFile = File(...)):
         return result
 
     return await _metered(request, scope="image:provenance", operation="image.provenance_verify", run=run)
+
+
+@router.post("/images/audit-watermark/embed")
+async def image_audit_watermark_embed(
+    request: Request, image: UploadFile = File(...), payload: str = Form(...),
+):
+    from services import audit_watermark_service, upload_service
+
+    async def run():
+        try:
+            body = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=422, detail="payload_json_invalid") from exc
+        source = await upload_service.save_image_upload(image, Path("uploads"))
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "audit-copy.png"
+                artifact = await asyncio.to_thread(audit_watermark_service.embed, source, output, body)
+                archive = io.BytesIO()
+                with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
+                    bundle.write(output, "audit-copy.png")
+                    bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
+                audit_log_service.record_safe(
+                    event_type="image.audit_watermark_embed", module="provenance", action="embed",
+                    summary="生成 CRT 审计水印副本", metadata={"api": "v1", "event_id": artifact["payload"].get("event_id")},
+                )
+                return Response(
+                    content=archive.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": 'attachment; filename="audit-watermark-artifact.zip"', "Cache-Control": "no-store"},
+                )
+        except audit_watermark_service.AuditWatermarkError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        finally:
+            Path(source).unlink(missing_ok=True)
+
+    return await _metered(request, scope="image:audit-watermark", operation="image.audit_watermark_embed", run=run)
+
+
+@router.post("/images/audit-watermark/decode")
+async def image_audit_watermark_decode(
+    request: Request, image: UploadFile = File(...), sidecar: UploadFile = File(...),
+):
+    from services import audit_watermark_service, upload_service
+
+    async def run():
+        source = await upload_service.save_image_upload(image, Path("uploads"))
+        try:
+            raw = await sidecar.read(2 * 1024 * 1024 + 1)
+            if len(raw) > 2 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="sidecar_too_large")
+            result = await asyncio.to_thread(audit_watermark_service.decode, source, json.loads(raw))
+            audit_log_service.record_safe(
+                event_type="image.audit_watermark_decode", module="provenance", action="decode",
+                summary="核验 CRT 审计水印", metadata={"api": "v1", "payload_integrity": result["payload_integrity"]},
+            )
+            return result
+        except (audit_watermark_service.AuditWatermarkError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        finally:
+            Path(source).unlink(missing_ok=True)
+
+    return await _metered(request, scope="image:audit-watermark", operation="image.audit_watermark_decode", run=run)
+
+
+@router.post("/images/watermarks/check")
+async def image_watermark_check(
+    request: Request, image: UploadFile = File(...), provider: str = Form(...), consent: bool = Form(False),
+):
+    from services import watermark_provider_service
+
+    async def run():
+        try:
+            return await _run_image(
+                image,
+                lambda path: watermark_provider_service.check(path, provider=provider, consent=consent),
+            )
+        except watermark_provider_service.WatermarkProviderError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return await _metered(request, scope="image:watermark", operation="image.watermark_check", run=run)
 
 
 @router.get("/usage")

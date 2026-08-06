@@ -2,16 +2,19 @@
 检测路由 — /api/detect/*
 """
 import asyncio
+import io
 import json
 import os
+import tempfile
 import uuid
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from services import audit_log_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service, upload_service
+from services import audit_log_service, audit_watermark_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service, upload_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -49,7 +52,8 @@ def _record_content_safety(result: dict) -> None:
 async def detect_deepfake(image: UploadFile = File(...)):
     path = await _save_upload(image)
     try:
-        result = await asyncio.to_thread(deepfake_service.detect, path)
+        face = await asyncio.to_thread(_inspect_faces, path)
+        result = await asyncio.to_thread(deepfake_service.detect, path, face)
     finally:
         os.unlink(path)
     return result
@@ -74,6 +78,32 @@ async def check_content(text: str = Form(...)):
 def _inspect_faces(path: str) -> dict:
     """Compatibility wrapper for existing route, report and v1 callers."""
     return face_service.inspect(path)
+
+
+def _reconcile_face_evidence(path: str, face: dict, deepfake: dict) -> dict:
+    """Use the stronger YuNet boxes when Haar missed faces used for inference."""
+    deepfake_faces = deepfake.get("faces") or []
+    if len(deepfake_faces) <= int(face.get("face_count") or 0):
+        return face
+    boxes = [item.get("box") for item in deepfake_faces if item.get("box")]
+    if not boxes:
+        return face
+    try:
+        import cv2
+
+        image = cv2.imread(path)
+        if image is None:
+            return face
+        tuples = [
+            (box["x"], box["y"], box["width"], box["height"])
+            for box in boxes
+        ]
+        reconciled = face_service.analyze_detected_faces(image, tuples)
+        reconciled["detector"] = "OpenCV YuNet (Deepfake preprocessing)"
+        reconciled["evidence_reconciled"] = True
+        return reconciled
+    except Exception:
+        return face
 
 
 @router.post("/face")
@@ -107,6 +137,39 @@ async def verify_provenance(image: UploadFile = File(...)):
             os.unlink(path)
 
 
+@router.post("/audit-watermark/embed")
+async def embed_audit_watermark(image: UploadFile = File(...), payload: str = Form(...)):
+    path = await _save_upload(image)
+    try:
+        try:
+            body = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="payload_json_invalid") from exc
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "audit-copy.png"
+            artifact = await asyncio.to_thread(audit_watermark_service.embed, path, output, body)
+            archive = io.BytesIO()
+            with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
+                bundle.write(output, "audit-copy.png")
+                bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
+            audit_log_service.record_safe(
+                event_type="image.audit_watermark_embed", module="provenance", action="embed",
+                outcome="success", summary="生成 CRT 审计水印副本",
+                metadata={"event_id": artifact["payload"].get("event_id")},
+            )
+            return Response(
+                content=archive.getvalue(), media_type="application/zip",
+                headers={"Content-Disposition": 'attachment; filename="audit-watermark-artifact.zip"', "Cache-Control": "no-store"},
+            )
+    except audit_watermark_service.AuditWatermarkError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 @router.post("/full")
 async def full_audit(image: UploadFile = File(None), text: str = Form(None),
                      modules: str = Form("deepfake,mllm,rag")):
@@ -119,16 +182,14 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
             if image:
                 path = await _save_upload(image)
                 face = await asyncio.to_thread(_inspect_faces, path)
-                has_face = face.get("face_detected") is not False
-                if "face" in mod_set or "deepfake" in mod_set:
-                    yield _sse("face", face)
-
+                df = None
                 if "deepfake" in mod_set:
                     yield _sse("step", {"step": "deepfake", "status": "running"})
-                    if has_face:
-                        df = await asyncio.to_thread(deepfake_service.detect, path)
-                    else:
-                        df = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
+                    df = await asyncio.to_thread(deepfake_service.detect, path, face)
+                    face = await asyncio.to_thread(_reconcile_face_evidence, path, face, df)
+                if "face" in mod_set or "deepfake" in mod_set:
+                    yield _sse("face", face)
+                if df is not None:
                     yield _sse("deepfake", df)
 
                 if "mllm" in mod_set:
@@ -216,10 +277,12 @@ async def save_report(
             path = await _save_upload(image)
             report["filename"] = image.filename
             report["face"] = await asyncio.to_thread(_inspect_faces, path)
-            if report["face"].get("face_detected") is False:
-                report["deepfake"] = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
-            else:
-                report["deepfake"] = await asyncio.to_thread(deepfake_service.detect, path)
+            report["deepfake"] = await asyncio.to_thread(
+                deepfake_service.detect, path, report["face"]
+            )
+            report["face"] = await asyncio.to_thread(
+                _reconcile_face_evidence, path, report["face"], report["deepfake"]
+            )
             report["mllm"] = await asyncio.to_thread(mllm_service.analyze, path)
             report["content_safety"] = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
         if text:
@@ -293,12 +356,17 @@ async def get_history():
     )
     risk_count = sum(
         1 for r in reports
-        if r["rag_safe"] is False or r["content_safety_verdict"] in {"review", "unsafe"}
+        if r["deepfake_label"] in {"review", "inconclusive"}
+        or r["mllm_verdict"] == "uncertain"
+        or r["rag_safe"] is False
+        or r["content_safety_verdict"] in {"review", "unsafe"}
     )
     clear_count = sum(
         1 for r in reports
         if r["deepfake_label"] != "fake"
         and r["mllm_verdict"] != "fake"
+        and r["deepfake_label"] not in {"review", "inconclusive"}
+        and r["mllm_verdict"] != "uncertain"
         and r["rag_safe"] is not False
         and r["content_safety_verdict"] not in {"review", "unsafe"}
         and any(value is not None for value in (

@@ -40,8 +40,8 @@
       <div class="report-grid">
         <div v-if="r.deepfake">
           <div class="section-label">Deepfake</div>
-          <span class="badge" :class="r.deepfake.label==='fake'?'badge-danger':r.deepfake.label==='skipped'?'badge-warn':'badge-success'">
-            {{ r.deepfake.label==='fake'?'伪造':r.deepfake.label==='skipped'?'非人脸':'真实' }}
+          <span class="badge" :class="deepfakeClass(r.deepfake.label)">
+            {{ deepfakeLabel(r.deepfake.label) }}
           </span>
           <span style="font-size:12px;color:#64748b;margin-left:8px">得分 {{ (r.deepfake.score*100).toFixed(1) }}%</span>
         </div>
@@ -123,6 +123,8 @@ async function loadReports() {
 watch(activeView, view => { if (view === 'reports') loadReports() })
 function contentSafetyClass(verdict: string) { return verdict === 'unsafe' ? 'badge-danger' : verdict === 'safe' ? 'badge-success' : 'badge-warn' }
 function contentSafetyLabel(verdict: string) { return ({ safe: '安全', review: '人工复核', unsafe: '阻断' } as Record<string, string>)[verdict] || '结论不足' }
+function deepfakeClass(label: string) { return label === 'fake' ? 'badge-danger' : label === 'real' ? 'badge-success' : 'badge-warn' }
+function deepfakeLabel(label: string) { return ({ fake: '伪造', real: '真实', review: '人工复核', inconclusive: '结论不足', skipped: '非人脸' } as Record<string, string>)[label] || '结论不足' }
 function formatPercent(value: unknown) { const score = Number(value); return Number.isFinite(score) ? `${(score * 100).toFixed(1)}%` : '未知' }
 function categorySummary(items: any[]) { return items.slice(0, 3).map(item => `${item.label || item.code} ${formatPercent(item.confidence)}`).join(' · ') }
 </script>

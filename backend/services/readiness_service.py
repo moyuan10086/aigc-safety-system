@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import config
-from services import audit_log_service, auth_service, guarded_chat_service
+from services import audit_log_service, auth_service, deepfake_service, guarded_chat_service
 
 BACKEND_DIR = Path(__file__).parents[1]
 PROJECT_DIR = BACKEND_DIR.parent
@@ -94,6 +94,33 @@ def _face_detector_available() -> bool:
         return False
 
 
+def _xgboost_shadow_check() -> tuple[str, str]:
+    if not config.GUARDRAIL_ENABLE_XGBOOST_SHADOW:
+        return "disabled", "XGBoost Shadow 当前停用"
+
+    module_path = _runtime_path(config.GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH)
+    model_path = _runtime_path(config.GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH)
+    expected_digest = config.GUARDRAIL_XGBOOST_SHADOW_SHA256.strip().lower()
+    package_entry = module_path / "security_audit_system" / "audit_system.py"
+    if not module_path.is_dir() or not package_entry.is_file():
+        return "fail", "XGBoost Shadow 审核器代码不可用"
+    if not model_path.is_file():
+        return "fail", "XGBoost Shadow 模型不可用"
+    if len(expected_digest) != 64:
+        return "fail", "XGBoost Shadow 模型摘要未配置"
+
+    digest = hashlib.sha256()
+    try:
+        with model_path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return "fail", "XGBoost Shadow 模型不可读"
+    if digest.hexdigest() != expected_digest:
+        return "fail", "XGBoost Shadow 模型摘要校验失败"
+    return "pass", "XGBoost Shadow 审核器与模型摘要校验通过"
+
+
 def _passive_checks() -> list[dict[str, Any]]:
     audit_status, audit_message = _audit_chain_check()
     auth_ready = auth_service.configured()
@@ -108,8 +135,32 @@ def _passive_checks() -> list[dict[str, Any]]:
         and config.CHAT_MODEL_NAME
     )
     mllm_ready = bool(config.MLLM_API_KEY and config.MLLM_BASE_URL and config.MLLM_MODEL)
-    deepfake_ready = DEEPFAKE_WEIGHTS.is_file() or _exists(config.DEEPFAKE_MODEL_PATH)
+    deepfake_artifacts = deepfake_service.artifact_status()
+    deepfake_checkpoint = deepfake_artifacts["artifacts"]["checkpoint"]
+    deepfake_face_model = deepfake_artifacts["artifacts"]["face_detector"]
+    deepfake_runtime = deepfake_artifacts["runtime"]
+    deepfake_artifacts_ready = (
+        deepfake_checkpoint["status"] == "verified"
+        and deepfake_face_model["status"] == "verified"
+    )
+    if deepfake_artifacts_ready and deepfake_runtime["state"] == "ready":
+        deepfake_status = "pass"
+        deepfake_message = "权重摘要、五点对齐与真实推理链路通过；不代表准确率基准"
+    elif deepfake_artifacts_ready and deepfake_runtime["state"] in {"not_loaded", "loaded_unprobed"}:
+        deepfake_status = "warn"
+        deepfake_message = "权重与五点对齐模型摘要通过，尚未完成本进程真实推理"
+    elif deepfake_runtime["state"] == "failed":
+        deepfake_status = "fail"
+        deepfake_message = "Deepfake 最近一次加载或推理失败"
+    else:
+        digest_failure = any(
+            "digest" in str(item.get("error_code") or "")
+            for item in (deepfake_checkpoint, deepfake_face_model)
+        )
+        deepfake_status = "fail" if digest_failure else "warn"
+        deepfake_message = "Deepfake 权重或五点对齐模型不可用"
     face_ready = _face_detector_available()
+    xgboost_status, xgboost_message = _xgboost_shadow_check()
 
     qwen_enabled = config.GUARDRAIL_ENABLE_QWEN_CLASSIFIER
     qwen_ready = bool(
@@ -188,9 +239,9 @@ def _passive_checks() -> list[dict[str, Any]]:
         _check(
             "deepfake_model",
             "Deepfake 模型",
-            "pass" if deepfake_ready else "warn",
+            deepfake_status,
             False,
-            "Deepfake 权重可读取" if deepfake_ready else "Deepfake 权重不可用，人脸质量检测仍可工作",
+            deepfake_message,
         ),
         _check(
             "qwen3guard",
@@ -205,6 +256,13 @@ def _passive_checks() -> list[dict[str, Any]]:
             "pass" if singguard_ready else "fail" if singguard_enabled else "disabled",
             False,
             "SingGuard-NSFA 已启用并配置" if singguard_ready else "SingGuard-NSFA 已启用但配置不完整" if singguard_enabled else "SingGuard-NSFA 当前停用",
+        ),
+        _check(
+            "xgboost_shadow",
+            "XGBoost Shadow",
+            xgboost_status,
+            False,
+            xgboost_message,
         ),
     ]
 
@@ -251,7 +309,7 @@ def _build_snapshot() -> dict[str, Any]:
             "实时安全护栏",
             by_id,
             ["api_runtime", "rules_engine", "audit_chain", "evidence_vault"],
-            ["chat_model", "rag_knowledge", "qwen3guard", "singguard"],
+            ["chat_model", "rag_knowledge", "qwen3guard", "singguard", "xgboost_shadow"],
             "输入、生成与输出护栏链路就绪",
         ),
         _scenario(
