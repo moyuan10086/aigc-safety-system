@@ -37,7 +37,7 @@ let startedAt = 0
 let lastFrameAt = 0
 
 /** 四条数据通道的角度（对应四张能力卡的方位） */
-const LANES = [-140, -40, 140, 40]
+const LANES = [-142, -98, -38, 38, 98, 142]
 
 interface Particle { lane: number; t: number; speed: number; size: number }
 let particles: Particle[] = []

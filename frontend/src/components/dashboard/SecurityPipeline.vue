@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { BadgeCheck, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
+import { BadgeCheck, BrainCircuit, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
 import AiCoreCanvas from './AiCoreCanvas.vue'
 import { orbDiameter } from '../../lib/coreGeometry'
 
@@ -66,10 +66,12 @@ const intensity = computed(() => {
 })
 
 const capabilities = [
-  { label: '真实性检测', code: 'DEEPFAKE / MLLM', icon: ScanFace, position: 'top-left' },
-  { label: '内容安全审核', code: 'VISION / RAG', icon: ScanSearch, position: 'top-right' },
-  { label: '来源与取证', code: 'C2PA / HASH', icon: BadgeCheck, position: 'bottom-left' },
-  { label: '人工复核闭环', code: 'HUMAN REVIEW', icon: UserCheck, position: 'bottom-right' },
+  { label: 'Deepfake 检测', code: 'DEEPFAKE / MLLM', icon: ScanFace, position: 'top-left' },
+  { label: 'MLLM 理解分析', code: 'POLICY / LLM', icon: BrainCircuit, position: 'top-right' },
+  { label: '实时防护', code: 'AUDIT / GUARDRAIL', icon: ShieldCheck, position: 'mid-left' },
+  { label: 'RAG 内容审核', code: 'RAG / KNOWLEDGE', icon: ScanSearch, position: 'mid-right' },
+  { label: '风险处置', code: 'REVIEW / ESCALATION', icon: UserCheck, position: 'bottom-left' },
+  { label: '样本与取证', code: 'C2PA / HASH', icon: BadgeCheck, position: 'bottom-right' },
 ]
 
 // 球体尺寸跟随 Canvas 的同一套几何：此前 CSS 写 17vw，与轨道半径无关，
@@ -291,14 +293,13 @@ onBeforeUnmount(() => observer?.disconnect())
   box-shadow:0 0 10px var(--sc-cyan);
   animation:node-blink 2.6s ease-in-out infinite;
 }
-.top-left{left:3%;top:9%}
-.top-right{right:3%;top:9%}
-.bottom-left{left:3%;bottom:23%}
-.bottom-right{right:3%;bottom:23%}
-.top-left .cap-node,.bottom-left .cap-node{right:-13px}
-.top-right .cap-node,.bottom-right .cap-node{left:-13px}
-.top-right,.bottom-right{flex-direction:row-reverse;text-align:right}
-.top-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
+.top-left{left:9%;top:5%}.top-right{right:9%;top:5%}
+.mid-left{left:1%;top:38%}.mid-right{right:1%;top:38%}
+.bottom-left{left:9%;bottom:22%}.bottom-right{right:9%;bottom:22%}
+.top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
+.top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
+.top-right,.mid-right,.bottom-right{flex-direction:row-reverse;text-align:right}
+.top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
 
 /* ---------- 处置链路 ---------- */
 .decision-flow{
@@ -342,6 +343,11 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 .decision-flow i:nth-of-type(2)::before{animation-delay:-.8s}
 .decision-flow i:nth-of-type(3)::before{animation-delay:-1.6s}
+
+/* A shallow base makes the core read as an orchestration console, not a flat orb. */
+.core-orb::after{content:'';position:absolute;left:10%;right:10%;bottom:-16px;height:28px;border:1px solid rgba(42,201,255,.38);border-top:0;border-radius:0 0 50% 50%;background:linear-gradient(180deg,rgba(28,133,181,.46),rgba(3,25,43,.1));box-shadow:0 11px 22px rgba(0,0,0,.32),0 0 18px rgba(42,201,255,.2)}
+.core-orb::before{content:'';position:absolute;left:7%;right:7%;bottom:-8px;height:22px;border:1px solid rgba(112,224,255,.3);border-radius:50%;background:repeating-linear-gradient(90deg,rgba(42,201,255,.6) 0 9px,transparent 9px 17px);box-shadow:0 0 14px rgba(42,201,255,.26)}
+.core-orb>*{z-index:1}
 
 @keyframes orb-spin{to{transform:rotate(360deg)}}
 @keyframes orb-scan{0%,100%{transform:translateY(-45%)}50%{transform:translateY(45%)}}
