@@ -29,10 +29,13 @@
       :class="item.position"
     >
       <span class="cap-icon"><component :is="item.icon" :size="20" /></span>
-      <div class="cap-copy">
-        <strong>{{ item.label }}</strong>
-        <span>{{ item.code }}</span>
-      </div>
+      <BorderBox8 class="cap-frame" :color="['#2ac9ff', '#0a6ea8']" background-color="rgba(4, 22, 39, .72)">
+        <div class="cap-copy">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.code }}</span>
+          <small>{{ item.detail }}</small>
+        </div>
+      </BorderBox8>
       <i class="cap-node" aria-hidden="true"></i>
     </div>
 
@@ -49,6 +52,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { BadgeCheck, BrainCircuit, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
+import { BorderBox8 } from '@kjgl77/datav-vue3'
 import AiCoreCanvas from './AiCoreCanvas.vue'
 import { orbDiameter } from '../../lib/coreGeometry'
 
@@ -66,12 +70,12 @@ const intensity = computed(() => {
 })
 
 const capabilities = [
-  { label: 'Deepfake 检测', code: 'DEEPFAKE / MLLM', icon: ScanFace, position: 'top-left' },
-  { label: 'MLLM 理解分析', code: 'POLICY / LLM', icon: BrainCircuit, position: 'top-right' },
-  { label: '实时防护', code: 'AUDIT / GUARDRAIL', icon: ShieldCheck, position: 'mid-left' },
-  { label: 'RAG 内容审核', code: 'RAG / KNOWLEDGE', icon: ScanSearch, position: 'mid-right' },
-  { label: '风险处置', code: 'REVIEW / ESCALATION', icon: UserCheck, position: 'bottom-left' },
-  { label: '样本与取证', code: 'C2PA / HASH', icon: BadgeCheck, position: 'bottom-right' },
+  { label: 'Deepfake 检测', code: 'DEEPFAKE / MLLM', detail: '真实性检测链路', icon: ScanFace, position: 'top-left' },
+  { label: 'MLLM 理解分析', code: 'POLICY / LLM', detail: '多模态语义策略', icon: BrainCircuit, position: 'top-right' },
+  { label: '实时防护', code: 'AUDIT / GUARDRAIL', detail: '实时审计与拦截', icon: ShieldCheck, position: 'mid-left' },
+  { label: 'RAG 内容审核', code: 'RAG / KNOWLEDGE', detail: '检索增强审核链路', icon: ScanSearch, position: 'mid-right' },
+  { label: '风险处置', code: 'REVIEW / ESCALATION', detail: '人工复核与处置', icon: UserCheck, position: 'bottom-left' },
+  { label: '样本与取证', code: 'C2PA / HASH', detail: '溯源证据索引', icon: BadgeCheck, position: 'bottom-right' },
 ]
 
 // 球体尺寸跟随 Canvas 的同一套几何：此前 CSS 写 17vw，与轨道半径无关，
@@ -249,41 +253,31 @@ onBeforeUnmount(() => observer?.disconnect())
 /* ---------- 四张能力卡 ---------- */
 .capability{
   position:absolute;z-index:3;
-  width:218px;
-  display:flex;align-items:center;gap:11px;
-  padding:11px 13px;
-  border:1px solid var(--sc-line);
-  border-radius:var(--sc-radius-sm);
-  background:
-    radial-gradient(120% 100% at 0 0,var(--sc-accent-soft),transparent 60%),
-    linear-gradient(140deg,var(--sc-panel-3),rgba(6,24,42,0) 62%),
-    var(--sc-panel);
-  box-shadow:var(--sc-inset),var(--sc-depth);
+  width:208px;min-height:74px;
+  display:flex;align-items:center;padding:0;border:0;background:transparent;box-shadow:none;
 }
+.cap-frame{width:100%;height:74px}
+.cap-frame :deep(.border-box-content){display:flex;align-items:center;height:100%;padding:9px 14px 9px 48px}
 .cap-icon{
-  flex:none;width:36px;height:36px;
+  position:absolute;left:-31px;top:50%;
+  width:62px;height:62px;
   display:grid;place-items:center;
-  border-radius:var(--sc-radius-sm);
+  transform:translateY(-50%);
+  clip-path:polygon(50% 0,93% 24%,93% 76%,50% 100%,7% 76%,7% 24%);
   color:#cdf3ff;
-  background:linear-gradient(150deg,rgba(42,201,255,.22),rgba(10,110,168,.10));
-  border:1px solid rgba(112,224,255,.34);
+  background:linear-gradient(145deg,rgba(11,89,127,.94),rgba(4,28,49,.96));
+  filter:drop-shadow(0 0 10px rgba(42,201,255,.36));
 }
-.cap-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
+.cap-icon::before{content:'';position:absolute;inset:3px;clip-path:inherit;border:1px solid rgba(104,226,255,.74)}
+.cap-icon :deep(svg){position:relative;z-index:1;stroke-width:1.7}
+.cap-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
 .capability strong{
-  color:var(--sc-ink);
-  font-family:var(--sc-font);
-  font-size:var(--sc-fs-body);
-  font-weight:600;
-  letter-spacing:.03em;
-  white-space:nowrap;
+  color:var(--sc-ink);font-family:var(--sc-font);font-size:15px;font-weight:650;letter-spacing:.02em;white-space:nowrap;
 }
 .capability span{
-  color:var(--sc-ink-4);
-  font-family:var(--sc-font-mono);
-  font-size:var(--sc-fs-code);
-  letter-spacing:.10em;
-  white-space:nowrap;
+  color:#7eb9cf;font-family:var(--sc-font-mono);font-size:var(--sc-fs-code);letter-spacing:.08em;white-space:nowrap;
 }
+.capability small{color:var(--sc-ink-3);font-size:var(--sc-fs-code);line-height:1.25;white-space:nowrap}
 /* 指向核心的接线端点 */
 .cap-node{
   position:absolute;top:50%;
@@ -298,7 +292,9 @@ onBeforeUnmount(() => observer?.disconnect())
 .bottom-left{left:9%;bottom:22%}.bottom-right{right:9%;bottom:22%}
 .top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
 .top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
-.top-right,.mid-right,.bottom-right{flex-direction:row-reverse;text-align:right}
+.top-right,.mid-right,.bottom-right{padding:0;flex-direction:row-reverse;text-align:right}
+.top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{right:-31px;left:auto}
+.top-right .cap-frame :deep(.border-box-content),.mid-right .cap-frame :deep(.border-box-content),.bottom-right .cap-frame :deep(.border-box-content){justify-content:flex-end;padding:9px 48px 9px 14px}
 .top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
 
 /* ---------- 处置链路 ---------- */
