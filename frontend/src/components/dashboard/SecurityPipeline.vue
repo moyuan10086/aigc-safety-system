@@ -6,6 +6,7 @@
     <!-- 菱形技术网格，给中枢一个"空间基座" -->
     <div class="stage-grid" aria-hidden="true"></div>
     <div class="stage-cross" aria-hidden="true"></div>
+    <i v-for="item in capabilities" :key="`${item.code}-link`" class="cap-link" :class="item.position" aria-hidden="true"></i>
 
     <!-- 核心球体：DOM 承载文案，保证换屏不模糊 -->
     <div class="core-shell">
@@ -285,13 +286,23 @@ onBeforeUnmount(() => observer?.disconnect())
   box-shadow:0 0 10px var(--sc-cyan);
   animation:node-blink 2.6s ease-in-out infinite;
 }
-.top-left{left:9%;top:5%}.top-right{right:9%;top:5%}
-.mid-left{left:1%;top:38%}.mid-right{right:1%;top:38%}
-.bottom-left{left:9%;bottom:22%}.bottom-right{right:9%;bottom:22%}
+.top-left{left:10%;top:5%}.top-right{right:10%;top:5%}
+.mid-left{left:2%;top:38%}.mid-right{right:2%;top:38%}
+.bottom-left{left:10%;bottom:22%}.bottom-right{right:10%;bottom:22%}
 .top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
 .top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
 .top-right,.mid-right,.bottom-right{padding:10px 48px 10px 14px;flex-direction:row-reverse;text-align:right}
 .top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{right:-31px;left:auto}
+
+/* Six physical rails make the capability cards read as parts of one review core. */
+.cap-link{position:absolute;z-index:2;height:1px;background:linear-gradient(90deg,rgba(26,132,174,.3),var(--sc-cyan),rgba(42,201,255,.15));box-shadow:0 0 8px rgba(42,201,255,.45);transform-origin:0 50%;pointer-events:none}
+.cap-link::after{content:'';position:absolute;right:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:#d8fbff;box-shadow:0 0 11px var(--sc-cyan)}
+.cap-link.top-left{left:29%;top:18%;width:21%;transform:rotate(33deg)}
+.cap-link.top-right{left:71%;top:18%;width:21%;transform:rotate(147deg)}
+.cap-link.mid-left{left:25%;top:46%;width:17%;transform:none}
+.cap-link.mid-right{left:58%;top:46%;width:17%;transform:none}
+.cap-link.bottom-left{left:29%;top:74%;width:20%;transform:rotate(-33deg)}
+.cap-link.bottom-right{left:52%;top:63%;width:20%;transform:rotate(33deg)}
 .top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
 
 /* ---------- 处置链路 ---------- */
