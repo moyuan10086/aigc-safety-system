@@ -27,7 +27,7 @@ export const ORB_RATIO = 0.42
  */
 export function coreBase(width: number, height: number): number {
   const vertical = Math.min(height * CY_RATIO, height * (1 - CY_RATIO))
-  return Math.min(width / 2, vertical / SQUASH) / OUTER_RING
+  return (Math.min(width / 2, vertical / SQUASH) / OUTER_RING) * 0.72
 }
 
 /** 核心球直径（px），供 DOM 层写入 --core */

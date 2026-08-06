@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { BadgeCheck, BrainCircuit, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
+import { BookOpenCheck, Boxes, BrainCircuit, ScanFace, ShieldAlert, ShieldCheck } from 'lucide-vue-next'
 import AiCoreCanvas from './AiCoreCanvas.vue'
 import { orbDiameter } from '../../lib/coreGeometry'
 
@@ -68,12 +68,12 @@ const intensity = computed(() => {
 })
 
 const capabilities = [
-  { label: 'Deepfake 检测', code: 'DEEPFAKE / MLLM', detail: '真实性检测链路', icon: ScanFace, position: 'top-left' },
-  { label: 'MLLM 理解分析', code: 'POLICY / LLM', detail: '多模态语义策略', icon: BrainCircuit, position: 'top-right' },
+  { label: 'Deepfake 检测', code: 'DEEPFAKE / MLLM', detail: '真实性检测链路', icon: BrainCircuit, position: 'top-left' },
+  { label: 'MLLM 理解分析', code: 'POLICY / LLM', detail: '多模态语义策略', icon: ScanFace, position: 'top-right' },
   { label: '实时防护', code: 'AUDIT / GUARDRAIL', detail: '实时审计与拦截', icon: ShieldCheck, position: 'mid-left' },
-  { label: 'RAG 内容审核', code: 'RAG / KNOWLEDGE', detail: '检索增强审核链路', icon: ScanSearch, position: 'mid-right' },
-  { label: '风险处置', code: 'REVIEW / ESCALATION', detail: '人工复核与处置', icon: UserCheck, position: 'bottom-left' },
-  { label: '样本与取证', code: 'C2PA / HASH', detail: '溯源证据索引', icon: BadgeCheck, position: 'bottom-right' },
+  { label: 'RAG 内容审核', code: 'RAG / KNOWLEDGE', detail: '检索增强审核链路', icon: BookOpenCheck, position: 'mid-right' },
+  { label: '风险处置', code: 'REVIEW / ESCALATION', detail: '人工复核与处置', icon: ShieldAlert, position: 'bottom-left' },
+  { label: '样本与取证', code: 'C2PA / HASH', detail: '溯源证据索引', icon: Boxes, position: 'bottom-right' },
 ]
 
 // 球体尺寸跟随 Canvas 的同一套几何：此前 CSS 写 17vw，与轨道半径无关，
@@ -251,27 +251,29 @@ onBeforeUnmount(() => observer?.disconnect())
 /* ---------- 四张能力卡 ---------- */
 .capability{
   position:absolute;z-index:3;
-  width:208px;min-height:74px;
-  display:flex;align-items:center;padding:10px 14px 10px 48px;
-  border:1px solid rgba(67,197,235,.22);border-radius:4px;
-  background:linear-gradient(100deg,rgba(11,66,96,.50),rgba(4,22,39,.74) 56%,rgba(3,18,31,.44));
-  box-shadow:inset 0 0 24px rgba(43,191,234,.06),0 12px 28px rgba(0,0,0,.18);
+  width:190px;min-height:70px;
+  display:flex;align-items:center;padding:9px 12px 9px 46px;
+  border:1px solid rgba(67,197,235,.18);border-radius:4px;
+  background:linear-gradient(100deg,rgba(9,55,82,.46),rgba(4,22,39,.68) 60%,rgba(3,18,31,.38));
+  box-shadow:inset 0 0 20px rgba(43,191,234,.045),0 10px 24px rgba(0,0,0,.14);
 }
+.capability::before{content:'';position:absolute;left:44px;right:12px;top:35px;height:1px;background:linear-gradient(90deg,rgba(42,201,255,.48),transparent)}
 .cap-icon{
-  position:absolute;left:-31px;top:50%;
-  width:62px;height:62px;
+  position:absolute;left:-34px;top:50%;
+  width:68px;height:68px;
   display:grid;place-items:center;
   transform:translateY(-50%);
   clip-path:polygon(50% 0,93% 24%,93% 76%,50% 100%,7% 76%,7% 24%);
-  color:#cdf3ff;
-  background:linear-gradient(145deg,rgba(11,89,127,.94),rgba(4,28,49,.96));
-  filter:drop-shadow(0 0 10px rgba(42,201,255,.36));
+  color:#20dff1;
+  background:#31d9f4;
+  filter:drop-shadow(0 0 10px rgba(42,201,255,.42));
 }
-.cap-icon::before{content:'';position:absolute;inset:3px;clip-path:inherit;border:1px solid rgba(104,226,255,.74)}
-.cap-icon :deep(svg){position:relative;z-index:1;stroke-width:1.7}
+.cap-icon::before{content:'';position:absolute;inset:2px;clip-path:inherit;background:linear-gradient(145deg,rgba(9,66,98,.94),rgba(3,24,43,.98))}
+.cap-icon::after{content:'';position:absolute;inset:8px;clip-path:inherit;background:linear-gradient(145deg,rgba(14,91,126,.46),rgba(3,25,44,.25));box-shadow:inset 0 0 0 1px rgba(95,224,247,.34)}
+.cap-icon :deep(svg){position:relative;z-index:2;width:30px;height:30px;stroke-width:1.65;filter:drop-shadow(0 0 6px rgba(34,227,216,.64))}
 .cap-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
 .capability strong{
-  color:var(--sc-ink);font-family:var(--sc-font);font-size:15px;font-weight:650;letter-spacing:.02em;white-space:nowrap;
+  color:var(--sc-ink);font-family:var(--sc-font);font-size:14px;font-weight:650;letter-spacing:.02em;white-space:nowrap;
 }
 .capability span{
   color:#7eb9cf;font-family:var(--sc-font-mono);font-size:var(--sc-fs-code);letter-spacing:.08em;white-space:nowrap;
@@ -291,8 +293,8 @@ onBeforeUnmount(() => observer?.disconnect())
 .bottom-left{left:10%;bottom:22%}.bottom-right{right:10%;bottom:22%}
 .top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
 .top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
-.top-right,.mid-right,.bottom-right{padding:10px 48px 10px 14px;flex-direction:row-reverse;text-align:right}
-.top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{right:-31px;left:auto}
+.top-right,.mid-right,.bottom-right{padding:9px 12px 9px 46px;text-align:left}
+.top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{left:-34px;right:auto}
 
 /* Six physical rails make the capability cards read as parts of one review core. */
 .cap-link{position:absolute;z-index:2;height:1px;background:linear-gradient(90deg,rgba(26,132,174,.3),var(--sc-cyan),rgba(42,201,255,.15));box-shadow:0 0 8px rgba(42,201,255,.45);transform-origin:0 50%;pointer-events:none}
@@ -303,7 +305,7 @@ onBeforeUnmount(() => observer?.disconnect())
 .cap-link.mid-right{left:58%;top:46%;width:17%;transform:none}
 .cap-link.bottom-left{left:29%;top:74%;width:20%;transform:rotate(-33deg)}
 .cap-link.bottom-right{left:52%;top:63%;width:20%;transform:rotate(33deg)}
-.top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
+.top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-start}
 
 /* ---------- 处置链路 ---------- */
 .decision-flow{
