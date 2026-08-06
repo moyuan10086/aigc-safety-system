@@ -76,4 +76,5 @@ onMounted(()=>{clockTimer=setInterval(()=>{now.value=new Date()},1000);loadDemoS
 .cockpit-layout{grid-template-columns:minmax(260px,27fr) minmax(560px,46fr) minmax(260px,27fr)}
 .samples-panel{min-height:0}
 .situation-foot{display:flex}.left-column,.right-column{gap:var(--screen-gap)}.platform-intro .intro-future{display:block}.capability-tags{margin:10px 0}
+.left-column>.intro-panel{flex:.7}.left-column>.trend{flex:1.25}.left-column>.ring{flex:.81}.right-column>.alerts{flex:1.05}.right-column>.radar{flex:1.15}.right-column>.engines{flex:.82}
 </style>
