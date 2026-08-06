@@ -113,7 +113,9 @@ async function submit() {
 </script>
 
 <style scoped>
-.login-mask { position:fixed; inset:0; z-index:300; display:grid; place-items:center; padding:20px; background:rgba(10,29,44,.55); backdrop-filter:blur(6px); }
+/* 登录弹窗 Teleport 到 body，与大屏（.big-screen z-index:500）同处根堆叠上下文。
+   低于大屏时会被盖住导致会话失效后无法登录，因此必须高于全站任意层级。 */
+.login-mask { position:fixed; inset:0; z-index:900; display:grid; place-items:center; padding:20px; background:rgba(10,29,44,.55); backdrop-filter:blur(6px); }
 .login-dialog { width:min(420px,100%); overflow:hidden; background:var(--surface); border:1px solid var(--line-bright); border-radius:8px; box-shadow:0 28px 90px rgba(10,29,44,.32); }
 .login-header { display:flex; align-items:center; gap:12px; padding:20px 22px; color:var(--text); background:linear-gradient(90deg,#edf6f9 0,#ffffff 72%); border-bottom:1px solid var(--line); }
 .login-emblem { width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; color:#fff; background:var(--primary); border-radius:6px; }
