@@ -64,7 +64,8 @@ const categoryNames:Record<string,string>={jailbreak:'越狱攻击',prompt_injec
 function latencyHealthScore(ms:number){const healthy=5000,critical=60000;return ms<=healthy?100:ms>=critical?0:Math.round(100*(critical-ms)/(critical-healthy))}
 const riskItems = computed(() => {
   const source = data.value?.risk_distribution || []
-  if (source.length) return source
+  const sourceTotal = source.reduce((sum, item) => sum + Math.max(0, Number(item.value) || 0), 0)
+  if (source.length && sourceTotal > 0) return source
   const alerts = data.value?.recent_alerts || []
   const counts = alerts.reduce<Record<string, number>>((result, item) => {
     const key = item.risk_code || item.severity || 'unclassified'
