@@ -1,67 +1,53 @@
 <template>
-  <div ref="stageHost" class="pipeline-stage" :class="{ 'is-alert': alert }">
-    <!-- 能量层：轨道、雷达、数据流粒子（纯装饰，不承载业务数值） -->
+  <section class="pipeline-stage" :class="{ 'is-alert': alert }" aria-label="安全审核中枢能力拓扑">
     <AiCoreCanvas class="core-energy" :intensity="intensity" :alert="alert" />
+    <span class="stage-grid" aria-hidden="true"></span>
 
-    <!-- 菱形技术网格，给中枢一个"空间基座" -->
-    <div class="stage-grid" aria-hidden="true"></div>
-    <div class="stage-cross" aria-hidden="true"></div>
     <i v-for="item in capabilities" :key="`${item.code}-link`" class="cap-link" :class="item.position" aria-hidden="true"></i>
 
-    <!-- 核心球体：DOM 承载文案，保证换屏不模糊 -->
-    <div class="core-shell">
-      <div class="core-orb">
-        <span class="orb-scan" aria-hidden="true"></span>
+    <article class="core-shell">
+      <span class="core-shadow" aria-hidden="true"></span>
+      <span class="core-base" aria-hidden="true"></span>
+      <span class="core-belt" aria-hidden="true"></span>
+      <section class="core-orb">
         <span class="orb-ring" aria-hidden="true"></span>
-        <span class="orb-emblem"><ShieldCheck :size="38" /></span>
+        <span class="orb-emblem"><ShieldCheck :size="36" /></span>
         <strong>安全审核中枢</strong>
         <span class="orb-code">POLICY ORCHESTRATOR</span>
-        <b :class="{ degraded: configured < total }">
-          <i aria-hidden="true"></i>{{ configured }}/{{ total }} 引擎在线
-        </b>
-      </div>
-    </div>
+        <b :class="{ degraded: configured < total }"><i aria-hidden="true"></i>{{ configured }}/{{ total }} 引擎在线</b>
+      </section>
+    </article>
 
-    <!-- 四张能力卡：数据通道的外端 -->
-    <div
-      v-for="item in capabilities"
-      :key="item.code"
-      class="capability"
-      :class="item.position"
-    >
-      <span class="cap-icon"><component :is="item.icon" :size="20" /></span>
-      <div class="cap-copy">
+    <article v-for="item in capabilities" :key="item.code" class="capability" :class="item.position">
+      <span class="cap-icon"><component :is="item.icon" :size="34" /></span>
+      <section class="cap-copy">
         <strong>{{ item.label }}</strong>
         <span>{{ item.code }}</span>
         <small>{{ item.detail }}</small>
-      </div>
+      </section>
       <i class="cap-node" aria-hidden="true"></i>
-    </div>
+    </article>
 
-    <!-- 处置链路 -->
-    <div class="decision-flow">
+    <nav class="decision-flow" aria-label="安全审核处置链路">
       <span>输入采集</span><i aria-hidden="true"></i>
       <span>多模态判定</span><i aria-hidden="true"></i>
       <span>策略融合</span><i aria-hidden="true"></i>
       <span class="terminal">放行 / 复核 / 阻断</span>
-    </div>
-  </div>
+    </nav>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { BookOpenCheck, Boxes, BrainCircuit, ScanFace, ShieldAlert, ShieldCheck } from 'lucide-vue-next'
 import AiCoreCanvas from './AiCoreCanvas.vue'
-import { orbDiameter } from '../../lib/coreGeometry'
 
 const props = withDefaults(defineProps<{
   configured: number
   total: number
-  /** 告警态：能量层与核心边缘转为风险色 */
   alert?: boolean
 }>(), { alert: false })
 
-// 数据流强度映射真实引擎就绪率，不是写死的观感参数
 const intensity = computed(() => {
   if (!props.total) return 0.35
   return 0.35 + (props.configured / props.total) * 0.6
@@ -75,331 +61,98 @@ const capabilities = [
   { label: '风险处置', code: 'REVIEW / ESCALATION', detail: '人工复核与处置', icon: ShieldAlert, position: 'bottom-left' },
   { label: '样本与取证', code: 'C2PA / HASH', detail: '溯源证据索引', icon: Boxes, position: 'bottom-right' },
 ]
-
-// 球体尺寸跟随 Canvas 的同一套几何：此前 CSS 写 17vw，与轨道半径无关，
-// 导致轨道节点落在球体背后。改为从 coreGeometry 推导后两层始终同源。
-const stageHost = ref<HTMLElement | null>(null)
-let observer: ResizeObserver | null = null
-
-function syncOrbSize() {
-  const host = stageHost.value
-  if (!host) return
-  // The cockpit scene is transformed by its parent. Layout dimensions remain
-  // in the 1920x1080 design coordinate system, unlike getBoundingClientRect().
-  const width = host.clientWidth
-  const height = host.clientHeight
-  if (!width || !height) return
-  host.style.setProperty('--core', `${Math.round(orbDiameter(width, height))}px`)
-}
-
-onMounted(() => {
-  syncOrbSize()
-  if (stageHost.value) {
-    observer = new ResizeObserver(syncOrbSize)
-    observer.observe(stageHost.value)
-  }
-})
-onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <style scoped>
 .pipeline-stage{
-  /* --cy 必须与 AiCoreCanvas 的 CY_RATIO 一致，两层共享同一个圆心 */
-  --cx:50%;
-  --cy:46%;
-  position:relative;
-  flex:1;min-height:0;
-  overflow:hidden;
-  /* 中央比两侧亮一档：视觉重心由背景本身建立，而非只靠描边 */
-  background:
-    radial-gradient(ellipse 58% 48% at 50% 46%,var(--sc-nebula),transparent 72%),
-    radial-gradient(ellipse 42% 36% at 22% 78%,var(--sc-nebula-2),transparent 70%),
-    radial-gradient(ellipse 40% 34% at 82% 24%,var(--sc-nebula-3),transparent 70%);
+  --cx:50%;--cy:45%;
+  position:relative;flex:1;min-height:0;overflow:hidden;
+  background:radial-gradient(ellipse 42% 38% at var(--cx) var(--cy),var(--sc-nebula),transparent 74%);
 }
 .core-energy{z-index:1}
-
-/* 菱形网格基座 */
 .stage-grid{
-  position:absolute;inset:7% 12% 15%;z-index:1;pointer-events:none;
-  border:1px solid var(--sc-line-soft);
-  background:
-    repeating-linear-gradient(0deg,transparent 0 27px,var(--sc-grid-major) 28px),
-    repeating-linear-gradient(90deg,transparent 0 27px,var(--sc-grid-major) 28px);
-  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);
-  opacity:.7;
-}
-/* 十字准线，取景框语义 */
-.stage-cross{position:absolute;inset:0;z-index:1;pointer-events:none}
-.stage-cross::before,.stage-cross::after{
-  content:'';position:absolute;left:var(--cx);top:var(--cy);
-  transform:translate(-50%,-50%);
-}
-.stage-cross::before{
-  width:74%;height:1px;
-  background:linear-gradient(90deg,transparent,var(--sc-line),transparent);
-}
-.stage-cross::after{
-  width:1px;height:66%;
-  background:linear-gradient(180deg,transparent,var(--sc-line),transparent);
+  position:absolute;left:12%;right:12%;top:10%;bottom:13%;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 31px,var(--sc-grid-major) 32px),repeating-linear-gradient(90deg,transparent 0 31px,var(--sc-grid-major) 32px);
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);opacity:.42;transform:scaleY(.72);
 }
 
-/* ---------- 核心球体 ---------- */
 .core-shell{
-  position:absolute;left:var(--cx);top:var(--cy);z-index:4;
-  width:var(--core);aspect-ratio:1;
-  transform:translate(-50%,-50%);
-  pointer-events:none;
+  position:absolute;left:var(--cx);top:var(--cy);z-index:4;width:360px;height:286px;
+  transform:translate(-50%,-50%);pointer-events:none;
+}
+.core-shadow,.core-base,.core-belt,.core-orb{position:absolute;left:50%;transform:translateX(-50%);border-radius:50%}
+.core-shadow{bottom:3px;width:330px;height:72px;background:rgba(0,0,0,.34);filter:blur(13px)}
+.core-base{
+  bottom:20px;width:340px;height:104px;border:1px solid var(--sc-line-hi);
+  background:linear-gradient(180deg,rgba(14,92,133,.72),rgba(3,26,45,.96) 70%);
+  box-shadow:var(--sc-glow-3),inset 0 -22px 30px rgba(0,0,0,.34);
+}
+.core-base::before,.core-base::after{content:'';position:absolute;left:5%;right:5%;border-radius:50%;border:1px solid var(--sc-line-2)}
+.core-base::before{top:9px;height:70px;background:radial-gradient(ellipse,rgba(42,201,255,.12),transparent 70%)}
+.core-base::after{left:-8%;right:-8%;top:48px;height:86px;border-color:var(--sc-line-soft)}
+.core-belt{
+  bottom:47px;width:304px;height:64px;border:1px solid var(--sc-line-2);
+  background:repeating-linear-gradient(90deg,rgba(42,201,255,.62) 0 8px,rgba(9,55,82,.34) 8px 17px);
+  box-shadow:0 0 20px rgba(42,201,255,.2);opacity:.62;
 }
 .core-orb{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;
-  border-radius:50%;
-  border:2px solid var(--sc-line-hi);
-  /* 左上高光 + 中心亮到边缘暗的球面渐变 = 体积感 */
-  background:
-    radial-gradient(circle at 34% 26%,rgba(150,238,255,.34),transparent 54%),
-    radial-gradient(circle at 50% 50%,#12648f 0%,#0a3c5c 44%,#062440 72%,#03172a 100%);
-  box-shadow:
-    0 0 0 7px rgba(42,201,255,.07),
-    var(--sc-glow-3),
-    inset 0 0 46px rgba(140,240,255,.20);
+  top:10px;width:308px;height:222px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:2px solid var(--sc-line-hi);text-align:center;
+  background:radial-gradient(ellipse at 48% 40%,rgba(29,124,169,.94),rgba(7,49,77,.98) 59%,rgba(3,25,43,.98));
+  box-shadow:0 0 0 7px rgba(42,201,255,.06),inset 0 0 42px rgba(126,232,255,.18),var(--sc-glow-3);
 }
-.pipeline-stage.is-alert .core-orb{
-  border-color:rgba(255,122,145,.7);
-  box-shadow:0 0 0 7px rgba(255,67,99,.08),0 0 26px rgba(255,120,145,.5),0 0 70px rgba(255,67,99,.3),inset 0 0 46px rgba(255,150,170,.18);
-}
-/* 内层虚线环缓慢自转 */
-.orb-ring{
-  position:absolute;inset:12px;border-radius:50%;
-  border:1px dashed rgba(170,242,255,.40);
-  animation:orb-spin 19s linear infinite;
-}
-.orb-ring::after{
-  content:'';position:absolute;inset:9px;border-radius:50%;
-  border:1px solid rgba(42,201,255,.22);
-}
-/* 上下往复的扫描亮带 */
-.orb-scan{
-  position:absolute;inset:12px;border-radius:50%;overflow:hidden;
-  background:linear-gradient(180deg,transparent 45%,rgba(180,248,255,.30) 50%,transparent 55%);
-  animation:orb-scan 3.8s ease-in-out infinite;
-}
-.orb-emblem{
-  position:relative;width:56px;height:56px;
-  display:grid;place-items:center;
-  border-radius:50%;
-  background:radial-gradient(circle,rgba(110,226,255,.26),transparent 70%);
-  color:#e6fbff;
-}
-.orb-emblem::before,.orb-emblem::after{
-  content:'';position:absolute;inset:-6px;border-radius:50%;
-  border-top:1px solid rgba(180,246,255,.82);
-  border-bottom:1px solid rgba(42,180,240,.32);
-  transform:rotate(-24deg);
-}
-.orb-emblem::after{
-  inset:-12px;
-  border-top-color:rgba(42,201,255,.44);
-  border-bottom-color:transparent;
-  transform:rotate(140deg);
-}
-.orb-emblem :deep(svg){
-  position:relative;z-index:1;stroke-width:1.8;
-  filter:drop-shadow(0 0 11px rgba(140,240,255,.9));
-}
-/* 中枢标题是全屏第二重的文字（仅次于主标题） */
-.core-orb strong{
-  position:relative;margin-top:9px;
-  color:var(--sc-ink);
-  font-family:var(--sc-font);
-  font-size:20px;
-  font-weight:700;
-  letter-spacing:.07em;
-  text-shadow:0 0 16px rgba(42,201,255,.62);
-}
-.orb-code{
-  position:relative;margin-top:6px;
-  color:var(--sc-ink-3);
-  font-family:var(--sc-font-mono);
-  font-size:var(--sc-fs-code);
-  letter-spacing:var(--sc-ls-code);
-}
-.core-orb b{
-  position:relative;margin-top:11px;
-  display:inline-flex;align-items:center;gap:6px;
-  padding:4px 11px;border-radius:20px;
-  color:var(--sc-mint);
-  background:var(--sc-mint-soft);
-  border:1px solid rgba(60,232,170,.42);
-  font-family:var(--sc-font-num);
-  font-size:var(--sc-fs-aux);
-  font-weight:600;
-}
-.core-orb b i{
-  width:6px;height:6px;border-radius:50%;
-  background:currentColor;
-  box-shadow:0 0 8px currentColor;
-  animation:node-blink 2.4s ease-in-out infinite;
-}
-.core-orb b.degraded{
-  color:var(--sc-medium);
-  background:var(--sc-medium-soft);
-  border-color:rgba(255,181,69,.44);
-}
+.pipeline-stage.is-alert .core-orb{border-color:rgba(255,67,99,.58);box-shadow:0 0 0 7px rgba(255,67,99,.06),inset 0 0 42px rgba(255,67,99,.12),0 0 42px rgba(255,67,99,.2)}
+.orb-ring{position:absolute;inset:13px;border-radius:50%;border:1px dashed rgba(170,242,255,.34)}
+.orb-ring::after{content:'';position:absolute;inset:10px;border-radius:50%;border:1px solid var(--sc-line-soft)}
+.orb-emblem{position:relative;width:50px;height:50px;display:grid;place-items:center;color:var(--sc-ink);filter:drop-shadow(0 0 9px rgba(42,201,255,.72))}
+.orb-emblem::before{content:'';position:absolute;inset:0;border:1px solid var(--sc-line-hi);transform:rotate(45deg);background:rgba(42,201,255,.08)}
+.orb-emblem :deep(svg){position:relative;z-index:1;stroke-width:1.7}
+.core-orb strong{position:relative;margin-top:10px;color:var(--sc-ink);font:700 20px var(--sc-font);text-shadow:0 0 14px rgba(42,201,255,.58)}
+.orb-code{position:relative;margin-top:5px;color:var(--sc-ink-3);font:var(--sc-fs-code) var(--sc-font-mono);letter-spacing:var(--sc-ls-code)}
+.core-orb b{position:relative;margin-top:10px;display:inline-flex;align-items:center;gap:7px;padding:4px 13px;border:1px solid rgba(60,232,170,.42);border-radius:18px;color:var(--sc-mint);background:var(--sc-mint-soft);font:600 var(--sc-fs-aux) var(--sc-font-num)}
+.core-orb b i{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;animation:node-blink 2.4s ease-in-out infinite}
+.core-orb b.degraded{color:var(--sc-medium);background:var(--sc-medium-soft);border-color:rgba(255,181,69,.44)}
 
-/* ---------- 四张能力卡 ---------- */
 .capability{
-  position:absolute;z-index:3;
-  width:190px;min-height:70px;
-  display:flex;align-items:center;padding:9px 12px 9px 46px;
-  border:1px solid rgba(67,197,235,.18);border-radius:4px;
-  background:linear-gradient(100deg,rgba(9,55,82,.46),rgba(4,22,39,.68) 60%,rgba(3,18,31,.38));
-  box-shadow:inset 0 0 20px rgba(43,191,234,.045),0 10px 24px rgba(0,0,0,.14);
+  position:absolute;z-index:5;width:224px;min-height:82px;display:flex;align-items:center;padding:10px 12px 10px 70px;
+  border:1px solid var(--sc-line-soft);border-radius:4px;
+  background:linear-gradient(100deg,rgba(7,47,73,.64),rgba(3,22,38,.74) 72%,rgba(3,18,31,.34));
+  box-shadow:inset 0 0 18px rgba(42,201,255,.035);
 }
-.capability::before{content:'';position:absolute;left:44px;right:12px;top:35px;height:1px;background:linear-gradient(90deg,rgba(42,201,255,.48),transparent)}
+.capability::before{content:'';position:absolute;left:69px;right:12px;top:38px;height:1px;background:linear-gradient(90deg,var(--sc-line-2),transparent)}
 .cap-icon{
-  position:absolute;left:-34px;top:50%;
-  width:68px;height:68px;
-  display:grid;place-items:center;
-  transform:translateY(-50%);
-  clip-path:polygon(50% 0,93% 24%,93% 76%,50% 100%,7% 76%,7% 24%);
-  color:#20dff1;
-  background:#31d9f4;
-  filter:drop-shadow(0 0 10px rgba(42,201,255,.42));
+  position:absolute;left:-30px;top:50%;width:72px;height:72px;display:grid;place-items:center;transform:translateY(-50%);
+  clip-path:polygon(50% 0,93% 24%,93% 76%,50% 100%,7% 76%,7% 24%);color:var(--sc-cyan);
+  background:var(--sc-cyan);filter:drop-shadow(0 0 9px rgba(42,201,255,.38));
 }
-.cap-icon::before{content:'';position:absolute;inset:2px;clip-path:inherit;background:linear-gradient(145deg,rgba(9,66,98,.94),rgba(3,24,43,.98))}
-.cap-icon::after{content:'';position:absolute;inset:8px;clip-path:inherit;background:linear-gradient(145deg,rgba(14,91,126,.46),rgba(3,25,44,.25));box-shadow:inset 0 0 0 1px rgba(95,224,247,.34)}
-.cap-icon :deep(svg){position:relative;z-index:2;width:30px;height:30px;stroke-width:1.65;filter:drop-shadow(0 0 6px rgba(34,227,216,.64))}
-.cap-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
-.capability strong{
-  color:var(--sc-ink);font-family:var(--sc-font);font-size:14px;font-weight:650;letter-spacing:.02em;white-space:nowrap;
-}
-.capability span{
-  color:#7eb9cf;font-family:var(--sc-font-mono);font-size:var(--sc-fs-code);letter-spacing:.08em;white-space:nowrap;
-}
-.capability small{color:var(--sc-ink-3);font-size:var(--sc-fs-code);line-height:1.25;white-space:nowrap}
-/* 指向核心的接线端点 */
-.cap-node{
-  position:absolute;top:50%;
-  width:7px;height:7px;margin-top:-3.5px;
-  border-radius:50%;
-  background:var(--sc-cyan);
-  box-shadow:0 0 10px var(--sc-cyan);
-  animation:node-blink 2.6s ease-in-out infinite;
-}
-.top-left{left:10%;top:5%}.top-right{right:10%;top:5%}
-.mid-left{left:2%;top:38%}.mid-right{right:2%;top:38%}
-.bottom-left{left:10%;bottom:22%}.bottom-right{right:10%;bottom:22%}
-.top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
-.top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
-.top-right,.mid-right,.bottom-right{padding:9px 12px 9px 46px;text-align:left}
-.top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{left:-34px;right:auto}
+.cap-icon::before,.cap-icon::after{content:'';position:absolute;clip-path:inherit}
+.cap-icon::before{inset:2px;background:linear-gradient(145deg,rgba(8,66,96,.98),rgba(3,24,42,.98))}
+.cap-icon::after{inset:9px;background:linear-gradient(145deg,rgba(16,100,134,.43),rgba(3,25,44,.2));box-shadow:inset 0 0 0 1px var(--sc-line-hi)}
+.cap-icon :deep(svg){position:relative;z-index:2;width:34px;height:34px;stroke-width:1.55;filter:drop-shadow(0 0 6px rgba(34,227,216,.66))}
+.cap-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.capability strong{color:var(--sc-ink);font:650 15px var(--sc-font);white-space:nowrap}
+.capability .cap-copy>span{color:#7eb9cf;font:var(--sc-fs-code) var(--sc-font-mono);letter-spacing:.08em;white-space:nowrap}
+.capability small{color:var(--sc-ink-3);font-size:var(--sc-fs-code);line-height:1.2;white-space:nowrap}
+.cap-node{position:absolute;top:50%;right:-15px;width:7px;height:7px;margin-top:-3px;border-radius:50%;background:var(--sc-cyan);box-shadow:0 0 10px var(--sc-cyan);animation:node-blink 2.6s ease-in-out infinite}
+.top-left{left:10%;top:4%}.top-right{right:7%;top:4%}.mid-left{left:1%;top:37%}.mid-right{right:1%;top:37%}.bottom-left{left:9%;bottom:16%}.bottom-right{right:7%;bottom:16%}
 
-/* Six physical rails make the capability cards read as parts of one review core. */
-.cap-link{position:absolute;z-index:2;height:1px;background:linear-gradient(90deg,rgba(26,132,174,.3),var(--sc-cyan),rgba(42,201,255,.15));box-shadow:0 0 8px rgba(42,201,255,.45);transform-origin:0 50%;pointer-events:none}
-.cap-link::after{content:'';position:absolute;right:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:#d8fbff;box-shadow:0 0 11px var(--sc-cyan)}
-.cap-link.top-left{left:29%;top:18%;width:21%;transform:rotate(33deg)}
-.cap-link.top-right{left:71%;top:18%;width:21%;transform:rotate(147deg)}
-.cap-link.mid-left{left:25%;top:46%;width:17%;transform:none}
-.cap-link.mid-right{left:58%;top:46%;width:17%;transform:none}
-.cap-link.bottom-left{left:29%;top:74%;width:20%;transform:rotate(-33deg)}
-.cap-link.bottom-right{left:52%;top:63%;width:20%;transform:rotate(33deg)}
-.top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-start}
+.cap-link{position:absolute;z-index:2;height:1px;background:linear-gradient(90deg,transparent,var(--sc-cyan),rgba(42,201,255,.16));box-shadow:0 0 6px rgba(42,201,255,.3);transform-origin:0 50%;pointer-events:none}
+.cap-link::after{content:'';position:absolute;right:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--sc-ink);box-shadow:0 0 10px var(--sc-cyan)}
+.cap-link.top-left{left:29%;top:16%;width:21%;transform:rotate(27deg)}
+.cap-link.top-right{left:50%;top:27%;width:22%;transform:rotate(-27deg)}
+.cap-link.mid-left{left:25%;top:45%;width:14%}.cap-link.mid-right{left:61%;top:45%;width:14%}
+.cap-link.bottom-left{left:29%;top:73%;width:20%;transform:rotate(-28deg)}
+.cap-link.bottom-right{left:51%;top:63%;width:21%;transform:rotate(28deg)}
 
-/* ---------- 处置链路 ---------- */
-.decision-flow{
-  position:absolute;left:4%;right:4%;bottom:4%;z-index:3;
-  display:flex;align-items:center;justify-content:center;gap:10px;
-}
-.decision-flow span{
-  padding:7px 13px;
-  border-radius:var(--sc-radius-sm);
-  color:var(--sc-ink-2);
-  background:rgba(8,36,58,.82);
-  border:1px solid var(--sc-line-2);
-  box-shadow:var(--sc-inset);
-  font-family:var(--sc-font);
-  font-size:var(--sc-fs-aux);
-  white-space:nowrap;
-}
-.decision-flow span.terminal{
-  color:#d8f4ff;
-  border-color:rgba(112,224,255,.42);
-  box-shadow:var(--sc-inset),0 0 18px -6px rgba(42,201,255,.5);
-}
-/* 流动箭头：渐变沿连线推进，读作"数据在走" */
-.decision-flow i{
-  position:relative;width:30px;height:1px;
-  background:linear-gradient(90deg,var(--sc-accent-deep),var(--sc-accent));
-  box-shadow:0 0 7px rgba(42,201,255,.6);
-}
-.decision-flow i::after{
-  content:'';position:absolute;right:-1px;top:-3px;
-  border-left:5px solid var(--sc-accent);
-  border-top:3px solid transparent;
-  border-bottom:3px solid transparent;
-}
-.decision-flow i::before{
-  content:'';position:absolute;left:0;top:-1px;
-  width:7px;height:3px;border-radius:2px;
-  background:#eafcff;
-  box-shadow:0 0 8px #9ceeff;
-  animation:flow-run 2.4s linear infinite;
-}
-.decision-flow i:nth-of-type(2)::before{animation-delay:-.8s}
-.decision-flow i:nth-of-type(3)::before{animation-delay:-1.6s}
+.decision-flow{position:absolute;left:5%;right:5%;bottom:3%;z-index:6;display:flex;align-items:center;justify-content:center;gap:10px}
+.decision-flow span{padding:7px 13px;border:1px solid var(--sc-line-2);border-radius:var(--sc-radius-sm);color:var(--sc-ink-2);background:rgba(8,36,58,.82);font:var(--sc-fs-aux) var(--sc-font);white-space:nowrap}
+.decision-flow .terminal{color:var(--sc-ink);border-color:var(--sc-line-hi)}
+.decision-flow i{position:relative;width:28px;height:1px;background:linear-gradient(90deg,var(--sc-accent-deep),var(--sc-accent));box-shadow:0 0 7px rgba(42,201,255,.6)}
+.decision-flow i::after{content:'';position:absolute;right:-1px;top:-3px;border-left:5px solid var(--sc-accent);border-top:3px solid transparent;border-bottom:3px solid transparent}
+.decision-flow i::before{content:'';position:absolute;left:0;top:-1px;width:7px;height:3px;border-radius:2px;background:var(--sc-ink);box-shadow:0 0 8px var(--sc-ink);animation:flow-run 2.4s linear infinite}
+.decision-flow i:nth-of-type(2)::before{animation-delay:-.8s}.decision-flow i:nth-of-type(3)::before{animation-delay:-1.6s}
 
-/* A shallow base makes the core read as an orchestration console, not a flat orb. */
-.core-orb::after{content:'';position:absolute;left:10%;right:10%;bottom:-16px;height:28px;border:1px solid rgba(42,201,255,.38);border-top:0;border-radius:0 0 50% 50%;background:linear-gradient(180deg,rgba(28,133,181,.46),rgba(3,25,43,.1));box-shadow:0 11px 22px rgba(0,0,0,.32),0 0 18px rgba(42,201,255,.2)}
-.core-orb::before{content:'';position:absolute;left:7%;right:7%;bottom:-8px;height:22px;border:1px solid rgba(112,224,255,.3);border-radius:50%;background:repeating-linear-gradient(90deg,rgba(42,201,255,.6) 0 9px,transparent 9px 17px);box-shadow:0 0 14px rgba(42,201,255,.26)}
-.core-orb>*{z-index:1}
-
-@keyframes orb-spin{to{transform:rotate(360deg)}}
-@keyframes orb-scan{0%,100%{transform:translateY(-45%)}50%{transform:translateY(45%)}}
-@keyframes node-blink{0%,100%{opacity:1}50%{opacity:.4}}
-@keyframes flow-run{0%{left:0;opacity:0}18%{opacity:1}82%{opacity:1}100%{left:100%;opacity:0}}
-
-/* ---------- 紧凑屏：等比收缩，标签保持可读 ---------- */
-/* --core 由 syncOrbSize 按 coreGeometry 写成内联值，此处不再覆盖尺寸 */
-@media(max-width:0px){
-  .capability{padding:9px 11px;gap:9px}
-  .cap-icon{width:32px;height:32px}
-  .cap-icon :deep(svg){width:17px;height:17px}
-  .decision-flow span{padding:6px 10px}
-}
-@media(max-width:0px){
-  .orb-emblem{width:44px;height:44px}
-  .orb-emblem :deep(svg){width:28px;height:28px}
-  .core-orb strong{margin-top:6px}
-  .core-orb b{margin-top:7px;padding:3px 9px}
-  .top-left,.top-right{top:6%}
-  .bottom-left,.bottom-right{bottom:21%}
-  .decision-flow{bottom:2.5%;gap:7px}
-}
-@media(max-width:0px){
-  /* 不覆盖 --core / --cy：两者由 coreGeometry 统一决定 */
-  .capability{width:clamp(132px,13vw,158px);padding:8px 9px;gap:7px}
-  .cap-icon{width:28px;height:28px}
-  .cap-icon :deep(svg){width:15px;height:15px}
-  .top-left,.bottom-left{left:1%}
-  .top-right,.bottom-right{right:1%}
-  .decision-flow{left:2%;right:2%;gap:6px}
-  .decision-flow span{padding:5px 8px}
-}
-@media(prefers-reduced-motion:reduce){
-  .orb-ring,.orb-scan,.cap-node,.core-orb b i,.decision-flow i::before{animation:none}
-  .orb-scan{opacity:.3}
-}
-
-/* CockpitShell scales a fixed 1920x1080 scene; do not reflow its internal geometry per viewport. */
-@media(max-width:0px){
-  .capability{width:clamp(158px,15vw,218px);padding:11px 13px;gap:11px}
-  .cap-icon{width:36px;height:36px}.cap-icon :deep(svg){width:20px;height:20px}
-  .orb-emblem{width:56px;height:56px}.orb-emblem :deep(svg){width:38px;height:38px}
-  .core-orb strong{margin-top:9px}.core-orb b{margin-top:11px;padding:4px 11px}
-  .top-left,.top-right{top:9%}.bottom-left,.bottom-right{bottom:23%}
-  .top-left,.bottom-left{left:3%}.top-right,.bottom-right{right:3%}
-  .decision-flow{left:4%;right:4%;bottom:4%;gap:10px}.decision-flow span{padding:7px 13px}
-}
+@keyframes node-blink{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes flow-run{0%{left:0;opacity:0}18%,82%{opacity:1}100%{left:100%;opacity:0}}
+@media(prefers-reduced-motion:reduce){.cap-node,.core-orb b i,.decision-flow i::before{animation:none}}
 </style>
