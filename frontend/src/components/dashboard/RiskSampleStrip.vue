@@ -170,4 +170,11 @@ onBeforeUnmount(() => {
 .sample-card.disagreement .sample-copy em.alert{color:#ffb454;background:rgba(255,180,84,.13);box-shadow:inset 0 0 0 1px rgba(255,180,84,.4)}
 .sample-empty{height:100%;display:grid;place-items:center;color:#52778b;font-size:9px}
 @media (prefers-reduced-motion:reduce){.sample-card,.sample-media::after{transition:none}.sample-media::after{top:38%;opacity:.32;animation:none}}
+
+.sample-card{border-color:var(--screen-line);background:var(--screen-surface)}
+.sample-card:not(.disagreement):has(em.alert){--rail:var(--risk-critical)}
+.sample-card.disagreement{border-color:var(--risk-medium);--rail:var(--risk-medium)}
+.sample-copy strong{color:var(--screen-text)}
+.sample-copy p{color:var(--screen-text-muted)}
+.sample-copy footer span{color:var(--screen-text-faint)}
 </style>

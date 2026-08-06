@@ -1,5 +1,5 @@
 <template>
-  <article class="cockpit-metric" :class="[tone, { 'is-alert': alert }]">
+  <article class="cockpit-metric" :class="[tone, status, { 'is-alert': alert }]">
     <span class="metric-edge" aria-hidden="true"></span>
     <span class="metric-emblem"><slot name="icon" /></span>
     <span class="metric-copy">
@@ -22,7 +22,8 @@ const props = withDefaults(defineProps<{
   tone?: 'blue' | 'cyan' | 'violet' | 'mint' | 'red'
   /** 告警态：持续呼吸提示，用于风险告警等需要值守的指标 */
   alert?: boolean
-}>(), { tone: 'blue', alert: false })
+  status?: 'normal' | 'warning' | 'critical'
+}>(), { tone: 'blue', alert: false, status: 'normal' })
 
 const valueHost = ref<HTMLElement | null>(null)
 let counter: CountUp | null = null
@@ -162,4 +163,16 @@ onBeforeUnmount(() => counter?.reset())
   .metric-copy{grid-column:2;grid-row:2}
   .metric-copy small{display:none}
 }
+
+.cockpit-metric{
+  border-color:var(--screen-line-soft);
+  border-radius:var(--screen-radius-sm);
+  background:linear-gradient(140deg,rgba(10,36,58,.72),rgba(4,16,29,.78));
+  box-shadow:0 12px 28px -20px rgba(0,0,0,.8);
+}
+.cockpit-metric:hover{border-color:var(--screen-line)}
+.metric-value{font-size:var(--fs-screen-kpi)}
+.metric-copy b{font-size:var(--fs-screen-body)}
+.cockpit-metric.warning .metric-value{color:var(--risk-medium)}
+.cockpit-metric.critical .metric-value{color:var(--risk-critical)}
 </style>

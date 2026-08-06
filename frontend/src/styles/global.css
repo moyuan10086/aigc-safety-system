@@ -1,0 +1,31 @@
+:root {
+  --font-display: "HarmonyOS Sans SC", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-body: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-number: "Roboto Mono", "DIN Alternate", "SFMono-Regular", monospace;
+  --font-code: "Roboto Mono", "SFMono-Regular", monospace;
+  --fs-screen-hero: 34px; --fs-screen-title: 18px; --fs-screen-body: 14px;
+  --fs-screen-label: 12px; --fs-screen-code: 10px; --fs-screen-kpi: 38px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-7: 32px;
+  --screen-gutter: 14px; --screen-gap: 12px; --screen-panel-padding: 14px;
+  --screen-header-height: 62px; --screen-kpi-height: 72px;
+  --screen-bg: #020913; --screen-bg-raised: #061525;
+  --screen-surface: rgba(7, 24, 40, .88); --screen-surface-soft: rgba(10, 36, 58, .64);
+  --screen-text: #eef8ff; --screen-text-secondary: #bdd4e2;
+  --screen-text-muted: #7898aa; --screen-text-faint: #527184;
+  --screen-blue: #2ac9ff; --screen-cyan: #22e3d8; --screen-violet: #8f7dff; --screen-mint: #3ce8aa;
+  --risk-low: #38c8f0; --risk-medium: #ffb545; --risk-high: #ff7a45; --risk-critical: #ff4363;
+  --screen-line: rgba(112, 224, 255, .16); --screen-line-soft: rgba(112, 224, 255, .08);
+  --screen-line-focus: rgba(112, 224, 255, .42); --screen-shadow: 0 16px 36px rgba(0, 0, 0, .28);
+  --screen-glow: 0 0 18px rgba(42, 201, 255, .18); --screen-radius: 8px; --screen-radius-sm: 6px;
+  --sc-ink: var(--screen-text); --sc-ink-2: var(--screen-text-secondary); --sc-ink-3: var(--screen-text-muted); --sc-ink-4: var(--screen-text-faint);
+  --sc-accent: var(--screen-blue); --sc-accent-deep: #0a6ea8; --sc-cyan: var(--screen-cyan); --sc-cyan-deep: #0a8f92; --sc-violet: var(--screen-violet); --sc-violet-deep: #4a3aa8; --sc-mint: var(--screen-mint); --sc-mint-deep: #0b7d63;
+  --sc-safe: var(--screen-mint); --sc-low: var(--risk-low); --sc-medium: var(--risk-medium); --sc-high: var(--risk-high); --sc-critical: var(--risk-critical); --sc-danger: var(--risk-critical); --sc-danger-soft: rgba(255,67,99,.13); --sc-medium-soft: rgba(255,181,69,.13); --sc-mint-soft: rgba(60,232,170,.12); --sc-accent-soft: rgba(42,201,255,.11);
+  --sc-panel: var(--screen-surface); --sc-panel-2: var(--screen-surface-soft); --sc-panel-3: rgba(15,58,90,.46); --sc-panel-head: linear-gradient(90deg,rgba(19,78,116,.28),transparent 72%); --sc-line: var(--screen-line); --sc-line-2: rgba(74,166,214,.3); --sc-line-hi: var(--screen-line-focus); --sc-line-soft: var(--screen-line-soft); --sc-grid: rgba(74,158,208,.05); --sc-grid-major: rgba(74,158,208,.10); --sc-nebula: rgba(20,112,192,.2); --sc-nebula-2: rgba(104,78,224,.13); --sc-nebula-3: rgba(0,214,208,.08);
+  --sc-inset: inset 0 1px 0 rgba(126,224,255,.11); --sc-depth: var(--screen-shadow); --sc-glow-1: 0 0 8px rgba(42,201,255,.42); --sc-glow-2: 0 0 16px rgba(42,201,255,.34),0 0 38px rgba(42,201,255,.16); --sc-glow-3: 0 0 22px rgba(120,232,255,.52),0 0 64px rgba(42,201,255,.28); --sc-glow-danger: 0 0 14px rgba(255,67,99,.46); --sc-glow-mint: 0 0 12px rgba(60,232,170,.48); --sc-text-glow: 0 0 18px rgba(42,201,255,.30);
+  --sc-font: var(--font-body); --sc-font-num: var(--font-number); --sc-font-mono: var(--font-code); --sc-fs-hero: var(--fs-screen-hero); --sc-fs-kpi: var(--fs-screen-kpi); --sc-fs-title: var(--fs-screen-title); --sc-fs-body: var(--fs-screen-body); --sc-fs-aux: var(--fs-screen-label); --sc-fs-code: var(--fs-screen-code); --sc-w-hero: 700; --sc-w-title: 600; --sc-w-num: 700; --sc-ls-hero: .04em; --sc-ls-num: .02em; --sc-ls-code: .12em; --sc-gap: var(--screen-gap); --sc-gap-sm: 8px; --sc-pad: var(--screen-panel-padding); --sc-radius: var(--screen-radius); --sc-radius-sm: var(--screen-radius-sm); --sc-breathe: 4.2s; --sc-sweep: 5.6s;
+}
+html, body, #app { min-height: 100%; }
+body { margin: 0; font-family: var(--font-body); letter-spacing: 0; }
+button, input, textarea, select { font: inherit; }
+@media (max-height: 820px) { :root { --fs-screen-hero: 30px; --fs-screen-kpi: 32px; --fs-screen-title: 16px; } }

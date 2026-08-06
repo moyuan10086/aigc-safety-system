@@ -134,4 +134,18 @@ withDefaults(defineProps<{
     background-image:linear-gradient(90deg,var(--tone),transparent 72%);opacity:.5;
   }
 }
+
+/* The cockpit uses structural lines instead of stacked card chrome. */
+.screen-panel{
+  border-color:var(--screen-line-soft);
+  border-radius:var(--screen-radius);
+  background:linear-gradient(145deg,rgba(9,32,52,.72),rgba(4,16,29,.78));
+  box-shadow:var(--screen-shadow);
+}
+.screen-panel.is-focus{border-color:var(--screen-line-focus);box-shadow:var(--screen-shadow),0 0 34px -18px rgba(42,201,255,.6)}
+.panel-edge::before{opacity:.32}.panel-edge::after{opacity:.35}
+.panel-title{height:36px;padding-inline:var(--screen-panel-padding);background:linear-gradient(90deg,rgba(19,78,116,.28),transparent 72%);border-bottom-color:var(--screen-line-soft)}
+.panel-title strong{font-size:var(--fs-screen-title)}
+.panel-body{padding:var(--screen-panel-padding)}
+.screen-panel.is-flush .panel-body{padding:0}
 </style>
