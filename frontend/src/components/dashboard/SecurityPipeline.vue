@@ -130,11 +130,11 @@ const capabilities = [
 .cap-icon::after{inset:9px;background:linear-gradient(145deg,rgba(16,100,134,.43),rgba(3,25,44,.2));box-shadow:inset 0 0 0 1px var(--sc-line-hi)}
 .cap-icon :deep(svg){position:relative;z-index:2;width:34px;height:34px;stroke-width:1.55;filter:drop-shadow(0 0 6px rgba(34,227,216,.66))}
 .cap-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
-.capability strong{color:var(--sc-ink);font:650 15px var(--sc-font);white-space:nowrap}
-.capability .cap-copy>span{color:#7eb9cf;font:var(--sc-fs-code) var(--sc-font-mono);letter-spacing:.08em;white-space:nowrap}
+.capability strong{color:var(--sc-ink);font:650 16px var(--sc-font);white-space:nowrap}
+.capability .cap-copy>span{color:var(--sc-ink-2);font:var(--sc-fs-code) var(--sc-font-mono);letter-spacing:.08em;white-space:nowrap}
 .capability small{color:var(--sc-ink-3);font-size:var(--sc-fs-code);line-height:1.2;white-space:nowrap}
 .cap-node{position:absolute;top:50%;right:-15px;width:7px;height:7px;margin-top:-3px;border-radius:50%;background:var(--sc-cyan);box-shadow:0 0 10px var(--sc-cyan);animation:node-blink 2.6s ease-in-out infinite}
-.top-left{left:10%;top:4%}.top-right{right:7%;top:4%}.mid-left{left:1%;top:37%}.mid-right{right:1%;top:37%}.bottom-left{left:9%;bottom:16%}.bottom-right{right:7%;bottom:16%}
+.top-left{left:10%;top:4%}.top-right{right:7%;top:4%}.mid-left{left:4.5%;top:37%}.mid-right{right:1%;top:37%}.bottom-left{left:9%;bottom:16%}.bottom-right{right:7%;bottom:16%}
 
 .cap-link{position:absolute;z-index:2;height:1px;background:linear-gradient(90deg,transparent,var(--sc-cyan),rgba(42,201,255,.16));box-shadow:0 0 6px rgba(42,201,255,.3);transform-origin:0 50%;pointer-events:none}
 .cap-link::after{content:'';position:absolute;right:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--sc-ink);box-shadow:0 0 10px var(--sc-cyan)}
