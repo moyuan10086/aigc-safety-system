@@ -54,6 +54,7 @@ export interface ShadowReviewItem {
   claim_expires_at?: string
   review_label?: 'safe' | 'borderline' | 'unsafe'
   reason_code?: string
+  review_note?: string
   reviewer?: string
   reviewed_at?: string
   review_claim_verified: boolean
@@ -64,6 +65,7 @@ export interface ReviewResolution {
   event_id: string
   review_label: 'safe' | 'borderline' | 'unsafe'
   reason_code: string
+  review_note?: string
   reviewer: string
   reviewed_at: string
   next_event_id?: string
@@ -132,7 +134,7 @@ export function useDashboard() {
 
   const refreshScheduler = createDebouncedTask(() => { void refresh(true) }, 220)
 
-  async function resolveShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe') {
+  async function resolveShadowReview(eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe', reviewNote = '') {
     if (reviewingEventId.value) return
     reviewingEventId.value = eventId
     try {
@@ -140,7 +142,7 @@ export function useDashboard() {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ review_label: reviewLabel }),
+        body: JSON.stringify({ review_label: reviewLabel, review_note: reviewNote.trim() || null }),
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {

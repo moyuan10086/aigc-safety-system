@@ -91,6 +91,7 @@ def _initialize(connection: sqlite3.Connection, key: str) -> None:
                 event_id TEXT PRIMARY KEY,
                 review_label TEXT NOT NULL,
                 reason_code TEXT NOT NULL,
+                review_note TEXT,
                 reviewer TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL,
                 FOREIGN KEY(event_id) REFERENCES audit_events(id) ON DELETE CASCADE
@@ -118,6 +119,11 @@ def _initialize(connection: sqlite3.Connection, key: str) -> None:
                 ON agent_action_approvals(expires_at DESC);
             """
         )
+        review_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(guardrail_shadow_reviews)")
+        }
+        if "review_note" not in review_columns:
+            connection.execute("ALTER TABLE guardrail_shadow_reviews ADD COLUMN review_note TEXT")
         connection.commit()
         _INITIALIZED_PATHS.add(key)
 
@@ -780,6 +786,7 @@ def _review_item(
         "claim_expires_at": claim_expires_at if claim_active else None,
         "review_label": row["review_label"],
         "reason_code": row["reason_code"],
+        "review_note": row["review_note"] if "review_note" in row_keys else None,
         "reviewer": row["reviewer"],
         "reviewed_at": row["reviewed_at"],
         "review_claim_verified": bool(row["claim_verified"])
@@ -863,6 +870,7 @@ def shadow_review_statistics(
                    audit_events.content_hash, audit_events.metadata_json,
                    guardrail_shadow_reviews.review_label,
                    guardrail_shadow_reviews.reason_code,
+                   guardrail_shadow_reviews.review_note,
                    guardrail_shadow_reviews.reviewer,
                    guardrail_shadow_reviews.reviewed_at,
                    guardrail_review_claims.reviewer AS claim_reviewer,
@@ -1164,10 +1172,16 @@ def _claim_next_review_sample(
     return str(selected["id"])
 
 
-def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> dict[str, Any]:
+def resolve_shadow_review(
+    event_id: str,
+    review_label: str,
+    reviewer: str,
+    review_note: str | None = None,
+) -> dict[str, Any]:
     if review_label not in {"safe", "borderline", "unsafe"}:
         raise ValueError("invalid_review_label")
     clean_reviewer = _clean_text(reviewer, 128) or "operator"
+    clean_review_note = _clean_text(review_note, 500)
     with _LOCK, closing(_connect()) as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -1237,10 +1251,10 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         connection.execute(
             """
             INSERT INTO guardrail_shadow_reviews
-                (event_id, review_label, reason_code, reviewer, reviewed_at)
-            VALUES (?, ?, ?, ?, ?)
+                (event_id, review_label, reason_code, review_note, reviewer, reviewed_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (event_id, review_label, reason_code, clean_reviewer, reviewed_at),
+            (event_id, review_label, reason_code, clean_review_note, clean_reviewer, reviewed_at),
         )
         connection.execute("DELETE FROM guardrail_review_claims WHERE event_id = ?", (event_id,))
         next_expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(
@@ -1254,6 +1268,7 @@ def resolve_shadow_review(event_id: str, review_label: str, reviewer: str) -> di
         "event_id": event_id,
         "review_label": review_label,
         "reason_code": reason_code,
+        "review_note": clean_review_note,
         "reviewer": clean_reviewer,
         "reviewed_at": reviewed_at,
         "next_event_id": next_event_id,
@@ -1271,6 +1286,7 @@ def export_human_reviews(*, limit: int = 5000) -> list[dict[str, Any]]:
                    audit_events.content_hash, audit_events.metadata_json,
                    guardrail_shadow_reviews.review_label,
                    guardrail_shadow_reviews.reason_code,
+                   guardrail_shadow_reviews.review_note,
                    guardrail_shadow_reviews.reviewer,
                    guardrail_shadow_reviews.reviewed_at,
                    EXISTS(

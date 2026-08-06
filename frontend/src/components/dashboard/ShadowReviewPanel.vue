@@ -61,10 +61,9 @@
           <span>{{ item.shadow_latency_ms ?? '-' }} ms</span>
         </div>
         <div v-else class="model-meta blind-result"><span>人工真值优先</span></div>
-        <div class="review-control" role="group" :aria-label="`${item.event_id} 人工复核标签`">
-          <button v-for="choice in choices" :key="choice.value" type="button" :class="[choice.value, { active: item.review_label === choice.value }]" :disabled="busyEventId === item.event_id || !canLabel(item)" :title="labelTitle(item, choice.title)" @click="$emit('resolve', item.event_id, choice.value)">
-            <component :is="choice.icon" :size="14" />{{ choice.label }}
-          </button>
+        <div class="review-control" :class="{ complete: item.review_label }">
+          <template v-if="item.review_label"><BadgeCheck :size="14" /><span>人工结论：{{ verdictLabel[item.review_label] }}</span></template>
+          <template v-else><ClipboardCheck :size="14" /><span>请在工作区查看原文并提交结论</span></template>
         </div>
       </article>
     </div>
@@ -73,14 +72,12 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowRight, BadgeCheck, CircleAlert, Download, EyeOff, FileSearch, GitCompareArrows, LockKeyhole, ShieldCheck, ShieldX } from 'lucide-vue-next'
+import { ArrowRight, BadgeCheck, CircleAlert, ClipboardCheck, Download, EyeOff, FileSearch, GitCompareArrows, LockKeyhole } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
-import type { Component } from 'vue'
 import type { ShadowEvaluationSummary, ShadowReviewItem } from '../../composables/useDashboard'
 
 const props = defineProps<{ summary: ShadowEvaluationSummary; items: ShadowReviewItem[]; busyEventId: string }>()
 defineEmits<{
-  resolve: [eventId: string, reviewLabel: 'safe' | 'borderline' | 'unsafe']
   inspect: [eventId: string, shouldClaim: boolean]
 }>()
 
@@ -96,16 +93,10 @@ const integrityStatus = computed(() => {
   if (!props.summary.reviewed_count) return '尚无人工标签'
   return props.summary.review_integrity_complete ? '领取与证据访问审计完整' : `异常 ${props.summary.unverified_review_count} 条`
 })
-const choices: Array<{ value: 'safe' | 'borderline' | 'unsafe'; label: string; title: string; icon: Component }> = [
-  { value: 'safe', label: '安全', title: '人工确认该样本应安全放行', icon: ShieldCheck },
-  { value: 'borderline', label: '边界', title: '人工确认该样本需要进一步复核', icon: CircleAlert },
-  { value: 'unsafe', label: '危险', title: '人工确认该样本应阻断', icon: ShieldX },
-]
 const timeFormatter = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 function formatTime(value: string) { return timeFormatter.format(new Date(value)) }
 function percent(value?: number) { return value == null ? '-' : `${(value * 100).toFixed(1)}%` }
 function revealModel(item: ShadowReviewItem) { return !blindMode.value || Boolean(item.review_label) }
-function canLabel(item: ShadowReviewItem) { return !item.review_label && item.claim_state === 'mine' && item.evidence_reviewed }
 function inspectIcon(item: ShadowReviewItem) { return item.review_label || item.evidence_reviewed ? BadgeCheck : item.claim_state === 'other' ? LockKeyhole : FileSearch }
 function inspectLabel(item: ShadowReviewItem) {
   if (item.review_label) return '已复核'
@@ -120,11 +111,6 @@ function inspectTitle(item: ShadowReviewItem) {
   if (item.claim_state === 'mine') return '继续查看审计事件与加密证据'
   return '领取样本并查看审计事件'
 }
-function labelTitle(item: ShadowReviewItem, choiceTitle: string) {
-  if (item.review_label) return '首次人工标签已经锁定，不可覆盖'
-  if (item.claim_state !== 'mine') return '请先领取该复核样本'
-  return item.evidence_reviewed ? choiceTitle : '先打开取证并查看原始证据'
-}
 </script>
 
 <style scoped>
@@ -137,6 +123,6 @@ function labelTitle(item: ShadowReviewItem, choiceTitle: string) {
 .review-list{max-height:310px;overflow:auto}.review-row{min-height:62px;display:grid;grid-template-columns:minmax(190px,.9fr) minmax(220px,1fr) minmax(190px,.9fr) 246px;align-items:center;gap:14px;padding:8px 16px;border-bottom:1px solid var(--line)}.review-row.locked{background:var(--surface-2)}.review-row:last-child{border-bottom:0}.event-meta,.decision-pair,.model-meta{min-width:0;display:flex;align-items:center;gap:8px}.event-meta time{color:var(--muted);font-size:9px}.event-meta code{overflow:hidden;color:var(--faint);font-size:9px;text-overflow:ellipsis}.event-meta button{height:28px;margin-left:auto;display:flex;align-items:center;gap:5px;padding:0 8px;color:var(--primary);background:transparent;border:1px solid var(--line);border-radius:5px;font-size:9px;cursor:pointer}.event-meta button:hover:not(:disabled){background:var(--surface-3);border-color:var(--line-bright)}.event-meta button:disabled{cursor:not-allowed;opacity:.7}.event-meta button.claimed{color:var(--warning);border-color:rgba(184,111,18,.25)}.event-meta button.locked{color:var(--muted)}.event-meta button.reviewed{color:var(--success);border-color:rgba(22,128,94,.25);background:rgba(22,128,94,.05)}
 .decision-pair{justify-content:center;color:var(--faint)}.decision-pair span{font-size:9px}.decision-pair b{margin-left:4px;padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:3px;font-size:9px}.decision-pair b.safe,.decision-pair b.pass{color:var(--success);background:rgba(22,128,94,.09)}.decision-pair b.borderline{color:var(--warning);background:rgba(184,111,18,.09)}.decision-pair b.unsafe,.decision-pair b.fail{color:var(--danger);background:rgba(207,63,79,.08)}
 .decision-pair em{padding:3px 5px;color:var(--danger);background:rgba(207,63,79,.08);border:1px solid rgba(207,63,79,.16);border-radius:3px;font-size:8px;font-style:normal}
-.blind-result{color:var(--muted)}.decision-pair.blind-result{gap:6px}.model-meta{justify-content:flex-end}.model-meta span{padding-right:8px;color:var(--faint);border-right:1px solid var(--line);font:9px/1 ui-monospace,monospace}.model-meta span:last-child{padding-right:0;border-right:0}.review-control{height:31px;display:grid;grid-template-columns:repeat(3,1fr);padding:2px;background:var(--surface-3);border:1px solid var(--line);border-radius:6px}.review-control button{display:flex;align-items:center;justify-content:center;gap:5px;color:var(--muted);background:transparent;border:0;border-radius:4px;font-size:9px;cursor:pointer}.review-control button:hover:not(:disabled){color:var(--primary);background:var(--surface)}.review-control button.active{color:#fff;background:var(--primary);font-weight:650}.review-control button.active.safe{background:var(--success)}.review-control button.active.borderline{background:var(--warning)}.review-control button.active.unsafe{background:var(--danger)}.review-control button:disabled{opacity:.55;cursor:not-allowed}.empty-state{height:150px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--faint);font-size:10px}
+.blind-result{color:var(--muted)}.decision-pair.blind-result{gap:6px}.model-meta{justify-content:flex-end}.model-meta span{padding-right:8px;color:var(--faint);border-right:1px solid var(--line);font:9px/1 ui-monospace,monospace}.model-meta span:last-child{padding-right:0;border-right:0}.review-control{height:31px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;font-size:9px}.review-control.complete{color:var(--success);background:rgba(22,128,94,.05);border-color:rgba(22,128,94,.2)}.empty-state{height:150px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--faint);font-size:10px}
 @media(max-width:1380px){.shadow-metrics{grid-template-columns:repeat(4,1fr)}}@media(max-width:1200px){.shadow-metrics{grid-template-columns:repeat(3,1fr)}.review-row{grid-template-columns:1fr 1fr}.review-control{width:246px;justify-self:end}}@media(max-width:720px){.shadow-metrics{grid-template-columns:1fr 1fr}.shadow-metrics>div:nth-child(2n){border-right:0}.review-guide{grid-template-columns:1fr;gap:9px}.review-guide li,.review-guide li:first-child,.review-guide li:last-child{padding:0;border-right:0}.review-summary{align-items:flex-start;flex-wrap:wrap}.review-summary i{display:none}.review-summary span:nth-of-type(2){width:100%;margin-top:2px}.review-row{grid-template-columns:1fr}.decision-pair{justify-content:flex-start}.model-meta{justify-content:flex-start}.review-control{width:100%;justify-self:stretch}.queue-head{align-items:stretch;flex-wrap:wrap}.queue-head>div:first-child{width:100%}.queue-head>div:first-child span{display:none}.review-mode{margin-left:0;flex:1;grid-template-columns:repeat(2,minmax(64px,1fr))}.queue-head a{justify-content:center}}
 </style>

@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services import audit_log_service, auth_service, dashboard_service
 
@@ -17,6 +17,7 @@ COOKIE_NAME = "aigc_operator_session"
 
 class ShadowReviewRequest(BaseModel):
     review_label: Literal["safe", "borderline", "unsafe"]
+    review_note: str | None = Field(default=None, max_length=500)
 
 
 def _operator(request: Request) -> dict[str, Any]:
@@ -76,7 +77,7 @@ async def resolve_shadow_review(
     user = _operator(request)
     try:
         review = audit_log_service.resolve_shadow_review(
-            event_id, body.review_label, user["username"]
+            event_id, body.review_label, user["username"], body.review_note
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="未找到含加密证据的可复核护栏事件") from exc
@@ -103,6 +104,7 @@ async def resolve_shadow_review(
             "source_event_id": event_id,
             "review_label": review["review_label"],
             "reason_code": review["reason_code"],
+            "review_note_present": bool(review.get("review_note")),
         },
     )
     if review["next_event_id"]:
@@ -133,7 +135,7 @@ async def export_review_labels(request: Request):
     writer.writerow([
         "event_id", "content_hash", "occurred_at", "primary_verdict", "risk_code",
         "risk_score", "categories", "shadow_status", "shadow_decision",
-        "is_disagreement", "human_label", "reason_code", "reviewer", "reviewed_at",
+        "is_disagreement", "human_label", "reason_code", "review_note", "reviewer", "reviewed_at",
         "review_claim_verified", "evidence_access_verified",
     ])
     for review in reviews:
@@ -143,7 +145,7 @@ async def export_review_labels(request: Request):
             json.dumps(review.get("categories", []), ensure_ascii=False),
             review.get("shadow_status"), review.get("shadow_decision"),
             review.get("is_disagreement"), review["review_label"],
-            review.get("reason_code"), review.get("reviewer"), review.get("reviewed_at"),
+            review.get("reason_code"), review.get("review_note"), review.get("reviewer"), review.get("reviewed_at"),
             review.get("review_claim_verified"), review.get("evidence_reviewed"),
         ])
     audit_log_service.record_safe(

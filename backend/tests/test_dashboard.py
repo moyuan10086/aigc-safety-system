@@ -164,11 +164,12 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(evidence_response.status_code, 200)
         response = self.client.put(
             f"/api/dashboard/shadow-reviews/{disagreement_id}",
-            json={"review_label": "safe"},
+            json={"review_label": "safe", "review_note": "原始内容没有实际危害，人工确认可以放行"},
         )
         self.assertEqual(response.status_code, 200)
         review = response.json()
         self.assertEqual(review["reason_code"], "shadow_false_positive")
+        self.assertEqual(review["review_note"], "原始内容没有实际危害，人工确认可以放行")
         self.assertIsNone(review["next_event_id"])
         self.assertNotIn("prompt", response.text.lower())
 
@@ -191,6 +192,10 @@ class DashboardTests(unittest.TestCase):
             [{"reviewer": "operator", "count": 1}],
         )
         self.assertEqual(overview["shadow_reviews"][0]["review_label"], "safe")
+        self.assertEqual(
+            overview["shadow_reviews"][0]["review_note"],
+            "原始内容没有实际危害，人工确认可以放行",
+        )
         self.assertTrue(overview["shadow_reviews"][0]["evidence_reviewed"])
         evidence = audit_log_service.get_evidence(disagreement_id)
         self.assertEqual(evidence["prompt"], "结构化复核测试原文")
