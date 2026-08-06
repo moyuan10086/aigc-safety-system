@@ -164,12 +164,12 @@ function draw(now: number) {
     ? c.createConicGradient(0, 0, 0)
     : null
   if (sweep) {
-    sweep.addColorStop(0, withAlpha(focus, 0.30))
-    sweep.addColorStop(0.10, withAlpha(focus, 0.05))
+    sweep.addColorStop(0, withAlpha(focus, 0.035))
+    sweep.addColorStop(0.10, withAlpha(focus, 0.008))
     sweep.addColorStop(1, 'rgba(0,0,0,0)')
     c.fillStyle = sweep
   } else {
-    c.fillStyle = withAlpha(focus, 0.12)
+    c.fillStyle = withAlpha(focus, 0.015)
   }
   c.beginPath()
   c.moveTo(0, 0)
@@ -185,7 +185,7 @@ function draw(now: number) {
   c.beginPath()
   c.moveTo(0, 0)
   c.lineTo(base * NODE_RING, 0)
-  c.strokeStyle = withAlpha(palette.ink, 0.44)
+  c.strokeStyle = withAlpha(palette.ink, 0.12)
   c.lineWidth = 1.2
   c.stroke()
   c.restore()
