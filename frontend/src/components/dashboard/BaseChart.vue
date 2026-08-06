@@ -43,4 +43,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>.base-chart{width:100%;height:100%;min-height:220px}</style>
+<style scoped>.base-chart{width:100%;height:100%;min-height:0}</style>

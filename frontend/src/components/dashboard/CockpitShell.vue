@@ -28,7 +28,9 @@ function fitStage() {
   const nextScale = Math.min(rect.width / DESIGN_WIDTH, rect.height / DESIGN_HEIGHT)
   scale.value = Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1
   offsetX.value = Math.round((rect.width - DESIGN_WIDTH * scale.value) / 2)
-  offsetY.value = Math.round((rect.height - DESIGN_HEIGHT * scale.value) / 2)
+  // Keep the command surface anchored to the top on 16:10 displays. The
+  // remaining letterbox space stays below the footer instead of above the UI.
+  offsetY.value = 0
 }
 
 onMounted(() => {
