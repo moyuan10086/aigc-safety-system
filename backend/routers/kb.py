@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from services import kb_service
@@ -62,7 +62,9 @@ async def get_chunks(file_id: str):
 
 @router.delete("/files/{file_id}")
 async def delete_file(file_id: str):
-    await asyncio.to_thread(kb_service.delete_file, file_id)
+    deleted = await asyncio.to_thread(kb_service.delete_file, file_id)
+    if not deleted:
+        raise HTTPException(status_code=409, detail="平台维护的公开来源不可在页面删除")
     return {"status": "deleted"}
 
 

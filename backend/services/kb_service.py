@@ -10,6 +10,7 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from config import CHROMA_PATH, MLLM_API_KEY, MLLM_BASE_URL, MLLM_MODEL, PROXY_URL
+from services.official_knowledge_sources import OFFICIAL_KNOWLEDGE_SOURCES
 
 _client = None
 _collection = None
@@ -22,6 +23,8 @@ CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 DEFAULT_TOP_K = 5
 DEFAULT_SCORE_THRESHOLD = 0.32
+USER_SOURCE_TYPE = "user_upload"
+OFFICIAL_SOURCE_DIR = Path(__file__).parents[1] / "knowledge_sources"
 
 
 def _init():
@@ -129,25 +132,103 @@ def add_file(file_path: str, filename: str, category: str = "默认") -> dict:
 
     ids = [f"{file_id}_{i}" for i in range(len(chunks))]
     embeddings = _embedder.encode(chunks, normalize_embeddings=True).tolist()
-    metadatas = [{"file_id": file_id, "filename": filename, "chunk_index": i, "category": category}
+    metadatas = [{
+        "file_id": file_id, "filename": filename, "title": filename,
+        "chunk_index": i, "category": category, "publisher": "用户上传",
+        "source_type": USER_SOURCE_TYPE, "document_type": "user_document",
+        "source_url": "", "source_id": file_id, "summary": "用户上传资料",
+        "managed": False,
+    }
                  for i in range(len(chunks))]
     _collection.add(ids=ids, embeddings=embeddings, documents=chunks, metadatas=metadatas)
     return {"file_id": file_id, "filename": filename, "chunks": len(chunks), "category": category}
 
 
+def _source_metadata(source: dict, chunk_index: int) -> dict:
+    return {
+        "file_id": f"official:{source['source_id']}",
+        "filename": source["title"],
+        "title": source["title"],
+        "chunk_index": chunk_index,
+        "category": source["category"],
+        "publisher": source["publisher"],
+        "source_type": "curated_official",
+        "document_type": source["document_type"],
+        "source_url": source["source_url"],
+        "source_id": source["source_id"],
+        "summary": source["summary"],
+        "updated_at": source["updated_at"],
+        "managed": True,
+        "has_full_text": bool(source.get("local_filename")),
+    }
+
+
+def seed_official_sources() -> dict:
+    """Idempotently add curated public-source summaries without touching uploads."""
+    _init()
+    added_sources = skipped_sources = added_chunks = 0
+    for source in OFFICIAL_KNOWLEDGE_SOURCES:
+        file_id = f"official:{source['source_id']}"
+        existing = _collection.get(where={"file_id": file_id})
+        if existing.get("ids"):
+            skipped_sources += 1
+            continue
+        full_text = ""
+        local_filename = source.get("local_filename")
+        if local_filename:
+            local_path = OFFICIAL_SOURCE_DIR / local_filename
+            if local_path.is_file():
+                full_text = _extract_text(str(local_path))
+        chunks = _split(
+            f"{source['title']}\n\n{source['summary']}\n\n{source['content']}"
+            + (f"\n\n官方文件正文：\n{full_text}" if full_text else "")
+        )
+        ids = [f"{file_id}:{index}" for index in range(len(chunks))]
+        embeddings = _embedder.encode(chunks, normalize_embeddings=True).tolist()
+        _collection.add(
+            ids=ids, embeddings=embeddings, documents=chunks,
+            metadatas=[_source_metadata(source, index) for index in range(len(chunks))],
+        )
+        added_sources += 1
+        added_chunks += len(chunks)
+    return {
+        "total_sources": len(OFFICIAL_KNOWLEDGE_SOURCES),
+        "added_sources": added_sources,
+        "skipped_sources": skipped_sources,
+        "added_chunks": added_chunks,
+    }
+
+
 def list_files(category: str = None) -> list[dict]:
     _init()
     result = _collection.get(include=["metadatas"])
-    seen, files = set(), []
+    grouped: dict[str, dict] = {}
     for meta in result["metadatas"]:
         fid = meta["file_id"]
-        if fid not in seen:
-            if category and meta.get("category") != category:
-                continue
-            seen.add(fid)
-            files.append({"file_id": fid, "filename": meta["filename"],
-                          "category": meta.get("category", "默认")})
-    return files
+        if category and meta.get("category") != category:
+            continue
+        if fid not in grouped:
+            grouped[fid] = {
+                "file_id": fid,
+                "filename": meta.get("filename", "未知来源"),
+                "title": meta.get("title", meta.get("filename", "未知来源")),
+                "category": meta.get("category", "默认"),
+                "publisher": meta.get("publisher", "用户上传"),
+                "source_type": meta.get("source_type", USER_SOURCE_TYPE),
+                "document_type": meta.get("document_type", "user_document"),
+                "source_url": meta.get("source_url", ""),
+                "source_id": meta.get("source_id", fid),
+                "summary": meta.get("summary", ""),
+                "updated_at": meta.get("updated_at", ""),
+                "managed": bool(meta.get("managed", False)),
+                "has_full_text": bool(meta.get("has_full_text", False)),
+                "chunk_count": 0,
+            }
+        grouped[fid]["chunk_count"] += 1
+    return sorted(
+        grouped.values(),
+        key=lambda item: (item["source_type"] != "curated_official", item["category"], item["title"]),
+    )
 
 
 def list_chunks(file_id: str) -> list[dict]:
@@ -157,16 +238,24 @@ def list_chunks(file_id: str) -> list[dict]:
         include=["documents", "metadatas"]
     )
     return [
-        {"chunk_id": cid, "chunk_index": meta["chunk_index"], "content": doc}
+        {
+            "chunk_id": cid, "chunk_index": meta["chunk_index"], "content": doc,
+            "publisher": meta.get("publisher", "用户上传"),
+            "source_url": meta.get("source_url", ""),
+            "category": meta.get("category", "默认"),
+        }
         for cid, doc, meta in zip(result["ids"], result["documents"], result["metadatas"])
     ]
 
 
-def delete_file(file_id: str):
+def delete_file(file_id: str) -> bool:
     _init()
-    result = _collection.get(where={"file_id": file_id})
+    result = _collection.get(where={"file_id": file_id}, include=["metadatas"])
+    if any(bool(meta.get("managed")) for meta in (result.get("metadatas") or [])):
+        return False
     if result["ids"]:
         _collection.delete(ids=result["ids"])
+    return True
 
 
 def search(question: str, top_k: int = DEFAULT_TOP_K, category: str | None = None,
@@ -219,6 +308,11 @@ def search(question: str, top_k: int = DEFAULT_TOP_K, category: str | None = Non
             "category": metadata.get("category", "默认"),
             "chunk_index": metadata.get("chunk_index"),
             "snippet": item.pop("content")[:600],
+            "publisher": metadata.get("publisher", "用户上传"),
+            "source_url": metadata.get("source_url", ""),
+            "document_type": metadata.get("document_type", "user_document"),
+            "source_type": metadata.get("source_type", USER_SOURCE_TYPE),
+            "summary": metadata.get("summary", ""),
         })
         hits.append(item)
         if len(hits) >= top_k:
@@ -241,6 +335,11 @@ def stats() -> dict:
     metadatas = result.get("metadatas") or []
     files = {meta.get("file_id") for meta in metadatas if meta.get("file_id")}
     categories = sorted({meta.get("category", "默认") for meta in metadatas})
+    official_sources = {
+        meta.get("file_id") for meta in metadatas
+        if meta.get("source_type") == "curated_official"
+    }
+    publishers = sorted({meta.get("publisher") for meta in metadatas if meta.get("publisher")})
     return {
         "engine": "ChromaDB",
         "embedding_model": "paraphrase-multilingual-MiniLM-L12-v2",
@@ -252,6 +351,9 @@ def stats() -> dict:
         "file_count": len(files),
         "chunk_count": len(metadatas),
         "categories": categories,
+        "official_source_count": len(official_sources),
+        "user_source_count": max(0, len(files) - len(official_sources)),
+        "publishers": publishers,
         "score_threshold": DEFAULT_SCORE_THRESHOLD,
     }
 
