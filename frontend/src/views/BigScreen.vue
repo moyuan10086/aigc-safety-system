@@ -473,12 +473,14 @@ onBeforeUnmount(() => { if (clockTimer) clearInterval(clockTimer); sampleControl
 /* 简介是三段可变高度内容（正文 + 标签 + 数据），面板高度由网格分配。
    正文用 line-clamp 收口：空间不足时整行省略，而不是被面板裁掉半行文字。 */
 .platform-intro{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+/* 正文是唯一可伸缩区：标签与统计固定高度，正文吃掉剩余空间并在不足时裁行。
+   min-height 是防塌陷下限——纯 flex:1 会在空间紧张时被压成 0 高度而整段消失。 */
 .platform-intro p{
-  margin:0;min-height:0;
+  flex:1 1 auto;min-height:1.7em;margin:0;
   color:var(--sc-ink-2);
   font-size:var(--sc-fs-aux);
   line-height:1.72;
-  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;
+  overflow:hidden;
 }
 .platform-intro .intro-future{
   flex:none;margin-top:8px;padding-left:9px;
@@ -666,13 +668,26 @@ onBeforeUnmount(() => { if (clockTimer) clearInterval(clockTimer); sampleControl
 }
 /* 简介面板在 ≤900px 高时只有约 70px 内容区，放不下"正文+延伸说明+标签+数据"四段。
    延伸说明是可选阅读内容，优先让位给标签与统计数字。 */
-@media(max-height:900px){
+/* 简介面板由左列 .84fr 分配高度，1080 大屏下内容区仅约 116px，
+   放不下"正文 + 延伸说明 + 标签 + 统计"四段。延伸说明是可选阅读内容，优先让位。 */
+@media(max-height:1200px){
   .platform-intro .intro-future{display:none}
-  .platform-intro p{-webkit-line-clamp:2;line-height:1.6}
+  .platform-intro p{line-height:1.6}
   .capability-tags{margin-top:6px;gap:5px}
   .platform-intro dl{gap:6px}
   .platform-intro dl>div{padding:6px 8px}
   .platform-intro dd{margin-top:3px}
+}
+/* ≤950px 高时内容区仅约 86px，仅"能力标签 + 来源统计"就已占满。
+   此时隐藏正文：残留一行被裁的半句比不显示更糟，标签本身也能表达平台定位。 */
+@media(max-height:950px){
+  .platform-intro p{display:none}
+  .capability-tags{margin-top:0;max-height:24px}
+  .platform-intro dl>div{padding:5px 7px}
+}
+/* ≤800px 高时连"标签 + 统计"也放不下，只保留来源统计这组硬数据。 */
+@media(max-height:800px){
+  .capability-tags{display:none}
 }
 @media(max-height:820px){
   .screen-header{height:62px}
