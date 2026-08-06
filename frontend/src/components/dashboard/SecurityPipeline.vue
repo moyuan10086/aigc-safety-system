@@ -29,13 +29,11 @@
       :class="item.position"
     >
       <span class="cap-icon"><component :is="item.icon" :size="20" /></span>
-      <BorderBox8 class="cap-frame" :color="['#2ac9ff', '#0a6ea8']" background-color="rgba(4, 22, 39, .72)">
-        <div class="cap-copy">
-          <strong>{{ item.label }}</strong>
-          <span>{{ item.code }}</span>
-          <small>{{ item.detail }}</small>
-        </div>
-      </BorderBox8>
+      <div class="cap-copy">
+        <strong>{{ item.label }}</strong>
+        <span>{{ item.code }}</span>
+        <small>{{ item.detail }}</small>
+      </div>
       <i class="cap-node" aria-hidden="true"></i>
     </div>
 
@@ -52,7 +50,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { BadgeCheck, BrainCircuit, ScanFace, ScanSearch, ShieldCheck, UserCheck } from 'lucide-vue-next'
-import { BorderBox8 } from '@kjgl77/datav-vue3'
 import AiCoreCanvas from './AiCoreCanvas.vue'
 import { orbDiameter } from '../../lib/coreGeometry'
 
@@ -254,10 +251,11 @@ onBeforeUnmount(() => observer?.disconnect())
 .capability{
   position:absolute;z-index:3;
   width:208px;min-height:74px;
-  display:flex;align-items:center;padding:0;border:0;background:transparent;box-shadow:none;
+  display:flex;align-items:center;padding:10px 14px 10px 48px;
+  border:1px solid rgba(67,197,235,.22);border-radius:4px;
+  background:linear-gradient(100deg,rgba(11,66,96,.50),rgba(4,22,39,.74) 56%,rgba(3,18,31,.44));
+  box-shadow:inset 0 0 24px rgba(43,191,234,.06),0 12px 28px rgba(0,0,0,.18);
 }
-.cap-frame{width:100%;height:74px}
-.cap-frame :deep(.border-box-content){display:flex;align-items:center;height:100%;padding:9px 14px 9px 48px}
 .cap-icon{
   position:absolute;left:-31px;top:50%;
   width:62px;height:62px;
@@ -292,9 +290,8 @@ onBeforeUnmount(() => observer?.disconnect())
 .bottom-left{left:9%;bottom:22%}.bottom-right{right:9%;bottom:22%}
 .top-left .cap-node,.mid-left .cap-node,.bottom-left .cap-node{right:-13px}
 .top-right .cap-node,.mid-right .cap-node,.bottom-right .cap-node{left:-13px}
-.top-right,.mid-right,.bottom-right{padding:0;flex-direction:row-reverse;text-align:right}
+.top-right,.mid-right,.bottom-right{padding:10px 48px 10px 14px;flex-direction:row-reverse;text-align:right}
 .top-right .cap-icon,.mid-right .cap-icon,.bottom-right .cap-icon{right:-31px;left:auto}
-.top-right .cap-frame :deep(.border-box-content),.mid-right .cap-frame :deep(.border-box-content),.bottom-right .cap-frame :deep(.border-box-content){justify-content:flex-end;padding:9px 48px 9px 14px}
 .top-right .cap-copy,.mid-right .cap-copy,.bottom-right .cap-copy{align-items:flex-end}
 
 /* ---------- 处置链路 ---------- */

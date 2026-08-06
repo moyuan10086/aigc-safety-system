@@ -235,8 +235,8 @@ function draw(now: number) {
   // ---- 7. 通道导引线：极淡的虚线，提示粒子路径 ----
   c.save()
   c.translate(cx, cy)
-  c.setLineDash([2, 10])
-  c.strokeStyle = withAlpha(energy, 0.16)
+  c.setLineDash([])
+  c.strokeStyle = withAlpha(energy, 0.34)
   c.lineWidth = 1
   for (const lane of LANES) {
     const angle = (lane * Math.PI) / 180
