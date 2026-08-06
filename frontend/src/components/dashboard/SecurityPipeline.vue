@@ -6,12 +6,13 @@
     <i v-for="item in capabilities" :key="`${item.code}-link`" class="cap-link" :class="item.position" aria-hidden="true"></i>
 
     <article class="core-shell">
+      <span class="core-beam" aria-hidden="true"></span>
       <span class="core-shadow" aria-hidden="true"></span>
       <span class="core-base" aria-hidden="true"></span>
       <span class="core-belt" aria-hidden="true"></span>
       <section class="core-orb">
         <span class="orb-ring" aria-hidden="true"></span>
-        <span class="orb-emblem"><ShieldCheck :size="36" /></span>
+        <span class="shield-stand"><ShieldCheck :size="37" /></span>
         <strong>安全审核中枢</strong>
         <span class="orb-code">POLICY ORCHESTRATOR</span>
         <b :class="{ degraded: configured < total }"><i aria-hidden="true"></i>{{ configured }}/{{ total }} 引擎在线</b>
@@ -81,10 +82,11 @@ const capabilities = [
   transform:translate(-50%,-50%);pointer-events:none;
 }
 .core-shadow,.core-base,.core-belt,.core-orb{position:absolute;left:50%;transform:translateX(-50%);border-radius:50%}
+.core-beam{position:absolute;left:50%;top:-34px;width:2px;height:342px;transform:translateX(-50%);background:linear-gradient(180deg,transparent,rgba(42,150,255,.05) 12%,rgba(42,177,255,.55) 47%,rgba(42,150,255,.14) 70%,transparent);filter:blur(1px);opacity:.72}
 .core-shadow{bottom:3px;width:330px;height:72px;background:rgba(0,0,0,.34);filter:blur(13px)}
 .core-base{
   bottom:20px;width:340px;height:104px;border:1px solid var(--sc-line-hi);
-  background:linear-gradient(180deg,rgba(14,92,133,.72),rgba(3,26,45,.96) 70%);
+  background:linear-gradient(180deg,rgba(18,86,156,.82),rgba(3,27,58,.98) 70%);
   box-shadow:var(--sc-glow-3),inset 0 -22px 30px rgba(0,0,0,.34);
 }
 .core-base::before,.core-base::after{content:'';position:absolute;left:5%;right:5%;border-radius:50%;border:1px solid var(--sc-line-2)}
@@ -92,21 +94,24 @@ const capabilities = [
 .core-base::after{left:-8%;right:-8%;top:48px;height:86px;border-color:var(--sc-line-soft)}
 .core-belt{
   bottom:47px;width:304px;height:64px;border:1px solid var(--sc-line-2);
-  background:repeating-linear-gradient(90deg,rgba(42,201,255,.62) 0 8px,rgba(9,55,82,.34) 8px 17px);
-  box-shadow:0 0 20px rgba(42,201,255,.2);opacity:.62;
+  background:repeating-linear-gradient(90deg,rgba(42,155,255,.78) 0 8px,rgba(8,48,94,.42) 8px 17px);
+  box-shadow:0 0 20px rgba(42,150,255,.34),inset 0 8px 14px rgba(92,203,255,.18);opacity:.74;
 }
 .core-orb{
   top:10px;width:308px;height:222px;display:flex;flex-direction:column;align-items:center;justify-content:center;
   border:2px solid var(--sc-line-hi);text-align:center;
-  background:radial-gradient(ellipse at 48% 40%,rgba(29,124,169,.94),rgba(7,49,77,.98) 59%,rgba(3,25,43,.98));
-  box-shadow:0 0 0 7px rgba(42,201,255,.06),inset 0 0 42px rgba(126,232,255,.18),var(--sc-glow-3);
+  background:radial-gradient(ellipse at 46% 34%,rgba(78,182,255,.92),rgba(13,75,132,.98) 42%,rgba(4,33,72,.99) 76%,rgba(2,18,43,.99));
+  box-shadow:0 0 0 7px rgba(42,130,255,.09),0 0 34px rgba(38,158,255,.34),inset 0 18px 42px rgba(184,235,255,.20),inset 0 -24px 34px rgba(0,7,25,.62);
 }
+.core-orb::before{content:'';position:absolute;left:10%;right:10%;top:13%;height:34%;border-top:1px solid rgba(197,241,255,.38);border-radius:50%;background:linear-gradient(180deg,rgba(164,231,255,.16),transparent 62%);pointer-events:none}
+.core-orb::after{content:'';position:absolute;left:18%;right:18%;bottom:12px;height:16px;border-radius:50%;background:rgba(31,151,255,.22);filter:blur(7px);pointer-events:none}
 .pipeline-stage.is-alert .core-orb{border-color:rgba(255,67,99,.58);box-shadow:0 0 0 7px rgba(255,67,99,.06),inset 0 0 42px rgba(255,67,99,.12),0 0 42px rgba(255,67,99,.2)}
-.orb-ring{position:absolute;inset:13px;border-radius:50%;border:1px dashed rgba(170,242,255,.34)}
+.orb-ring{position:absolute;inset:13px;border-radius:50%;border:1px dashed rgba(170,222,255,.34)}
 .orb-ring::after{content:'';position:absolute;inset:10px;border-radius:50%;border:1px solid var(--sc-line-soft)}
-.orb-emblem{position:relative;width:50px;height:50px;display:grid;place-items:center;color:var(--sc-ink);filter:drop-shadow(0 0 9px rgba(42,201,255,.72))}
-.orb-emblem::before{content:'';position:absolute;inset:0;border:1px solid var(--sc-line-hi);transform:rotate(45deg);background:rgba(42,201,255,.08)}
-.orb-emblem :deep(svg){position:relative;z-index:1;stroke-width:1.7}
+.shield-stand{position:relative;width:66px;height:78px;display:grid;place-items:center;color:var(--sc-ink);clip-path:polygon(50% 0,92% 17%,86% 68%,50% 100%,14% 68%,8% 17%);background:linear-gradient(145deg,rgba(126,221,255,.92),rgba(26,126,232,.80) 42%,rgba(2,38,103,.95));filter:drop-shadow(0 0 11px rgba(42,151,255,.76));transform:perspective(210px) rotateX(8deg) rotateY(-4deg)}
+.shield-stand::before{content:'';position:absolute;inset:2px;clip-path:inherit;background:linear-gradient(160deg,rgba(57,147,221,.72),rgba(4,47,111,.92) 65%,rgba(3,23,64,.98));box-shadow:inset 0 0 18px rgba(130,226,255,.28)}
+.shield-stand::after{content:'';position:absolute;left:15%;right:15%;top:12%;height:2px;background:rgba(224,250,255,.72);box-shadow:0 0 14px rgba(102,210,255,.8)}
+.shield-stand :deep(svg){position:relative;z-index:1;stroke-width:1.55;filter:drop-shadow(0 0 7px rgba(216,247,255,.8))}
 .core-orb strong{position:relative;margin-top:10px;color:var(--sc-ink);font:700 20px var(--sc-font);text-shadow:0 0 14px rgba(42,201,255,.58)}
 .orb-code{position:relative;margin-top:5px;color:var(--sc-ink-3);font:var(--sc-fs-code) var(--sc-font-mono);letter-spacing:var(--sc-ls-code)}
 .core-orb b{position:relative;margin-top:10px;display:inline-flex;align-items:center;gap:7px;padding:4px 13px;border:1px solid rgba(60,232,170,.42);border-radius:18px;color:var(--sc-mint);background:var(--sc-mint-soft);font:600 var(--sc-fs-aux) var(--sc-font-num)}

@@ -12,25 +12,32 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const DESIGN_WIDTH = 1920
 const DESIGN_HEIGHT = 1080
+const MIN_DESIGN_HEIGHT = 900
 const viewport = ref<HTMLElement | null>(null)
 const scale = ref(1)
 const offsetX = ref(0)
 const offsetY = ref(0)
+const stageWidth = ref(DESIGN_WIDTH)
+const stageHeight = ref(DESIGN_HEIGHT)
 let observer: ResizeObserver | null = null
 
 const stageStyle = computed(() => ({
   transform: `translate(${offsetX.value}px, ${offsetY.value}px) scale(${scale.value})`,
+  width: `${stageWidth.value}px`,
+  height: `${stageHeight.value}px`,
 }))
 
 function fitStage() {
   const rect = viewport.value?.getBoundingClientRect()
   if (!rect) return
-  const nextScale = Math.min(rect.width / DESIGN_WIDTH, rect.height / DESIGN_HEIGHT)
+  // Scale from width while allowing the logical stage to grow vertically on
+  // 16:10 and taller displays. This removes the fixed 1920x1080 letterbox.
+  const nextScale = Math.min(rect.width / DESIGN_WIDTH, rect.height / MIN_DESIGN_HEIGHT)
   scale.value = Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1
-  offsetX.value = Math.round((rect.width - DESIGN_WIDTH * scale.value) / 2)
-  // Keep the command surface anchored to the top on 16:10 displays. The
-  // remaining letterbox space stays below the footer instead of above the UI.
-  offsetY.value = 0
+  stageWidth.value = Math.max(DESIGN_WIDTH, Math.round(rect.width / scale.value))
+  stageHeight.value = Math.max(DESIGN_HEIGHT, Math.round(rect.height / scale.value))
+  offsetX.value = Math.round((rect.width - stageWidth.value * scale.value) / 2)
+  offsetY.value = Math.round((rect.height - stageHeight.value * scale.value) / 2)
 }
 
 onMounted(() => {
@@ -45,7 +52,7 @@ onBeforeUnmount(() => observer?.disconnect())
 
 <style scoped>
 .cockpit-viewport{position:fixed;inset:0;z-index:500;overflow:hidden;background:var(--screen-bg)}
-.cockpit-shell{position:absolute;left:0;top:0;display:flex;width:1920px;height:1080px;flex-direction:column;gap:12px;padding:12px 14px 8px;overflow:hidden;color:var(--screen-text-secondary);background:var(--screen-bg);font-family:var(--font-body);transform-origin:0 0}
+.cockpit-shell{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:12px;padding:12px 14px 8px;overflow:hidden;color:var(--screen-text-secondary);background:var(--screen-bg);font-family:var(--font-body);transform-origin:0 0}
 .cockpit-ambient{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 46% 44% at 50% 42%,rgba(20,112,192,.18),transparent 68%),radial-gradient(ellipse 34% 32% at 12% 76%,rgba(104,78,224,.10),transparent 66%),radial-gradient(ellipse 30% 30% at 88% 22%,rgba(0,214,208,.07),transparent 66%),linear-gradient(rgba(74,158,208,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(74,158,208,.035) 1px,transparent 1px);background-size:auto,auto,auto,58px 58px,58px 58px}
 .cockpit-shell :deep(>*){position:relative;z-index:1;box-sizing:border-box}
 :global(body:has(.cockpit-viewport)){overflow:hidden}
