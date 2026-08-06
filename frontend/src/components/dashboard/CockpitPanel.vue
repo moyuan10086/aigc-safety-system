@@ -126,9 +126,6 @@ withDefaults(defineProps<{
   padding:11px 13px;
 }
 .screen-panel.is-flush .panel-body{padding:0}
-@media(max-height:820px){.panel-title{height:36px}.panel-body{padding:var(--screen-panel-padding)}.screen-panel.is-flush .panel-body{padding:0}}
-
-@media(max-height:820px){.panel-title{height:34px}.panel-body{padding:9px 11px}}
 @media(prefers-reduced-motion:reduce){
   .panel-edge::after{
     animation:none;background-size:100% 100%;background-position:0 0;

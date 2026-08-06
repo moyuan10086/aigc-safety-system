@@ -80,9 +80,12 @@ let observer: ResizeObserver | null = null
 function syncOrbSize() {
   const host = stageHost.value
   if (!host) return
-  const rect = host.getBoundingClientRect()
-  if (!rect.width || !rect.height) return
-  host.style.setProperty('--core', `${Math.round(orbDiameter(rect.width, rect.height))}px`)
+  // The cockpit scene is transformed by its parent. Layout dimensions remain
+  // in the 1920x1080 design coordinate system, unlike getBoundingClientRect().
+  const width = host.clientWidth
+  const height = host.clientHeight
+  if (!width || !height) return
+  host.style.setProperty('--core', `${Math.round(orbDiameter(width, height))}px`)
 }
 
 onMounted(() => {
@@ -206,7 +209,7 @@ onBeforeUnmount(() => observer?.disconnect())
   position:relative;margin-top:9px;
   color:var(--sc-ink);
   font-family:var(--sc-font);
-  font-size:clamp(15px,1.05vw,20px);
+  font-size:20px;
   font-weight:700;
   letter-spacing:.07em;
   text-shadow:0 0 16px rgba(42,201,255,.62);
@@ -244,7 +247,7 @@ onBeforeUnmount(() => observer?.disconnect())
 /* ---------- 四张能力卡 ---------- */
 .capability{
   position:absolute;z-index:3;
-  width:clamp(158px,15vw,218px);
+  width:218px;
   display:flex;align-items:center;gap:11px;
   padding:11px 13px;
   border:1px solid var(--sc-line);
@@ -320,7 +323,7 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 /* 流动箭头：渐变沿连线推进，读作"数据在走" */
 .decision-flow i{
-  position:relative;width:clamp(16px,1.6vw,30px);height:1px;
+  position:relative;width:30px;height:1px;
   background:linear-gradient(90deg,var(--sc-accent-deep),var(--sc-accent));
   box-shadow:0 0 7px rgba(42,201,255,.6);
 }
@@ -347,13 +350,13 @@ onBeforeUnmount(() => observer?.disconnect())
 
 /* ---------- 紧凑屏：等比收缩，标签保持可读 ---------- */
 /* --core 由 syncOrbSize 按 coreGeometry 写成内联值，此处不再覆盖尺寸 */
-@media(max-height:820px){
+@media(max-width:0px){
   .capability{padding:9px 11px;gap:9px}
   .cap-icon{width:32px;height:32px}
   .cap-icon :deep(svg){width:17px;height:17px}
   .decision-flow span{padding:6px 10px}
 }
-@media(max-height:700px){
+@media(max-width:0px){
   .orb-emblem{width:44px;height:44px}
   .orb-emblem :deep(svg){width:28px;height:28px}
   .core-orb strong{margin-top:6px}
@@ -362,7 +365,7 @@ onBeforeUnmount(() => observer?.disconnect())
   .bottom-left,.bottom-right{bottom:21%}
   .decision-flow{bottom:2.5%;gap:7px}
 }
-@media(max-width:1199px){
+@media(max-width:0px){
   /* 不覆盖 --core / --cy：两者由 coreGeometry 统一决定 */
   .capability{width:clamp(132px,13vw,158px);padding:8px 9px;gap:7px}
   .cap-icon{width:28px;height:28px}
@@ -378,7 +381,7 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 
 /* CockpitShell scales a fixed 1920x1080 scene; do not reflow its internal geometry per viewport. */
-@media(max-width:1199px),(max-height:820px){
+@media(max-width:0px){
   .capability{width:clamp(158px,15vw,218px);padding:11px 13px;gap:11px}
   .cap-icon{width:36px;height:36px}.cap-icon :deep(svg){width:20px;height:20px}
   .orb-emblem{width:56px;height:56px}.orb-emblem :deep(svg){width:38px;height:38px}

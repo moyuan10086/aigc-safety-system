@@ -149,13 +149,13 @@ onBeforeUnmount(() => counter?.reset())
 }
 @keyframes metric-breathe{0%,100%{opacity:.25}50%{opacity:1}}
 
-@media(max-height:820px){
+@media(max-width:0px){
   .cockpit-metric{column-gap:9px;padding:0 12px}
   .metric-emblem{width:34px;height:39px}
   .metric-emblem :deep(svg){width:17px;height:17px}
   .metric-copy{gap:4px}
 }
-@media(max-width:1199px){
+@media(max-width:0px){
   .cockpit-metric{grid-template-columns:auto minmax(0,1fr);column-gap:8px;padding:0 10px}
   .metric-emblem{width:30px;height:34px}
   .metric-emblem :deep(svg){width:15px;height:15px}
@@ -175,5 +175,4 @@ onBeforeUnmount(() => counter?.reset())
 .metric-copy b{font-size:var(--fs-screen-body)}
 .cockpit-metric.warning .metric-value{color:var(--risk-medium)}
 .cockpit-metric.critical .metric-value{color:var(--risk-critical)}
-@media(max-width:1199px),(max-height:820px){.cockpit-metric{grid-template-columns:auto minmax(0,1fr) auto;column-gap:12px;padding:0 var(--sc-pad)}.metric-emblem{width:40px;height:45px}.metric-emblem :deep(svg){width:20px;height:20px}.metric-value{grid-column:auto;grid-row:auto}.metric-copy{grid-column:auto;grid-row:auto;gap:6px}.metric-copy small{display:block}}
 </style>

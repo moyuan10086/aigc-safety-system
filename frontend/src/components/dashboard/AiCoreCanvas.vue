@@ -69,12 +69,14 @@ function seedParticles() {
 function resize() {
   const host = canvasHost.value
   if (!host) return
-  const rect = host.getBoundingClientRect()
-  if (!rect.width || !rect.height) return
+  // client dimensions stay in design-stage coordinates when CockpitShell scales.
+  const hostWidth = host.clientWidth
+  const hostHeight = host.clientHeight
+  if (!hostWidth || !hostHeight) return
   // 限制 DPR：大屏常见 1.25/1.5 缩放，2 以上再放大只增加填充开销
   dpr = Math.min(window.devicePixelRatio || 1, 2)
-  width = rect.width
-  height = rect.height
+  width = hostWidth
+  height = hostHeight
   host.width = Math.round(width * dpr)
   host.height = Math.round(height * dpr)
   ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
