@@ -30,7 +30,10 @@ def ocr_pdf(pdf_path: str) -> str:
     except ImportError:
         return ""
 
-    ocr = _get_ocr()
+    try:
+        ocr = _get_ocr()
+    except (ImportError, ModuleNotFoundError):
+        return ""
     doc = fitz.open(pdf_path)
     texts = []
     for page in doc:
@@ -47,7 +50,10 @@ def ocr_pdf(pdf_path: str) -> str:
 
 def ocr_image(image_path: str) -> str:
     """用 PaddleOCR 识别图片中的文字"""
-    ocr = _get_ocr()
+    try:
+        ocr = _get_ocr()
+    except (ImportError, ModuleNotFoundError):
+        return ""
     result = ocr.ocr(image_path, cls=True)
     if not result or not result[0]:
         return ""
