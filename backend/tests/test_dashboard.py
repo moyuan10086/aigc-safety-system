@@ -126,6 +126,23 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(data["shadow_reviews"][0]["event_id"], disagreement_id)
         self.assertNotIn("结构化复核测试原文", response.text)
 
+    def test_dashboard_rejects_invalid_custom_date_ranges(self):
+        token = auth_service.create_session(auth_service.current_user())
+        self.client.cookies.set("aigc_operator_session", token)
+
+        missing_end = self.client.get("/api/dashboard/overview?start=2026-08-01T00:00:00Z")
+        self.assertEqual(missing_end.status_code, 422)
+
+        reversed_range = self.client.get(
+            "/api/dashboard/overview?start=2026-08-02T00:00:00Z&end=2026-08-01T00:00:00Z"
+        )
+        self.assertEqual(reversed_range.status_code, 422)
+
+        oversized = self.client.get(
+            "/api/dashboard/overview?start=2026-01-01T00:00:00Z&end=2026-05-01T00:00:00Z"
+        )
+        self.assertEqual(oversized.status_code, 422)
+
     def test_operator_resolves_shadow_disagreement_with_structured_label(self):
         _, disagreement_id = self._seed()
         self.assertEqual(

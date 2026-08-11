@@ -14,7 +14,7 @@ import httpx
 from PIL import Image
 from openai import OpenAI
 import config
-from services import nudenet_service
+from services import nudenet_service, unsafe_bench_service
 
 MLLM_ROOT = Path(__file__).parents[2] / "mllm-defake"
 sys.path.insert(0, str(MLLM_ROOT))
@@ -293,7 +293,12 @@ def _request_content_safety(image_path: str) -> str:
 def analyze_content_safety(image_path: str) -> dict:
     """Run an actual multimodal content-safety classification call."""
     content_hash = hashlib.sha256(Path(image_path).read_bytes()).hexdigest()
-    specialist_evidence = {"nudenet": nudenet_service.analyze(image_path)}
+    # Specialist models remain auxiliary evidence: a provider outage must not
+    # replace the primary MLLM decision or turn into a false "safe" result.
+    specialist_evidence = {
+        "nudenet": nudenet_service.analyze(image_path),
+        "unsafe_bench": unsafe_bench_service.analyze(image_path),
+    }
     try:
         raw = _request_content_safety(image_path)
     except Exception:

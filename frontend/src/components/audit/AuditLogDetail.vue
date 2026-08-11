@@ -148,7 +148,7 @@ const reviewNote = ref('')
 const severityLabel = { info: '信息', warning: '关注', high: '高风险', critical: '严重' }
 const outcomeLabel: Record<string, string> = { success: '成功', allowed: '放行', review: '复核', blocked: '阻断', denied: '拒绝', error: '异常' }
 const verdictLabel: Record<ReviewLabel, string> = { safe: '安全，可放行', borderline: '存疑，需升级', unsafe: '危险，应阻断' }
-const categoryNames: Record<string, string> = { jailbreak: '越狱攻击', prompt_injection: '提示词注入', cyber_abuse: '网络攻击滥用', weapons_violence: '武器与暴力', self_harm: '自伤风险', sexual_content: '色情内容', child_safety: '未成年人安全', personal_data: '隐私数据', illegal_activity: '违法活动', agent_security: 'Agent 安全', adult_content: '成人内容', weapon_display: '武器展示', graphic_violence: '暴力血腥', political_sensitive: '政治敏感', marketing_violation: '营销违规' }
+const categoryNames: Record<string, string> = { jailbreak: '越狱攻击', prompt_injection: '提示词注入', cyber_abuse: '网络攻击滥用', weapons_violence: '武器与暴力', self_harm: '自伤风险', sexual_content: '色情内容', child_safety: '未成年人安全', personal_data: '隐私数据', illegal_activity: '违法活动', agent_security: 'Agent 安全', adult_content: '成人内容', weapon_display: '武器展示', violence: '暴力血腥', graphic_violence: '暴力血腥', political_sensitive: '政治敏感', marketing_violation: '营销违规' }
 const reviewChoices: Array<{ value: ReviewLabel; label: string; description: string; icon: Component }> = [
   { value: 'safe', label: '安全', description: '内容正常，可以放行', icon: ShieldCheck },
   { value: 'borderline', label: '存疑', description: '证据不足或需上级复核', icon: ShieldQuestion },

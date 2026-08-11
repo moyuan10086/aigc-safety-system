@@ -37,6 +37,36 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
         self.assertEqual(result["verdict"], "safe")
         self.assertEqual(result["category_scores"]["adult_content"], 0.0)
 
+    def test_content_safety_calls_unsafe_bench_as_independent_evidence(self):
+        scores = {code: 0.0 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        unsafe_bench = {
+            "provider": "unsafe_bench",
+            "status": "detected",
+            "risk_score": 0.88,
+            "categories": ["violence"],
+        }
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with (
+                patch.object(
+                    mllm_service,
+                    "_request_content_safety",
+                    return_value=(
+                        '{"verdict":"safe","risk_score":0.0,"category_scores":'
+                        + __import__("json").dumps(scores)
+                        + ',"categories":[],"summary":"no visible risk"}'
+                    ),
+                ),
+                patch.object(mllm_service.nudenet_service, "analyze", return_value={"status": "not_configured"}),
+                patch.object(mllm_service.unsafe_bench_service, "analyze", return_value=unsafe_bench) as analyze,
+            ):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        analyze.assert_called_once_with(str(sample))
+        self.assertEqual(result["specialist_evidence"]["unsafe_bench"], unsafe_bench)
+        self.assertEqual(result["verdict"], "safe")
+
     def test_extracts_first_valid_json_object_from_mixed_model_output(self):
         payload = mllm_service._json_object(
             '审核结果如下：\n```json\n{"verdict":"review","risk_score":0.7,"categories":[]}\n```\n补充说明 {not-json}'

@@ -31,6 +31,31 @@ class DetectReportTests(unittest.TestCase):
             json.dumps(report, ensure_ascii=False), encoding="utf-8"
         )
 
+    def test_full_audit_persists_results_without_running_detection_twice(self):
+        rag_result = {
+            "safe": False,
+            "risk_level": "high",
+            "matched_rules": ["RULE-001"],
+        }
+        with (
+            patch.object(detect.rag_service, "check_content", return_value=rag_result) as check,
+            patch.object(detect, "_gen_summary", return_value="# 综合分析\n\n需要人工复核。"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                data={"text": "待审核文本", "modules": "rag"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(check.call_count, 1)
+        done_line = next(
+            line for line in response.text.splitlines() if line.startswith("data:") and "report_id" in line
+        )
+        done = json.loads(done_line.removeprefix("data:").strip())
+        report = json.loads((self.reports_dir / f"{done['report_id']}.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["rag"], rag_result)
+        self.assertEqual(report["summary"], "# 综合分析\n\n需要人工复核。")
+
     def test_history_keeps_authenticity_and_content_risk_independent(self):
         self._write_report(
             "both-risk-tracks",

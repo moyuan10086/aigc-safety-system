@@ -3,7 +3,7 @@
 import csv
 import io
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -36,6 +36,15 @@ async def dashboard_overview(
     end: datetime | None = Query(default=None),
 ):
     user = _operator(request)
+    if (start is None) != (end is None):
+        raise HTTPException(status_code=422, detail="自定义日期必须同时提供开始和结束时间")
+    if start is not None and end is not None:
+        start = start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start.astimezone(timezone.utc)
+        end = end.replace(tzinfo=timezone.utc) if end.tzinfo is None else end.astimezone(timezone.utc)
+        if end <= start:
+            raise HTTPException(status_code=422, detail="结束时间必须晚于开始时间")
+        if end - start > timedelta(days=90):
+            raise HTTPException(status_code=422, detail="自定义统计范围最多支持 90 天")
     return JSONResponse(
         dashboard_service.overview(hours, reviewer=user["username"], start=start, end=end),
         headers={"Cache-Control": "no-store"},
