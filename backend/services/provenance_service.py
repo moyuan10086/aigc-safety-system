@@ -143,11 +143,15 @@ def verify(path: str | Path) -> dict[str, Any]:
     except Exception as exc:
         raise ProvenanceError("image_invalid") from exc
 
+    from services import invisible_watermark_service
+
     content_credentials = _c2pa_evidence(file_path)
+    watermark = invisible_watermark_service.check(file_path)
     credentials_state = content_credentials["status"]
-    if "invalid_or_tampered" in {marker_state, credentials_state}:
+    watermark_state = watermark["status"]
+    if "invalid_or_tampered" in {marker_state, credentials_state} or watermark_state == "invalid":
         state = "invalid_or_tampered"
-    elif credentials_state == "valid":
+    elif credentials_state == "valid" or watermark_state == "confirmed":
         state = "confirmed_source"
     elif "inconclusive" in {marker_state, credentials_state}:
         state = "inconclusive"
@@ -173,8 +177,31 @@ def verify(path: str | Path) -> dict[str, Any]:
                 "note": "未签名本地标记只作为声明线索，不构成来源确认",
             },
             "content_credentials": content_credentials,
-            "watermark": {"status": "not_found", "supported": False},
+            "watermark": watermark,
         },
+        "watermark_capabilities": [
+            {
+                "id": "platform_dct",
+                "label": "平台签名隐形水印",
+                "media": "image",
+                "status": "available",
+                "note": "可嵌入和核验本平台签发的 DCT 域水印",
+            },
+            {
+                "id": "synthid",
+                "label": "Google SynthID",
+                "media": "image/audio/video/text",
+                "status": "not_configured",
+                "note": "未配置 Google 官方授权检测接口，不能据此判断 SynthID",
+            },
+            {
+                "id": "audioseal",
+                "label": "Meta AudioSeal",
+                "media": "audio",
+                "status": "unsupported_media",
+                "note": "当前页面只处理图片，音频检测链路尚未接入",
+            },
+        ],
         "content_detection": {
             "status": "not_run",
             "note": "来源验证不替代 Deepfake、MLLM 或红线审核",
@@ -188,6 +215,7 @@ def verify(path: str | Path) -> dict[str, Any]:
         "limitations": [
             "未发现来源证据不等于确认非 AI",
             "未签名本地 marker 不构成来源确认，也不代表 Google SynthID",
+            "平台隐形水印只证明由本平台标记，不等同于第三方厂商来源凭证",
             "有效 C2PA 只证明可验证来源链，不单独证明内容一定由 AI 生成",
         ],
     }

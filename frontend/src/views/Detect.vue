@@ -91,6 +91,9 @@
         <button class="source-btn" :disabled="!file || watermarkLoading" @click="generateAuditWatermark">
           {{ watermarkLoading ? '生成中...' : '生成审计副本' }}
         </button>
+        <button class="source-btn" :disabled="!file || invisibleWatermarkLoading" @click="generateInvisibleWatermark">
+          {{ invisibleWatermarkLoading ? '嵌入中...' : '生成隐形标识图' }}
+        </button>
         <button class="detect-btn" :disabled="(!file && !auditText.trim()) || loading || modules.length===0" @click="runAudit">
           <span v-if="loading" class="btn-spin"><LoaderIcon :size="16" /></span>
           <span>{{ loading ? '检测中...' : '开始检测' }}</span>
@@ -122,7 +125,8 @@
       </div>
       <div class="outcome-metrics">
         <div class="outcome-metric"><span>真实性风险</span><b :class="results.deepfake?.label === 'fake' ? 'metric-danger' : ''">{{ results.deepfake ? (results.deepfake.label === 'fake' ? '疑似伪造' : results.deepfake.label === 'skipped' ? '不适用' : '倾向真实') : '未选择' }}</b><small>{{ results.deepfake ? `P(fake) ${(results.deepfake.score * 100).toFixed(0)}% · 非准确率` : '本次未运行 Deepfake' }}</small></div>
-        <div class="outcome-metric"><span>内容安全</span><b :class="contentVerdictClass(results.content_safety?.verdict)">{{ results.content_safety ? contentVerdictLabel(results.content_safety.verdict) : '未选择' }}</b><small>{{ results.content_safety ? '按最高风险类别处置' : '本次未运行内容安全' }}</small></div>
+        <div class="outcome-metric"><span>AI 来源</span><b :class="provenanceMetricTone(sourceSummary.aiGenerated)">{{ sourceSummary.title }}</b><small>{{ sourceSummary.note }}</small></div>
+        <div class="outcome-metric"><span>内容安全</span><b :class="contentMetricTone(results.content_safety?.verdict)">{{ results.content_safety ? contentVerdictLabel(results.content_safety.verdict) : '未选择' }}</b><small>{{ results.content_safety ? '按最高风险类别处置' : '本次未运行内容安全' }}</small></div>
         <div class="outcome-metric"><span>解释证据</span><b>{{ results.mllm ? '已生成' : '未选择' }}</b><small>{{ results.mllm ? '下方查看模型证据' : '本次未运行 MLLM' }}</small></div>
       </div>
     </section>
@@ -192,6 +196,11 @@
             v-if="results.content_safety.specialist_evidence?.unsafe_bench"
             :evidence="results.content_safety.specialist_evidence.unsafe_bench"
           />
+          <UnsafeBenchEvidence
+            v-if="results.content_safety.specialist_evidence?.perspective_vision"
+            :evidence="results.content_safety.specialist_evidence.perspective_vision"
+            variant="perspective"
+          />
           <div v-if="results.content_safety.categories?.length" class="safety-findings">
             <div v-for="item in results.content_safety.categories" :key="item.code" class="safety-finding">
               <span>{{ item.label }}</span><b>{{ Math.round(item.confidence * 100) }}%</b>
@@ -236,6 +245,10 @@ import FaceEvidencePanel from '../components/detect/FaceEvidencePanel.vue'
 import NudeNetEvidence from '../components/detect/NudeNetEvidence.vue'
 import UnsafeBenchEvidence from '../components/detect/UnsafeBenchEvidence.vue'
 import ProvenanceEvidencePanel from '../components/detect/ProvenanceEvidencePanel.vue'
+import { verifyC2paFile } from '../lib/c2paVerification'
+import { getProviderAttribution } from '../lib/providerAttribution'
+import { contentMetricTone, provenanceMetricTone } from '../lib/reviewSummary'
+import { getWatermarkPresentation } from '../lib/watermarkPresentation'
 
 // Inline SVG icons
 const ImageIcon = { template: `<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`, props: ['size'] }
@@ -260,6 +273,7 @@ const currentStepLabel = computed(() => ({
 } as Record<string, string>)[currentStep.value] || '正在初始化检测...')
 const provenanceLoading = ref(false)
 const watermarkLoading = ref(false)
+const invisibleWatermarkLoading = ref(false)
 let lastProvenanceRun = 0
 
 const generateAuditWatermark = async () => {
@@ -291,7 +305,61 @@ const generateAuditWatermark = async () => {
   }
 }
 
+const generateInvisibleWatermark = async () => {
+  if (!file.value || invisibleWatermarkLoading.value) return
+  invisibleWatermarkLoading.value = true
+  try {
+    const contentId = crypto.randomUUID()
+    const fd = new FormData()
+    fd.append('image', file.value)
+    fd.append('payload', JSON.stringify({
+      content_id: contentId,
+      content_type: 'ai_generated',
+      provider: 'aigc-safety-system',
+    }))
+    const response = await fetch('/api/detect/invisible-watermark/embed', { method: 'POST', body: fd })
+    if (!response.ok) throw new Error((await response.json()).detail || '嵌入失败')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `platform-watermarked-${contentId.slice(0, 8)}.png`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('已生成带本平台签名隐形水印的图片')
+  } catch (error:any) {
+    ElMessage.error(error?.message || '隐形标识生成失败')
+  } finally {
+    invisibleWatermarkLoading.value = false
+  }
+}
+
 const hasResults = computed(() => Object.keys(results).length > 0)
+const provenanceAttribution = computed(() => {
+  const local = results.provenance?.local_c2pa || {}
+  const valid = results.provenance?.source_evidence?.content_credentials?.status === 'valid' && local.verdict !== 'invalid'
+  return getProviderAttribution(local.claimGenerator || results.provenance?.source_evidence?.content_credentials?.claim_generator || '', local.sourceType || '', valid)
+})
+const watermarkPresentation = computed(() => getWatermarkPresentation(results.provenance?.source_evidence?.watermark))
+const sourceSummary = computed(() => {
+  if (!results.provenance) return { title: '未验证', note: '本次未运行来源验证', aiGenerated: false }
+  if (provenanceAttribution.value.aiGenerated) return {
+    title: `${provenanceAttribution.value.provider} AI 生成`,
+    note: 'C2PA 生成来源证据有效',
+    aiGenerated: true,
+  }
+  if (watermarkPresentation.value.aiGenerated) return {
+    title: '本平台 AI 标识已验证',
+    note: '平台签名隐形水印有效，不代表第三方厂商来源',
+    aiGenerated: true,
+  }
+  if (provenanceAttribution.value.provider !== '未知') return {
+    title: `${provenanceAttribution.value.provider} 来源凭证`,
+    note: '已识别签发工具，AI 生成未确认',
+    aiGenerated: false,
+  }
+  return { title: '未确认 AI 生成来源', note: '未发现可确认的来源信号', aiGenerated: false }
+})
 
 const quotes = [
   { text: '凡是过往，皆为序章。', from: '暴风雨', author: '莎士比亚' },
@@ -340,8 +408,10 @@ const contentVerdictLabel = (v: string) =>
   v === 'unsafe' ? '阻断' : v === 'safe' ? '安全' : '人工复核'
 
 const onFileChange = (f: any) => {
+  if (preview.value) URL.revokeObjectURL(preview.value)
   file.value = f.raw
   preview.value = URL.createObjectURL(f.raw)
+  delete results.provenance
 }
 
 const onTextInput = () => {
@@ -374,9 +444,22 @@ const runProvenance = async () => {
   provenanceLoading.value = true
   try {
     const fd = new FormData(); fd.append('image', file.value)
-    const response = await fetch('/api/detect/provenance', { method:'POST', body:fd })
+    const [response, localResult] = await Promise.all([
+      fetch('/api/detect/provenance', { method:'POST', body:fd }),
+      verifyC2paFile(file.value).catch((error) => ({ error: error instanceof Error ? error.message : 'local_verify_failed' })),
+    ])
     if (!response.ok) throw new Error('verify_failed')
-    results.provenance = await response.json()
+    results.provenance = { ...await response.json(), local_c2pa: localResult }
+    const attribution = provenanceAttribution.value
+    if (attribution.aiGenerated) {
+      ElMessage.success(`${attribution.provider} AI 生成内容：C2PA 来源凭证验证通过`)
+    } else if (results.provenance.overall_state === 'confirmed_source') {
+      ElMessage.success('来源凭证已验证：Content Credentials 与当前文件绑定通过')
+    } else if (results.provenance.overall_state === 'invalid_or_tampered') {
+      ElMessage.warning('来源声明验证失败或文件可能已被修改，请人工复核')
+    } else {
+      ElMessage.info('来源验证完成，请查看证据说明')
+    }
   } catch { ElMessage.error('来源验证失败，请检查图片格式') }
   finally { provenanceLoading.value = false }
 }
@@ -472,4 +555,7 @@ const runAudit = async () => {
 .task-header{display:flex;align-items:center;justify-content:space-between;gap:28px;padding:6px 2px 14px;border-bottom:1px solid var(--line)}.task-heading{display:flex;align-items:center;gap:13px;min-width:280px}.task-heading-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;color:#fff;background:var(--primary);border-radius:7px;box-shadow:0 8px 18px rgba(8,126,174,.17)}.task-kicker{color:var(--primary);font-size:9px;font-weight:750}.task-heading h1{margin:3px 0 2px;font-size:20px;line-height:1.2}.task-heading p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}.workflow-steps{display:grid;grid-template-columns:repeat(4,minmax(118px,1fr));min-width:min(660px,62%);border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}.workflow-step{position:relative;display:flex;align-items:center;gap:8px;min-width:0;padding:11px 12px;color:var(--faint);border-right:1px solid var(--line)}.workflow-step:last-child{border-right:0}.workflow-step::after{content:'';position:absolute;left:0;right:100%;bottom:0;height:2px;background:var(--primary);transition:right .25s ease}.workflow-step.active{color:var(--primary);background:rgba(8,126,174,.035)}.workflow-step.active::after,.workflow-step.done::after{right:0}.workflow-step.done{color:var(--success)}.workflow-step>svg{flex:0 0 auto}.workflow-step span{min-width:0}.workflow-step b,.workflow-step small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.workflow-step b{color:var(--text);font-size:10px}.workflow-step small{margin-top:2px;color:inherit;font-size:8px}.stats-row{grid-template-columns:repeat(4,minmax(0,1fr))}.upload-preview{width:min(240px,82%);height:152px;object-fit:contain;background:var(--surface-2);border:1px solid var(--line);border-radius:6px}.result-overview{display:grid;grid-template-columns:220px 1fr;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm)}.result-overview-heading{display:flex;align-items:center;gap:10px;padding:16px 18px;background:var(--surface-2);border-right:1px solid var(--line)}.result-overview-heading>span{width:34px;height:34px;display:grid;place-items:center;color:var(--success);background:rgba(22,128,94,.08);border-radius:5px}.result-overview-heading small{color:var(--primary);font-size:8px;font-weight:750}.result-overview-heading h2{margin:3px 0 0;font-size:14px}.result-overview .outcome-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0}.result-overview .outcome-metric{justify-content:center;padding:13px 16px;background:#fff;border:0;border-right:1px solid var(--line);border-radius:0}.result-overview .outcome-metric:last-child{border-right:0}.result-overview .outcome-metric span,.result-overview .outcome-metric small{font-size:9px}.result-overview .outcome-metric b{font-size:15px}
 @media(max-width:1050px){.task-header{align-items:flex-start;flex-direction:column}.workflow-steps{width:100%;min-width:0}.result-overview{grid-template-columns:180px 1fr}}
 @media(max-width:700px){.task-heading{min-width:0}.task-heading h1{font-size:18px}.workflow-steps{grid-template-columns:1fr 1fr}.workflow-step:nth-child(2){border-right:0}.workflow-step:nth-child(-n+2){border-bottom:1px solid var(--line)}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.result-overview{grid-template-columns:1fr}.result-overview-heading{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metrics{grid-template-columns:1fr}.result-overview .outcome-metric{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metric:last-child{border-bottom:0}}
+.result-overview .outcome-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.result-overview .outcome-metric b.metric-success{color:var(--success);background:transparent}.result-overview .outcome-metric b.metric-warn{color:var(--warning);background:transparent}.result-overview .outcome-metric b.metric-danger{color:var(--danger);background:transparent}
+@media(max-width:700px){.result-overview .outcome-metrics{grid-template-columns:1fr}}
 </style>

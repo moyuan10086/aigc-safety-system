@@ -1,0 +1,44 @@
+{
+  "schema": "perspectivevision-comparison-v1",
+  "dataset": "public_content_safety_v1",
+  "sample_count": 75,
+  "baseline": {
+    "evaluated": 75,
+    "tp": 27,
+    "tn": 28,
+    "fp": 2,
+    "fn": 18,
+    "accuracy": 0.7333333333333333,
+    "precision": 0.9310344827586207,
+    "recall": 0.6,
+    "f1": 0.7297297297297297,
+    "false_positive_rate": 0.06666666666666667,
+    "false_negative_rate": 0.4
+  },
+  "perspective": {
+    "evaluated": 75,
+    "tp": 31,
+    "tn": 30,
+    "fp": 0,
+    "fn": 14,
+    "accuracy": 0.8133333333333334,
+    "precision": 1.0,
+    "recall": 0.6888888888888889,
+    "f1": 0.8157894736842105,
+    "false_positive_rate": 0.0,
+    "false_negative_rate": 0.3111111111111111
+  },
+  "cascade": {
+    "tp": 39,
+    "tn": 28,
+    "fp": 2,
+    "fn": 6,
+    "accuracy": 0.8933333333333333,
+    "precision": 0.9512195121951219,
+    "recall": 0.8666666666666667,
+    "f1": 0.9069767441860465
+  },
+  "disagreements": 22,
+  "perspective_recovers_baseline_false_negatives": 12,
+  "perspective_misses_baseline_true_positives": 8
+}

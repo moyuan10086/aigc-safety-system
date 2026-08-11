@@ -57,6 +57,7 @@ class ApiAccessTests(unittest.TestCase):
             AUTH_SESSION_SECRET="test-session-secret-with-enough-entropy",
             AUTH_SESSION_TTL_SECONDS=3600,
             AUTH_COOKIE_SECURE=False,
+            INVISIBLE_WATERMARK_SIGNING_SECRET="test-invisible-watermark-secret",
         )
         self.config.start()
         api_access_service.reset_for_tests()
@@ -252,6 +253,32 @@ class ApiAccessTests(unittest.TestCase):
         self.assertEqual(payload["data"]["source_evidence"]["content_credentials"]["status"], "valid")
         self.assertFalse(payload["data"]["audit_evidence"]["raw_image_retained"])
         self.assertNotIn("manifest_bytes", str(payload))
+
+    def test_platform_invisible_watermark_api_embeds_and_verifies_signed_signal(self):
+        fixture = Path(self.temp_dir.name) / "watermark-source.png"
+        from PIL import Image
+
+        Image.new("RGB", (256, 256), "white").save(fixture)
+        issued = self._issue(scopes=["image:watermark"])
+        headers = {"X-API-Key": issued["key"]}
+        embedded = self.client.post(
+            "/api/v1/images/invisible-watermark/embed",
+            headers=headers,
+            files={"image": (fixture.name, fixture.read_bytes(), "image/png")},
+            data={"payload": '{"content_id":"api-001","content_type":"ai_generated"}'},
+        )
+        self.assertEqual(embedded.status_code, 200)
+        self.assertEqual(embedded.headers["content-type"], "image/png")
+
+        checked = self.client.post(
+            "/api/v1/images/invisible-watermark/check",
+            headers=headers,
+            files={"image": ("marked.png", embedded.content, "image/png")},
+        )
+        self.assertEqual(checked.status_code, 200)
+        result = checked.json()["data"]
+        self.assertEqual(result["status"], "confirmed")
+        self.assertEqual(result["payload"]["content_id"], "api-001")
 
 
 if __name__ == "__main__":

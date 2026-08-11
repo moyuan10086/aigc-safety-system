@@ -2,9 +2,11 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image, PngImagePlugin
 
+from services.invisible_watermark_service import embed
 from services.provenance_service import verify
 
 
@@ -25,11 +27,41 @@ class ProvenanceServiceTests(unittest.TestCase):
         return path
 
     def test_plain_image_is_not_found_not_non_ai(self):
-        result = verify(self._write())
+        with patch("config.INVISIBLE_WATERMARK_SIGNING_SECRET", "test-watermark-secret", create=True):
+            result = verify(self._write())
         self.assertEqual(result["overall_state"], "not_found")
         self.assertTrue(result["source_evidence"]["content_credentials"]["supported"])
         self.assertEqual(result["source_evidence"]["content_credentials"]["status"], "not_found")
+        self.assertEqual(result["source_evidence"]["watermark"]["status"], "no_signal")
         self.assertIn("不等于", result["limitations"][0])
+
+    def test_signed_platform_invisible_watermark_confirms_platform_source(self):
+        source = self.root / "watermark-source.png"
+        Image.new("RGB", (256, 256), "white").save(source)
+        output = self.root / "platform-watermarked.png"
+        embed(
+            source,
+            output,
+            {"content_id": "content-001", "content_type": "ai_generated"},
+            secret="test-watermark-secret",
+        )
+
+        with patch("config.INVISIBLE_WATERMARK_SIGNING_SECRET", "test-watermark-secret", create=True):
+            result = verify(output)
+
+        watermark = result["source_evidence"]["watermark"]
+        self.assertEqual(result["overall_state"], "confirmed_source")
+        self.assertEqual(watermark["status"], "confirmed")
+        self.assertEqual(watermark["provider"], "aigc-safety")
+        self.assertEqual(watermark["payload"]["content_type"], "ai_generated")
+
+    def test_provenance_reports_provider_capabilities_without_claiming_integration(self):
+        result = verify(self._write())
+        capabilities = {item["id"]: item for item in result["watermark_capabilities"]}
+
+        self.assertEqual(capabilities["platform_dct"]["status"], "available")
+        self.assertEqual(capabilities["synthid"]["status"], "not_configured")
+        self.assertEqual(capabilities["audioseal"]["status"], "unsupported_media")
 
     def test_unsigned_local_marker_is_inconclusive(self):
         marker = json.dumps({"schema":"aigc-safety-provenance/v1", "source_type":"ai_generated", "issuer":"test", "event_ref":"demo-1"})

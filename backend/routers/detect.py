@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from services import audit_log_service, audit_watermark_service, deepfake_service, face_service, mllm_service, provenance_service, rag_service, upload_service
+from services import audit_log_service, audit_watermark_service, deepfake_service, face_service, invisible_watermark_service, mllm_service, provenance_service, rag_service, upload_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -128,7 +128,7 @@ async def embed_audit_watermark(image: UploadFile = File(...), payload: str = Fo
                 bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
             audit_log_service.record_safe(
                 event_type="image.audit_watermark_embed", module="provenance", action="embed",
-                outcome="success", summary="生成 CRT 审计水印副本",
+                outcome="success", summary="生成可逆审计副本",
                 metadata={"event_id": artifact["payload"].get("event_id")},
             )
             return Response(
@@ -136,6 +136,42 @@ async def embed_audit_watermark(image: UploadFile = File(...), payload: str = Fo
                 headers={"Content-Disposition": 'attachment; filename="audit-watermark-artifact.zip"', "Cache-Control": "no-store"},
             )
     except audit_watermark_service.AuditWatermarkError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+@router.post("/invisible-watermark/embed")
+async def embed_invisible_watermark(image: UploadFile = File(...), payload: str = Form(...)):
+    path = await _save_upload(image)
+    try:
+        try:
+            body = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="payload_json_invalid") from exc
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "platform-watermarked.png"
+            artifact = await asyncio.to_thread(invisible_watermark_service.embed, path, output, body)
+            audit_log_service.record_safe(
+                event_type="image.invisible_watermark_embed",
+                module="provenance",
+                action="embed",
+                outcome="success",
+                summary="生成平台签名隐形水印图片",
+                metadata={"content_id": artifact["payload"].get("content_id")},
+            )
+            return Response(
+                content=output.read_bytes(),
+                media_type="image/png",
+                headers={
+                    "Content-Disposition": 'attachment; filename="platform-watermarked.png"',
+                    "Cache-Control": "no-store",
+                },
+            )
+    except invisible_watermark_service.InvisibleWatermarkError as exc:
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     finally:

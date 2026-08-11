@@ -1,0 +1,24 @@
+[Unit]
+Description=PerspectiveVision-LLaVA secondary image reviewer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mateai/UnsafeBench
+Environment=CUDA_VISIBLE_DEVICES=2
+Environment=HUGGINGFACE_HUB_CACHE=/mnt/data/perspectivevision/hf-home
+Environment=HF_HUB_CACHE=/mnt/data/perspectivevision/hf-home
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=PYTHONPATH=/mnt/data/perspectivevision/runtime/lib/python3.10/site-packages:/home/mateai/UnsafeBench
+Environment=PERSPECTIVE_API_KEY_FILE=/mnt/data/perspectivevision/api-key
+Environment=PERSPECTIVE_MAX_PENDING=8
+ExecStart=/home/mateai/miniconda3/envs/llm/bin/python -m uvicorn perspectivevision_service:app --app-dir /mnt/data/perspectivevision --host 0.0.0.0 --port 18310 --workers 1
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=180
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

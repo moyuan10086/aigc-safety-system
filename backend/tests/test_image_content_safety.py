@@ -49,6 +49,7 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
             sample = Path(directory) / "sample.jpg"
             sample.write_bytes(b"synthetic-image-fixture")
             with (
+                patch.object(mllm_service.config, "UNSAFE_BENCH_PRIMARY", False),
                 patch.object(
                     mllm_service,
                     "_request_content_safety",
@@ -88,6 +89,7 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
                 )),
                 patch.object(mllm_service.nudenet_service, "analyze", return_value={"status": "not_configured"}),
                 patch.object(mllm_service.unsafe_bench_service, "analyze", return_value=unsafe_bench),
+                patch.object(mllm_service.perspectivevision_service, "analyze", return_value={"status": "not_detected"}),
             ):
                 result = mllm_service.analyze_content_safety(str(sample))
 
@@ -95,6 +97,91 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
         self.assertEqual(result["auxiliary_engine"], "mllm")
         self.assertEqual(result["verdict"], "review")
         self.assertEqual(result["mllm_auxiliary"]["verdict"], "safe")
+
+    def test_perspectivevision_escalates_primary_safe_result_to_review(self):
+        scores = {code: 0.0 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with (
+                patch.object(mllm_service.config, "UNSAFE_BENCH_PRIMARY", True),
+                patch.object(mllm_service, "_request_content_safety", return_value=(
+                    '{"verdict":"safe","risk_score":0.0,"category_scores":'
+                    + __import__("json").dumps(scores)
+                    + ',"categories":[],"summary":"no visible risk"}'
+                )),
+                patch.object(mllm_service.nudenet_service, "analyze", return_value={"status": "not_configured"}),
+                patch.object(mllm_service.unsafe_bench_service, "analyze", return_value={
+                    "provider": "unsafe_bench",
+                    "model": "multiheaded+q16",
+                    "status": "not_detected",
+                    "risk_score": 0.12,
+                    "categories": [],
+                }),
+                patch.object(mllm_service.perspectivevision_service, "analyze", return_value={
+                    "provider": "perspective_vision",
+                    "status": "detected",
+                    "categories": ["violence"],
+                }) as perspective,
+            ):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        perspective.assert_called_once_with(str(sample))
+        self.assertEqual(result["verdict"], "review")
+        self.assertFalse(result["safe"])
+        self.assertEqual(result["secondary_engine"], "perspective_vision")
+        self.assertEqual(result["secondary_categories"], ["violence"])
+
+    def test_primary_detection_skips_perspectivevision(self):
+        scores = {code: 0.0 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with (
+                patch.object(mllm_service.config, "UNSAFE_BENCH_PRIMARY", True),
+                patch.object(mllm_service, "_request_content_safety", return_value=(
+                    '{"verdict":"safe","risk_score":0.0,"category_scores":'
+                    + __import__("json").dumps(scores)
+                    + ',"categories":[],"summary":"no visible risk"}'
+                )),
+                patch.object(mllm_service.nudenet_service, "analyze", return_value={"status": "not_configured"}),
+                patch.object(mllm_service.unsafe_bench_service, "analyze", return_value={
+                    "provider": "unsafe_bench",
+                    "model": "multiheaded+q16",
+                    "status": "detected",
+                    "risk_score": 0.91,
+                    "categories": ["violence"],
+                }),
+                patch.object(mllm_service.perspectivevision_service, "analyze") as perspective,
+                patch.object(mllm_service.perspectivevision_service, "not_run", return_value={
+                    "provider": "perspective_vision",
+                    "status": "not_run",
+                    "error_code": "primary_risk_detected",
+                }),
+            ):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        perspective.assert_not_called()
+        self.assertEqual(result["verdict"], "unsafe")
+        self.assertEqual(
+            result["specialist_evidence"]["perspective_vision"]["status"],
+            "not_run",
+        )
+
+    def test_perspectivevision_failure_escalates_primary_safe_result(self):
+        result = mllm_service._apply_perspective_secondary(
+            {
+                "verdict": "safe",
+                "safe": True,
+                "risk_score": 0.1,
+                "summary": "primary safe",
+            },
+            {"status": "inconclusive", "error_code": "timeout"},
+        )
+
+        self.assertEqual(result["verdict"], "review")
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["error_code"], "perspectivevision_inconclusive")
 
     def test_extracts_first_valid_json_object_from_mixed_model_output(self):
         payload = mllm_service._json_object(

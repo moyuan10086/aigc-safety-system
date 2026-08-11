@@ -27,6 +27,22 @@ UNSAFE_BENCH_ENDPOINT = os.getenv("UNSAFE_BENCH_ENDPOINT", "").strip()
 UNSAFE_BENCH_MODEL = os.getenv("UNSAFE_BENCH_MODEL", "multiheaded").strip()
 UNSAFE_BENCH_TIMEOUT_SECONDS = float(os.getenv("UNSAFE_BENCH_TIMEOUT_SECONDS", "30"))
 
+# Optional PerspectiveVision-LLaVA secondary reviewer. This is deliberately a
+# separate service because the 7B model needs about 15 GiB of GPU memory and
+# must not be loaded into the web application process.
+PERSPECTIVE_VISION_ENABLED = os.getenv("PERSPECTIVE_VISION_ENABLED", "false").lower() in {
+    "1", "true", "yes", "on"
+}
+PERSPECTIVE_VISION_ENDPOINT = os.getenv("PERSPECTIVE_VISION_ENDPOINT", "").strip()
+PERSPECTIVE_VISION_API_KEY = os.getenv("PERSPECTIVE_VISION_API_KEY", "").strip()
+PERSPECTIVE_VISION_API_KEY_FILE = os.getenv("PERSPECTIVE_VISION_API_KEY_FILE", "").strip()
+PERSPECTIVE_VISION_MODEL = os.getenv(
+    "PERSPECTIVE_VISION_MODEL", "PerspectiveVision-LLaVA-LoRA"
+).strip()
+PERSPECTIVE_VISION_TIMEOUT_SECONDS = float(
+    os.getenv("PERSPECTIVE_VISION_TIMEOUT_SECONDS", "20")
+)
+
 # Text generation model. It can point to a dedicated local vLLM service while
 # image analysis continues to use the MLLM settings above.
 CHAT_MODEL_API_KEY = os.getenv("CHAT_MODEL_API_KEY", MLLM_API_KEY)
@@ -99,6 +115,12 @@ AUDIT_STORE_RAW_CONTENT = os.getenv("AUDIT_STORE_RAW_CONTENT", "true").lower() i
 AUDIT_CONTENT_KEY = os.getenv("AUDIT_CONTENT_KEY", "") or AUTH_SESSION_SECRET
 AUDIT_CONTENT_PREVIOUS_KEY = os.getenv("AUDIT_CONTENT_PREVIOUS_KEY", "")
 AUDIT_ARCHIVE_PATH = os.getenv("AUDIT_ARCHIVE_PATH", "audit_archives")
+
+# Platform-owned signed invisible watermark. This key only verifies watermarks
+# issued by this deployment; it is not a Google SynthID or vendor detector key.
+INVISIBLE_WATERMARK_SIGNING_SECRET = (
+    os.getenv("INVISIBLE_WATERMARK_SIGNING_SECRET", "") or AUTH_SESSION_SECRET
+)
 
 # Text guardrail feature switches. Rule-based checks are always enabled; local
 # RAG and remote MLLM analysis are optional enrichment layers.

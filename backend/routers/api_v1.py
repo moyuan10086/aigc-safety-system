@@ -134,6 +134,8 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/audit-watermark/embed", "scope": "image:audit-watermark"},
                 {"method": "POST", "path": "/api/v1/images/audit-watermark/decode", "scope": "image:audit-watermark"},
                 {"method": "POST", "path": "/api/v1/images/watermarks/check", "scope": "image:watermark"},
+                {"method": "POST", "path": "/api/v1/images/invisible-watermark/embed", "scope": "image:watermark"},
+                {"method": "POST", "path": "/api/v1/images/invisible-watermark/check", "scope": "image:watermark"},
                 {"method": "GET", "path": "/api/v1/usage", "scope": "usage:read"},
                 {"method": "POST", "path": "/api/v1/scans", "scope": "scan:run"},
                 {"method": "GET", "path": "/api/v1/scans", "scope": "scan:read"},
@@ -338,7 +340,7 @@ async def image_audit_watermark_embed(
                     bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
                 audit_log_service.record_safe(
                     event_type="image.audit_watermark_embed", module="provenance", action="embed",
-                    summary="生成 CRT 审计水印副本", metadata={"api": "v1", "event_id": artifact["payload"].get("event_id")},
+                    summary="生成可逆审计副本", metadata={"api": "v1", "event_id": artifact["payload"].get("event_id")},
                 )
                 return Response(
                     content=archive.getvalue(), media_type="application/zip",
@@ -367,7 +369,7 @@ async def image_audit_watermark_decode(
             result = await asyncio.to_thread(audit_watermark_service.decode, source, json.loads(raw))
             audit_log_service.record_safe(
                 event_type="image.audit_watermark_decode", module="provenance", action="decode",
-                summary="核验 CRT 审计水印", metadata={"api": "v1", "payload_integrity": result["payload_integrity"]},
+                summary="核验可逆审计副本", metadata={"api": "v1", "payload_integrity": result["payload_integrity"]},
             )
             return result
         except (audit_watermark_service.AuditWatermarkError, json.JSONDecodeError) as exc:
@@ -394,6 +396,75 @@ async def image_watermark_check(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return await _metered(request, scope="image:watermark", operation="image.watermark_check", run=run)
+
+
+@router.post("/images/invisible-watermark/embed")
+async def image_invisible_watermark_embed(
+    request: Request, image: UploadFile = File(...), payload: str = Form(...),
+):
+    from services import invisible_watermark_service, upload_service
+
+    async def run():
+        try:
+            body = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=422, detail="payload_json_invalid") from exc
+        source = await upload_service.save_image_upload(image, Path("uploads"))
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "platform-watermarked.png"
+                artifact = await asyncio.to_thread(
+                    invisible_watermark_service.embed, source, output, body
+                )
+                audit_log_service.record_safe(
+                    event_type="image.invisible_watermark_embed",
+                    module="provenance",
+                    action="embed",
+                    summary="生成平台签名隐形水印图片",
+                    metadata={"api": "v1", "content_id": artifact["payload"].get("content_id")},
+                )
+                return Response(
+                    content=output.read_bytes(),
+                    media_type="image/png",
+                    headers={
+                        "Content-Disposition": 'attachment; filename="platform-watermarked.png"',
+                        "Cache-Control": "no-store",
+                    },
+                )
+        except invisible_watermark_service.InvisibleWatermarkError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        finally:
+            Path(source).unlink(missing_ok=True)
+
+    return await _metered(
+        request,
+        scope="image:watermark",
+        operation="image.invisible_watermark_embed",
+        run=run,
+    )
+
+
+@router.post("/images/invisible-watermark/check")
+async def image_invisible_watermark_check(request: Request, image: UploadFile = File(...)):
+    from services import invisible_watermark_service
+
+    async def run():
+        result = await _run_image(image, invisible_watermark_service.check)
+        audit_log_service.record_safe(
+            event_type="image.invisible_watermark_check",
+            module="provenance",
+            action="verify",
+            summary="核验平台签名隐形水印",
+            metadata={"api": "v1", "status": result.get("status")},
+        )
+        return result
+
+    return await _metered(
+        request,
+        scope="image:watermark",
+        operation="image.invisible_watermark_check",
+        run=run,
+    )
 
 
 @router.get("/usage")

@@ -14,7 +14,7 @@ import httpx
 from PIL import Image
 from openai import OpenAI
 import config
-from services import nudenet_service, unsafe_bench_service
+from services import nudenet_service, perspectivevision_service, unsafe_bench_service
 
 MLLM_ROOT = Path(__file__).parents[2] / "mllm-defake"
 sys.path.insert(0, str(MLLM_ROOT))
@@ -310,6 +310,43 @@ def _unsafe_bench_primary_result(result: dict, auxiliary: dict) -> dict | None:
     }
 
 
+def _apply_perspective_secondary(result: dict, evidence: dict) -> dict:
+    """Escalate a nominally safe decision when the secondary reviewer disagrees."""
+    merged = dict(result)
+    merged["perspective_secondary"] = evidence
+    status = str(evidence.get("status") or "").strip().lower()
+    if status == "detected":
+        if merged.get("verdict") == "safe":
+            merged["verdict"] = "review"
+        merged.update({
+            "safe": False,
+            "requires_human_review": True,
+            "risk_score": max(_score(merged.get("risk_score")), 0.5),
+            "policy_version": "image-safety-perspective-cascade-v1",
+            "secondary_engine": "perspective_vision",
+            "secondary_categories": evidence.get("categories", []),
+            "summary": (
+                "PerspectiveVision 二次复核发现风险线索，已转人工复核；"
+                + str(merged.get("summary") or "")
+            )[:500],
+        })
+    elif status == "inconclusive" and merged.get("verdict") == "safe":
+        merged.update({
+            "verdict": "review",
+            "safe": False,
+            "requires_human_review": True,
+            "status": "degraded",
+            "error_code": "perspectivevision_inconclusive",
+            "policy_version": "image-safety-perspective-cascade-v1",
+            "secondary_engine": "perspective_vision",
+            "summary": (
+                "PerspectiveVision 二次复核不可用或输出不确定，已转人工复核；"
+                + str(merged.get("summary") or "")
+            )[:500],
+        })
+    return merged
+
+
 def _request_content_safety(image_path: str) -> str:
     client = _make_client()
     image_url = _encode_compressed(image_path)
@@ -356,9 +393,15 @@ def analyze_content_safety(image_path: str) -> dict:
     content_hash = hashlib.sha256(Path(image_path).read_bytes()).hexdigest()
     # Specialist models remain auxiliary evidence: a provider outage must not
     # replace the primary MLLM decision or turn into a false "safe" result.
+    unsafe_bench = unsafe_bench_service.analyze(image_path)
+    if str(unsafe_bench.get("status") or "").lower() == "detected":
+        perspective = perspectivevision_service.not_run("primary_risk_detected")
+    else:
+        perspective = perspectivevision_service.analyze(image_path)
     specialist_evidence = {
         "nudenet": nudenet_service.analyze(image_path),
-        "unsafe_bench": unsafe_bench_service.analyze(image_path),
+        "unsafe_bench": unsafe_bench,
+        "perspective_vision": perspective,
     }
     try:
         raw = _request_content_safety(image_path)
@@ -409,5 +452,5 @@ def analyze_content_safety(image_path: str) -> dict:
         if primary is not None:
             primary["content_hash"] = content_hash
             primary["specialist_evidence"] = specialist_evidence
-            return primary
-    return normalized
+            return _apply_perspective_secondary(primary, perspective)
+    return _apply_perspective_secondary(normalized, perspective)
