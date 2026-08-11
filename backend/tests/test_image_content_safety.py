@@ -67,6 +67,35 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
         self.assertEqual(result["specialist_evidence"]["unsafe_bench"], unsafe_bench)
         self.assertEqual(result["verdict"], "safe")
 
+    def test_unsafe_bench_can_be_configured_as_primary_with_mllm_auxiliary(self):
+        scores = {code: 0.0 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        unsafe_bench = {
+            "provider": "unsafe_bench",
+            "model": "multiheaded",
+            "status": "detected",
+            "risk_score": 0.71,
+            "categories": [],
+        }
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with (
+                patch.object(mllm_service.config, "UNSAFE_BENCH_PRIMARY", True),
+                patch.object(mllm_service, "_request_content_safety", return_value=(
+                    '{"verdict":"safe","risk_score":0.0,"category_scores":'
+                    + __import__("json").dumps(scores)
+                    + ',"categories":[],"summary":"no visible risk"}'
+                )),
+                patch.object(mllm_service.nudenet_service, "analyze", return_value={"status": "not_configured"}),
+                patch.object(mllm_service.unsafe_bench_service, "analyze", return_value=unsafe_bench),
+            ):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        self.assertEqual(result["primary_engine"], "unsafe_bench")
+        self.assertEqual(result["auxiliary_engine"], "mllm")
+        self.assertEqual(result["verdict"], "review")
+        self.assertEqual(result["mllm_auxiliary"]["verdict"], "safe")
+
     def test_extracts_first_valid_json_object_from_mixed_model_output(self):
         payload = mllm_service._json_object(
             '审核结果如下：\n```json\n{"verdict":"review","risk_score":0.7,"categories":[]}\n```\n补充说明 {not-json}'

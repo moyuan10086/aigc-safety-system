@@ -22,6 +22,7 @@ NUDENET_THRESHOLD = max(0.0, min(1.0, float(os.getenv("NUDENET_THRESHOLD", "0.6"
 # repository is an evaluation framework, so production stays disabled until a
 # separately deployed inference endpoint is configured.
 UNSAFE_BENCH_ENABLED = os.getenv("UNSAFE_BENCH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+UNSAFE_BENCH_PRIMARY = os.getenv("UNSAFE_BENCH_PRIMARY", "false").lower() in {"1", "true", "yes", "on"}
 UNSAFE_BENCH_ENDPOINT = os.getenv("UNSAFE_BENCH_ENDPOINT", "").strip()
 UNSAFE_BENCH_MODEL = os.getenv("UNSAFE_BENCH_MODEL", "multiheaded").strip()
 UNSAFE_BENCH_TIMEOUT_SECONDS = float(os.getenv("UNSAFE_BENCH_TIMEOUT_SECONDS", "30"))

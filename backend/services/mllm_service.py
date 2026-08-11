@@ -249,6 +249,67 @@ def normalize_content_safety(payload: dict, *, model: str | None = None) -> dict
     }
 
 
+UNSAFE_BENCH_CATEGORY_ALIASES = {
+    "sexual": "adult_content",
+    "violent": "violence",
+    "violence": "violence",
+    "disturbing": "violence",
+    "shocking": "violence",
+    "hateful": "political_sensitive",
+    "political": "political_sensitive",
+}
+
+
+def _unsafe_bench_primary_result(result: dict, auxiliary: dict) -> dict | None:
+    """Convert a usable UnsafeBench result into the platform primary contract."""
+    status = str(result.get("status") or "").strip().lower()
+    if status not in {"detected", "not_detected"}:
+        return None
+    raw_risk = result.get("risk_score")
+    risk_score = _score(raw_risk, default=1.0 if status == "detected" else 0.0)
+    raw_scores = result.get("category_scores")
+    category_scores: dict[str, float] = {}
+    if isinstance(raw_scores, dict):
+        for raw_code, value in raw_scores.items():
+            code = UNSAFE_BENCH_CATEGORY_ALIASES.get(str(raw_code).strip().lower())
+            if code in CONTENT_SAFETY_CATEGORIES:
+                category_scores[code] = max(category_scores.get(code, 0.0), _score(value))
+    categories: list[dict] = []
+    raw_categories = result.get("categories")
+    if isinstance(raw_categories, list):
+        for raw_code in raw_categories:
+            code = UNSAFE_BENCH_CATEGORY_ALIASES.get(str(raw_code).strip().lower())
+            if not code or code in {item["code"] for item in categories}:
+                continue
+            confidence = category_scores.get(code, risk_score)
+            categories.append({
+                "code": code,
+                "label": CONTENT_SAFETY_CATEGORIES[code],
+                "confidence": confidence,
+                "severity": "critical" if confidence >= 0.8 else "high" if confidence >= 0.5 else "medium",
+                "evidence": "UnsafeBench 专家分类结果",
+            })
+    verdict = "unsafe" if status == "detected" and risk_score >= 0.8 else "review" if status == "detected" else "safe"
+    if categories and verdict == "safe":
+        verdict = "review"
+    return {
+        "verdict": verdict,
+        "safe": verdict == "safe",
+        "risk_score": risk_score,
+        "categories": categories,
+        "category_scores": category_scores,
+        "missing_category_scores": sorted(set(CONTENT_SAFETY_CATEGORIES) - set(category_scores)),
+        "score_coverage": round(len(category_scores) / len(CONTENT_SAFETY_CATEGORIES), 4),
+        "summary": "UnsafeBench 作为主审核器完成宽类别风险判定；MLLM 结果保留为辅助证据。",
+        "model": result.get("model") or "multiheaded",
+        "requires_human_review": verdict == "review",
+        "policy_version": "image-safety-unsafebench-primary-v1",
+        "primary_engine": "unsafe_bench",
+        "auxiliary_engine": "mllm",
+        "mllm_auxiliary": auxiliary,
+    }
+
+
 def _request_content_safety(image_path: str) -> str:
     client = _make_client()
     image_url = _encode_compressed(image_path)
@@ -341,4 +402,12 @@ def analyze_content_safety(image_path: str) -> dict:
         })
     normalized["content_hash"] = content_hash
     normalized["specialist_evidence"] = specialist_evidence
+    if config.UNSAFE_BENCH_PRIMARY:
+        primary = _unsafe_bench_primary_result(
+            specialist_evidence["unsafe_bench"], normalized
+        )
+        if primary is not None:
+            primary["content_hash"] = content_hash
+            primary["specialist_evidence"] = specialist_evidence
+            return primary
     return normalized
