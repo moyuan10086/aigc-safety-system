@@ -1,0 +1,16 @@
+{
+  "captured_at": "2026-08-09",
+  "url": "https://aigc.49.51.248.227.sslip.io/detect",
+  "screenshot": "detect-production-pii-evidence-20260809.png",
+  "task_visible": "content_safety:personal_data",
+  "display_label": "内容安全 / PII 泄露",
+  "status": "insufficient_samples",
+  "sample_count": 5,
+  "positive_count": 5,
+  "negative_count": 0,
+  "metrics_published": false,
+  "privacy": {
+    "raw_images_in_evidence": false,
+    "synthetic_pii_only": true
+  }
+}

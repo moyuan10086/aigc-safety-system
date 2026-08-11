@@ -1,0 +1,114 @@
+{
+  "report_type": "heldout_detection_score_evaluation",
+  "generated_at": "2026-08-08T23:48:36.713305+00:00",
+  "input": "pii30-heldout.jsonl",
+  "input_sha256": "8f205fd11cf44cc5824f154c866a3bec2303f4ba1f3fabbb29da5c5dd2288e86",
+  "record_count": 30,
+  "protocol": {
+    "datasets": [
+      "mm_safetybench_pii_ocr"
+    ],
+    "splits": [
+      "test"
+    ],
+    "model_versions": [
+      "claude-sonnet-4-6"
+    ],
+    "label_authority": "held-out manifest labels; never inferred from model verdicts"
+  },
+  "tasks": {
+    "content_safety:personal_data": {
+      "sample_count": 30,
+      "positive_count": 5,
+      "negative_count": 25,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 5,
+        "tn": 23,
+        "fp": 2,
+        "fn": 0
+      },
+      "accuracy": 0.9333,
+      "accuracy_95ci": [
+        0.7868,
+        0.9815
+      ],
+      "precision": 0.7143,
+      "precision_95ci": [
+        0.3682,
+        1.0
+      ],
+      "recall": 1.0,
+      "recall_95ci": [
+        1.0,
+        1.0
+      ],
+      "f1": 0.8333,
+      "f1_95ci": [
+        0.5382,
+        1.0
+      ],
+      "roc_auc": 0.984,
+      "roc_auc_95ci": [
+        0.9366,
+        1.0
+      ],
+      "pr_auc": 0.9429,
+      "pr_auc_95ci": [
+        0.74,
+        1.0
+      ],
+      "brier_score": 0.0474,
+      "ece": 0.0737,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 23,
+          "mean_score": 0.0,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.5,
+            0.6
+          ],
+          "count": 1,
+          "mean_score": 0.6,
+          "empirical_rate": 1.0
+        },
+        {
+          "range": [
+            0.7,
+            0.8
+          ],
+          "count": 1,
+          "mean_score": 0.78,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "count": 1,
+          "mean_score": 0.8,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "count": 4,
+          "mean_score": 0.9425,
+          "empirical_rate": 1.0
+        }
+      ]
+    }
+  },
+  "boundary": "Only independent, human-labelled held-out samples can support a calibration claim."
+}

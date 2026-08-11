@@ -1,0 +1,286 @@
+{
+  "schema_version": "1.0",
+  "report_type": "label_backed_deepfake_calibration",
+  "dataset": "pujanpaudel/deepfake_face_classification",
+  "dataset_note": "DF40-derived public dataset; verify its terms before redistribution.",
+  "model_name": "CLIP-ViT-L/14 deepfake checkpoint",
+  "model_sha256": "55c54d3f4d301ce07f0d08126fc4202572d20ea6952b039bc7a949a43714157d",
+  "preprocessing": "CLIP resize shortest side 224 + center crop 224; no face alignment",
+  "metrics": {
+    "validation": {
+      "sample_count": 3012,
+      "positive_count": 1506,
+      "negative_count": 1506,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 1186,
+        "tn": 1466,
+        "fp": 40,
+        "fn": 320
+      },
+      "accuracy": 0.8805,
+      "accuracy_95ci": [
+        0.8684,
+        0.8916
+      ],
+      "precision": 0.9674,
+      "precision_95ci": [
+        0.9575,
+        0.9762
+      ],
+      "recall": 0.7875,
+      "recall_95ci": [
+        0.7672,
+        0.8072
+      ],
+      "f1": 0.8682,
+      "f1_95ci": [
+        0.8535,
+        0.8811
+      ],
+      "roc_auc": 0.9537,
+      "roc_auc_95ci": [
+        0.9461,
+        0.9616
+      ],
+      "pr_auc": 0.9641,
+      "pr_auc_95ci": [
+        0.9576,
+        0.9702
+      ],
+      "brier_score": 0.0925,
+      "ece": 0.1074,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 227,
+          "mean_score": 0.0807,
+          "empirical_rate": 0.0705
+        },
+        {
+          "range": [
+            0.1,
+            0.2
+          ],
+          "count": 1088,
+          "mean_score": 0.1418,
+          "empirical_rate": 0.0763
+        },
+        {
+          "range": [
+            0.2,
+            0.3
+          ],
+          "count": 242,
+          "mean_score": 0.2417,
+          "empirical_rate": 0.343
+        },
+        {
+          "range": [
+            0.3,
+            0.4
+          ],
+          "count": 127,
+          "mean_score": 0.3492,
+          "empirical_rate": 0.5118
+        },
+        {
+          "range": [
+            0.4,
+            0.5
+          ],
+          "count": 102,
+          "mean_score": 0.4464,
+          "empirical_rate": 0.7157
+        },
+        {
+          "range": [
+            0.5,
+            0.6
+          ],
+          "count": 88,
+          "mean_score": 0.5471,
+          "empirical_rate": 0.7386
+        },
+        {
+          "range": [
+            0.6,
+            0.7
+          ],
+          "count": 132,
+          "mean_score": 0.6554,
+          "empirical_rate": 0.9167
+        },
+        {
+          "range": [
+            0.7,
+            0.8
+          ],
+          "count": 192,
+          "mean_score": 0.7551,
+          "empirical_rate": 0.9844
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "count": 388,
+          "mean_score": 0.8561,
+          "empirical_rate": 0.9923
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "count": 426,
+          "mean_score": 0.9318,
+          "empirical_rate": 1.0
+        }
+      ]
+    },
+    "test": {
+      "sample_count": 3012,
+      "positive_count": 1506,
+      "negative_count": 1506,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 696,
+        "tn": 1472,
+        "fp": 34,
+        "fn": 810
+      },
+      "accuracy": 0.7198,
+      "accuracy_95ci": [
+        0.7035,
+        0.7355
+      ],
+      "precision": 0.9534,
+      "precision_95ci": [
+        0.9362,
+        0.9682
+      ],
+      "recall": 0.4622,
+      "recall_95ci": [
+        0.4365,
+        0.486
+      ],
+      "f1": 0.6225,
+      "f1_95ci": [
+        0.5985,
+        0.6446
+      ],
+      "roc_auc": 0.8812,
+      "roc_auc_95ci": [
+        0.8682,
+        0.8938
+      ],
+      "pr_auc": 0.8912,
+      "pr_auc_95ci": [
+        0.8766,
+        0.9039
+      ],
+      "brier_score": 0.1839,
+      "ece": 0.167,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 266,
+          "mean_score": 0.0833,
+          "empirical_rate": 0.0714
+        },
+        {
+          "range": [
+            0.1,
+            0.2
+          ],
+          "count": 1190,
+          "mean_score": 0.1428,
+          "empirical_rate": 0.2101
+        },
+        {
+          "range": [
+            0.2,
+            0.3
+          ],
+          "count": 406,
+          "mean_score": 0.245,
+          "empirical_rate": 0.5665
+        },
+        {
+          "range": [
+            0.3,
+            0.4
+          ],
+          "count": 245,
+          "mean_score": 0.3459,
+          "empirical_rate": 0.6898
+        },
+        {
+          "range": [
+            0.4,
+            0.5
+          ],
+          "count": 175,
+          "mean_score": 0.4488,
+          "empirical_rate": 0.8114
+        },
+        {
+          "range": [
+            0.5,
+            0.6
+          ],
+          "count": 113,
+          "mean_score": 0.5525,
+          "empirical_rate": 0.8761
+        },
+        {
+          "range": [
+            0.6,
+            0.7
+          ],
+          "count": 132,
+          "mean_score": 0.6508,
+          "empirical_rate": 0.9545
+        },
+        {
+          "range": [
+            0.7,
+            0.8
+          ],
+          "count": 159,
+          "mean_score": 0.7501,
+          "empirical_rate": 0.9623
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "count": 210,
+          "mean_score": 0.8524,
+          "empirical_rate": 0.9714
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "count": 116,
+          "mean_score": 0.9296,
+          "empirical_rate": 0.9828
+        }
+      ]
+    }
+  },
+  "boundary": "Metrics describe this checkpoint and protocol on this held-out dataset; they are not a universal accuracy claim or SOTA comparison."
+}

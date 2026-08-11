@@ -537,12 +537,15 @@ def dashboard_statistics(
     hours: int = 24,
     *,
     now: datetime | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
 ) -> dict[str, Any]:
     """Aggregate safe, structured audit fields for the operations dashboard."""
-    hours = max(1, min(int(hours), 168))
-    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    start = now - timedelta(hours=hours)
-    bucket_hours = 1 if hours <= 48 else 3 if hours <= 96 else 6
+    hours = max(1, min(int(hours), 2160))
+    now = (end or now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    start = (start or (now - timedelta(hours=hours))).astimezone(timezone.utc)
+    hours = max(1, min(math.ceil((now - start).total_seconds() / 3600), 2160))
+    bucket_hours = 1 if hours <= 48 else 3 if hours <= 96 else 6 if hours <= 168 else 12 if hours <= 720 else 24
     bucket_count = math.ceil(hours / bucket_hours)
     bucket_seconds = bucket_hours * 3600
     buckets = [
@@ -591,9 +594,16 @@ def dashboard_statistics(
     for row in rows:
         event = dict(row)
         occurred_at = datetime.fromisoformat(event["occurred_at"].replace("Z", "+00:00"))
-        is_alert = event["severity"] in {"warning", "high", "critical"} or event["outcome"] in {
-            "review", "blocked", "denied", "error"
-        }
+        risk_score = event["risk_score"]
+        has_warning_risk_evidence = event["severity"] == "warning" and (
+            bool(event["risk_code"])
+            or (risk_score is not None and float(risk_score) >= 0.35)
+        )
+        is_alert = (
+            event["severity"] in {"high", "critical"}
+            or event["outcome"] in {"review", "blocked", "denied"}
+            or has_warning_risk_evidence
+        )
         is_blocked = event["outcome"] in {"blocked", "denied"}
         is_success = event["outcome"] in {"success", "allowed"} and (
             event["status_code"] is None or event["status_code"] < 400
@@ -837,14 +847,16 @@ def shadow_review_statistics(
     hours: int = 24,
     *,
     now: datetime | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
     queue_limit: int = 8,
     reviewer: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate shadow metrics and an evidence-backed human-review sample pool."""
-    hours = max(1, min(int(hours), 168))
+    hours = max(1, min(int(hours), 2160))
     queue_limit = max(1, min(int(queue_limit), 50))
-    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    start = now - timedelta(hours=hours)
+    now = (end or now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    start = (start or (now - timedelta(hours=hours))).astimezone(timezone.utc)
     now_iso = now.isoformat(timespec="milliseconds").replace("+00:00", "Z")
     clean_reviewer = _clean_text(reviewer, 128) or ""
     with closing(_connect()) as connection:

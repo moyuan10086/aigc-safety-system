@@ -3,6 +3,7 @@
 import csv
 import io
 import json
+from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -30,11 +31,13 @@ def _operator(request: Request) -> dict[str, Any]:
 @router.get("/overview")
 async def dashboard_overview(
     request: Request,
-    hours: int = Query(default=24, ge=1, le=168),
+    hours: int = Query(default=24, ge=1, le=2160),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
 ):
     user = _operator(request)
     return JSONResponse(
-        dashboard_service.overview(hours, reviewer=user["username"]),
+        dashboard_service.overview(hours, reviewer=user["username"], start=start, end=end),
         headers={"Cache-Control": "no-store"},
     )
 

@@ -2,96 +2,25 @@
   <div class="detect-page">
     <title>图片与人脸审核 - 面向 AIGC 伪造的跨域泛化检测与可解释性防御平台</title>
 
-    <!-- 顶部信息网格：仿 NapCat QQInfo + SystemInfo + SystemStatus -->
-    <div class="top-grid">
-      <!-- 图像信息卡 -->
-      <div class="card info-card">
-        <div class="avatar-wrap">
-          <img v-if="preview" :src="preview" class="avatar-img" alt="preview" />
-          <div v-else class="avatar-placeholder">
-            <!-- 空状态插画 -->
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-              <circle cx="24" cy="24" r="20" fill="#eef4f8" stroke="#b7c6d3" stroke-width="1.5"/>
-              <circle cx="24" cy="20" r="6" fill="#dceaf1" stroke="#087eae" stroke-width="1.5"/>
-              <path d="M10 38c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="#087eae" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-            </svg>
-          </div>
-          <div class="avatar-dot" :class="file ? 'dot-ready' : 'dot-idle'"></div>
-        </div>
-        <div class="info-text">
-          <div class="info-name">{{ file?.name || '未上传图像' }}</div>
-          <div class="info-sub">{{ file ? formatSize(file.size) : '等待上传' }}</div>
+    <section class="task-header">
+      <div class="task-heading">
+        <span class="task-heading-icon"><ScanSearch :size="22" /></span>
+        <div>
+          <span class="task-kicker">IMAGE REVIEW WORKSPACE</span>
+          <h1>新建图片审核</h1>
+          <p>上传待审样本，按业务需要选择真实性、内容安全与知识库审核。</p>
         </div>
       </div>
-
-      <!-- 系统信息卡 -->
-      <div class="card sys-card">
-        <div class="card-title">系统信息</div>
-        <div class="sys-rows">
-          <div class="sys-row">
-            <span class="sys-dot"></span>
-            <span class="sys-label">Deepfake 模型</span>
-            <span class="sys-val">CLIP-ViT-L/14</span>
-          </div>
-          <div class="sys-row">
-            <span class="sys-dot"></span>
-            <span class="sys-label">MLLM 模型</span>
-            <span class="sys-val">{{ mllmModel }}</span>
-          </div>
-          <div class="sys-row">
-            <span class="sys-dot"></span>
-            <span class="sys-label">RAG 引擎</span>
-            <span class="sys-val">ChromaDB</span>
-          </div>
-          <div class="sys-row">
-            <span class="sys-dot"></span>
-            <span class="sys-label">内容安全</span>
-            <span class="sys-val">视觉多标签</span>
-          </div>
-        </div>
+      <div class="workflow-steps" aria-label="审核流程">
+        <div class="workflow-step" :class="{ active: !file, done: !!file }"><Upload :size="16" /><span><b>上传样本</b><small>{{ file ? file.name : '等待图片' }}</small></span></div>
+        <div class="workflow-step" :class="{ active: !!file && !loading && !hasResults, done: loading || hasResults }"><SlidersHorizontal :size="16" /><span><b>选择范围</b><small>{{ modules.length }} 项能力</small></span></div>
+        <div class="workflow-step" :class="{ active: loading, done: hasResults }"><Play :size="16" /><span><b>执行检测</b><small>{{ loading ? '正在分析' : hasResults ? '检测完成' : '尚未开始' }}</small></span></div>
+        <div class="workflow-step" :class="{ active: hasResults }"><UserCheck :size="16" /><span><b>人工复核</b><small>{{ hasResults ? '核对证据' : '等待结果' }}</small></span></div>
       </div>
-
-      <!-- 得分环形图卡 -->
-      <div class="card ring-card">
-        <div class="ring-wrap">
-          <div class="ring-item">
-            <svg viewBox="0 0 100 100" class="ring-svg">
-              <circle cx="50" cy="50" r="38" class="ring-bg" />
-              <circle cx="50" cy="50" r="38" class="ring-fill ring-pink"
-                :style="{ strokeDashoffset: 239 - (results.deepfake?.score || 0) * 239 }" />
-            </svg>
-            <div class="ring-center">
-              <div class="ring-val">{{ results.deepfake ? (results.deepfake.score * 100).toFixed(0) : '—' }}</div>
-              <div class="ring-unit" v-if="results.deepfake">%</div>
-            </div>
-            <div class="ring-label">伪造得分</div>
-          </div>
-          <div class="ring-item">
-            <svg viewBox="0 0 100 100" class="ring-svg">
-              <circle cx="50" cy="50" r="38" class="ring-bg" />
-              <circle cx="50" cy="50" r="38" class="ring-fill ring-purple"
-                :style="{ strokeDashoffset: 239 - (results.mllm?.confidence || 0) * 239 }" />
-            </svg>
-            <div class="ring-center">
-              <div class="ring-val ring-val-purple">{{ results.mllm ? (results.mllm.confidence * 100).toFixed(0) : '—' }}</div>
-              <div class="ring-unit ring-val-purple" v-if="results.mllm">%</div>
-            </div>
-            <div class="ring-label">MLLM置信度</div>
-            <div v-if="results.mllm" style="font-size:10px;text-align:center;margin-top:2px"
-                 :style="{color: results.mllm.verdict==='fake'?'#dc2626':results.mllm.verdict==='real'?'#16a34a':'#ca8a04'}">
-              {{ results.mllm.verdict==='fake'?'判断：伪造':results.mllm.verdict==='real'?'判断：真实':'判断：不确定' }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
 
     <!-- 统计格子 -->
-    <div class="stats-row">
-      <div class="stat-box stat-main">
-        <div class="stat-num">{{ doneCount }}/{{ modules.length }}</div>
-        <div class="stat-label">检测项目</div>
-      </div>
+    <div v-if="file || loading || hasResults" class="stats-row">
       <div class="stat-box" v-if="modules.includes('deepfake')">
         <div class="stat-num" :class="results.deepfake ? 'num-done' : currentStep==='deepfake' ? 'num-running' : 'num-idle'">
           {{ results.deepfake ? '完成' : currentStep==='deepfake' ? '运行中' : '—' }}
@@ -108,7 +37,7 @@
         <div class="stat-num" :class="results.rag ? 'num-done' : currentStep==='rag' ? 'num-running' : 'num-idle'">
           {{ results.rag ? '完成' : currentStep==='rag' ? '运行中' : '—' }}
         </div>
-        <div class="stat-label">RAG审核</div>
+        <div class="stat-label">知识库审核</div>
       </div>
       <div class="stat-box" v-if="modules.includes('content_safety')">
         <div class="stat-num" :class="results.content_safety ? 'num-done' : currentStep==='content_safety' ? 'num-running' : 'num-idle'">
@@ -116,17 +45,13 @@
         </div>
         <div class="stat-label">图片内容安全</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-num" :class="loading ? 'num-running' : 'num-done'">{{ loading ? '运行中' : '就绪' }}</div>
-        <div class="stat-label">系统状态</div>
-      </div>
     </div>
 
     <!-- 检测中扫描动画覆盖层 -->
     <div v-if="loading" class="scan-overlay">
       <div class="scan-box">
         <div class="scan-line"></div>
-        <div class="scan-text">{{ currentStep ? `正在运行 ${currentStep.toUpperCase()}...` : '初始化检测...' }}</div>
+        <div class="scan-text">{{ currentStepLabel }}</div>
       </div>
     </div>
 
@@ -135,8 +60,8 @@
       <el-upload drag accept="image/*" :auto-upload="false"
         :on-change="onFileChange" :show-file-list="false" class="upload-zone">
         <div class="upload-inner">
-          <!-- 上传区插画 -->
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" class="upload-illustration">
+          <img v-if="preview" :src="preview" class="upload-preview" alt="待审核图片预览" />
+          <svg v-else width="80" height="80" viewBox="0 0 80 80" fill="none" class="upload-illustration">
             <circle cx="40" cy="40" r="36" fill="#eef4f8" stroke="#b7c6d3" stroke-width="1.5"/>
             <circle cx="40" cy="40" r="26" fill="none" stroke="#087eae" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
             <rect x="28" y="26" width="24" height="28" rx="3" fill="#ffffff" stroke="#087eae" stroke-width="1.5"/>
@@ -145,24 +70,21 @@
             <line x1="33" y1="43" x2="41" y2="43" stroke="#b7c6d3" stroke-width="1.5" stroke-linecap="round"/>
             <path d="M40 52 L40 62 M36 58 L40 62 L44 58" stroke="#087eae" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <div class="upload-text">拖拽或点击上传图像</div>
-          <div class="upload-sub">支持 JPG / PNG / WebP</div>
+          <div class="upload-text">{{ file ? file.name : '拖拽或点击上传图像' }}</div>
+          <div class="upload-sub">{{ file ? `${formatSize(file.size)} · 点击可更换样本` : '支持 JPG / PNG / WebP' }}</div>
         </div>
       </el-upload>
-      <div style="display:flex;flex-direction:column;gap:8px;justify-content:center">
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:2px">选择检测模块</div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" v-model="modules" value="deepfake" /> Deepfake检测（需人脸）
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" v-model="modules" value="mllm" /> MLLM可解释分析
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" v-model="modules" value="rag" /> RAG内容审核
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" v-model="modules" value="content_safety" /> 图片内容安全
-        </label>
+      <div class="control-panel">
+        <div class="module-heading"><span>检测范围</span><small>{{ modules.length }}/4 个模块</small></div>
+        <div class="module-group"><b>真实性检测</b>
+          <label class="module-option"><input type="checkbox" v-model="modules" value="deepfake" /><span>Deepfake 人脸伪造</span><small>需检测到人脸</small></label>
+          <label class="module-option"><input type="checkbox" v-model="modules" value="mllm" /><span>MLLM 解释分析</span><small>给出可读证据</small></label>
+        </div>
+        <div class="module-group"><b>内容与合规</b>
+          <label class="module-option"><input type="checkbox" v-model="modules" value="rag" /><span>红线知识库审核（RAG）</span><small>规则与语义证据</small></label>
+          <label class="module-option"><input type="checkbox" v-model="modules" value="content_safety" /><span>图片内容安全</span><small>敏感类别识别</small></label>
+        </div>
+        <div class="module-actions">
         <button class="source-btn" :disabled="!file || provenanceLoading" @click="runProvenance">
           {{ provenanceLoading ? '验证中...' : '验证 AI 来源' }}
         </button>
@@ -173,12 +95,13 @@
           <span v-if="loading" class="btn-spin"><LoaderIcon :size="16" /></span>
           <span>{{ loading ? '检测中...' : '开始检测' }}</span>
         </button>
+        </div>
       </div>
     </div>
 
     <!-- RAG 文本输入 -->
     <div class="card" style="padding:12px 16px">
-      <div style="font-size:12px;color:#94a3b8;margin-bottom:6px">RAG 内容审核文本（可单独审核）</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:6px">红线知识库审核文本（RAG 检索链路，可单独审核）</div>
       <div style="display:flex;gap:8px;align-items:flex-start">
         <textarea v-model="auditText" rows="2" class="audit-textarea" placeholder="输入需要审核的文字内容..."></textarea>
         <button class="send-btn" :disabled="!auditText.trim() || ragLoading" @click="runRagOnly" style="white-space:nowrap">
@@ -192,6 +115,18 @@
       </div>
     </div>
 
+    <section v-if="hasResults" class="result-overview" aria-live="polite">
+      <div class="result-overview-heading">
+        <span><CircleCheckBig :size="18" /></span>
+        <div><small>REVIEW SUMMARY</small><h2>本次审核摘要</h2></div>
+      </div>
+      <div class="outcome-metrics">
+        <div class="outcome-metric"><span>真实性风险</span><b :class="results.deepfake?.label === 'fake' ? 'metric-danger' : ''">{{ results.deepfake ? (results.deepfake.label === 'fake' ? '疑似伪造' : results.deepfake.label === 'skipped' ? '不适用' : '倾向真实') : '未选择' }}</b><small>{{ results.deepfake ? `P(fake) ${(results.deepfake.score * 100).toFixed(0)}% · 非准确率` : '本次未运行 Deepfake' }}</small></div>
+        <div class="outcome-metric"><span>内容安全</span><b :class="contentVerdictClass(results.content_safety?.verdict)">{{ results.content_safety ? contentVerdictLabel(results.content_safety.verdict) : '未选择' }}</b><small>{{ results.content_safety ? '按最高风险类别处置' : '本次未运行内容安全' }}</small></div>
+        <div class="outcome-metric"><span>解释证据</span><b>{{ results.mllm ? '已生成' : '未选择' }}</b><small>{{ results.mllm ? '下方查看模型证据' : '本次未运行 MLLM' }}</small></div>
+      </div>
+    </section>
+
     <!-- 检测结果 -->
     <div v-if="results.face || results.deepfake || results.mllm || results.rag || results.content_safety || results.provenance" class="results-grid">
       <ProvenanceEvidencePanel v-if="results.provenance" :result="results.provenance" />
@@ -200,12 +135,11 @@
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400}}">
         <div class="card-title">Deepfake 检测</div>
         <div class="result-body">
-          <span class="badge" :class="deepfakeClass(results.deepfake.label)">
-            {{ deepfakeLabel(results.deepfake.label) }}
+          <span class="badge" :class="results.deepfake.label === 'fake' ? 'badge-danger' : results.deepfake.label === 'skipped' ? 'badge-warn' : 'badge-success'">
+            {{ results.deepfake.label === 'fake' ? '伪造' : results.deepfake.label === 'skipped' ? '非人脸' : '真实' }}
           </span>
-          <span class="result-meta">置信度 {{ (results.deepfake.confidence * 100).toFixed(1) }}%</span>
-          <span v-if="results.deepfake.face_count" class="result-meta">逐脸分析 {{ results.deepfake.face_count }} 张</span>
-          <p v-if="results.deepfake.reason" class="result-text">{{ results.deepfake.reason }}</p>
+          <span class="result-meta">P(fake) {{ (results.deepfake.score * 100).toFixed(1) }}% · 模型置信度 {{ (results.deepfake.confidence * 100).toFixed(1) }}%</span>
+          <p class="result-note">P(fake) 是当前模型分数，不是统计准确率；置信度尚未经过独立校准。</p>
         </div>
       </div>
 
@@ -216,8 +150,8 @@
           <span class="badge" :class="verdictClass(results.mllm.verdict)">
             {{ verdictLabel(results.mllm.verdict) }}
           </span>
+          <span class="result-meta">模型自报置信度 {{ (results.mllm.confidence * 100).toFixed(1) }}% · 未校准概率</span>
           <p class="result-text">{{ results.mllm.explanation }}</p>
-          <span class="result-meta">模型 {{ results.mllm.model || mllmModel }}</span>
           <div v-if="results.mllm.evidence?.length" class="tags">
             <span v-for="e in results.mllm.evidence" :key="e" class="tag">{{ e }}</span>
           </div>
@@ -226,12 +160,14 @@
 
       <div class="card result-card" v-if="results.rag"
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400,delay:200}}">
-        <div class="card-title">内容安全审核</div>
+        <div class="card-title">红线知识库审核（RAG 检索链路）</div>
         <div class="result-body">
           <span class="badge" :class="results.rag.safe ? 'badge-success' : 'badge-danger'">
             {{ results.rag.safe ? '安全' : '风险' }}
           </span>
           <span class="result-meta">风险等级: {{ results.rag.risk_level?.toUpperCase() }}</span>
+          <span class="result-meta">关键词命中 {{ results.rag.matches?.length || 0 }} 条 · 语义命中 {{ results.rag.semantic_matches?.length || 0 }} 条</span>
+          <p class="result-note">RAG 输出规则风险和证据，不输出概率；ChromaDB 仅负责知识库向量检索。</p>
           <div v-if="results.rag.matched_keywords?.length" class="tags">
             <span v-for="k in results.rag.matched_keywords" :key="k" class="tag tag-danger">{{ k }}</span>
           </div>
@@ -246,7 +182,16 @@
             {{ contentVerdictLabel(results.content_safety.verdict) }}
           </span>
           <span class="result-meta">综合风险 {{ Math.round(results.content_safety.risk_score * 100) }}% · {{ results.content_safety.policy_version }}</span>
+          <p class="result-note">综合风险取模型 risk_score 与命中类别 confidence 的最大值；类别 confidence 不是统计校准概率。</p>
           <p class="result-text">{{ results.content_safety.summary }}</p>
+          <NudeNetEvidence
+            v-if="results.content_safety.specialist_evidence?.nudenet"
+            :evidence="results.content_safety.specialist_evidence.nudenet"
+          />
+          <UnsafeBenchEvidence
+            v-if="results.content_safety.specialist_evidence?.unsafe_bench"
+            :evidence="results.content_safety.specialist_evidence.unsafe_bench"
+          />
           <div v-if="results.content_safety.categories?.length" class="safety-findings">
             <div v-for="item in results.content_safety.categories" :key="item.code" class="safety-finding">
               <span>{{ item.label }}</span><b>{{ Math.round(item.confidence * 100) }}%</b>
@@ -257,6 +202,16 @@
         </div>
       </div>
     </div>
+
+    <details v-if="hasResults" class="score-guide">
+      <summary><span>如何理解本次评分</span><small>不同模块的数值不可直接相加或横向比较</small></summary>
+      <div class="score-guide-grid">
+        <article><b>Deepfake 伪造概率</b><p>分类模型输出 P(fake)，当前以 0.50 为疑似伪造阈值。该分数不是统计准确率。</p></article>
+        <article><b>MLLM 结论置信</b><p>多模态模型给出的自报 confidence 尚未校准，必须结合可见证据和人工复核。</p></article>
+        <article><b>图片内容风险</b><p>各类别独立判断；≥80% 阻断，35%–79% 转人工复核，低于 35% 为安全。</p></article>
+        <article><b>知识库审核</b><p>RAG 输出规则、来源和处置建议，不输出伪造概率；ChromaDB 只负责向量检索。</p></article>
+      </div>
+    </details>
 
     <!-- 一言卡片：仿 NapCat Hitokoto -->
     <div class="card quote-card">
@@ -274,9 +229,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { CircleCheckBig, Play, ScanSearch, SlidersHorizontal, Upload, UserCheck } from 'lucide-vue-next'
 import FaceEvidencePanel from '../components/detect/FaceEvidencePanel.vue'
+import NudeNetEvidence from '../components/detect/NudeNetEvidence.vue'
+import UnsafeBenchEvidence from '../components/detect/UnsafeBenchEvidence.vue'
 import ProvenanceEvidencePanel from '../components/detect/ProvenanceEvidencePanel.vue'
 
 // Inline SVG icons
@@ -290,10 +248,16 @@ const file = ref<File | null>(null)
 const preview = ref('')
 const loading = ref(false)
 const results = reactive<Record<string, any>>({})
-const mllmModel = ref('未配置')
 const auditText = ref('')
 const modules = ref(['deepfake', 'mllm', 'rag', 'content_safety'])
 const currentStep = ref('')
+const currentStepLabel = computed(() => ({
+  deepfake: '正在进行 Deepfake 检测...',
+  mllm: '正在进行多模态解释分析...',
+  rag: '正在进行知识库审核...',
+  content_safety: '正在进行图片内容安全检测...',
+  report: '正在生成检测报告...',
+} as Record<string, string>)[currentStep.value] || '正在初始化检测...')
 const provenanceLoading = ref(false)
 const watermarkLoading = ref(false)
 let lastProvenanceRun = 0
@@ -327,30 +291,7 @@ const generateAuditWatermark = async () => {
   }
 }
 
-onMounted(async () => {
-  try {
-    const r = await fetch('/api/system/info')
-    const d = await r.json()
-    mllmModel.value = d.mllm_model || '未配置'
-  } catch {}
-})
-
-const doneCount = computed(() =>
-  [results.deepfake, results.mllm, results.rag, results.content_safety].filter(Boolean).length
-)
-
-const deepfakeLabel = (label: string) => ({
-  fake: '伪造',
-  real: '真实',
-  review: '人工复核',
-  inconclusive: '结论不足',
-  skipped: '非人脸',
-}[label] || '结论不足')
-const deepfakeClass = (label: string) => label === 'fake'
-  ? 'badge-danger'
-  : label === 'real'
-    ? 'badge-success'
-    : 'badge-warn'
+const hasResults = computed(() => Object.keys(results).length > 0)
 
 const quotes = [
   { text: '凡是过往，皆为序章。', from: '暴风雨', author: '莎士比亚' },
@@ -475,17 +416,11 @@ const runAudit = async () => {
       if (event === 'content_safety') { results.content_safety = payload; currentStep.value = '' }
       if (event === 'done') {
         loading.value = false
-        // 保存报告
-        try {
-          const fd = new FormData()
-          if (file.value) fd.append('image', file.value)
-          if (auditText.value.trim()) fd.append('text', auditText.value.trim())
-          const rr = await fetch('/api/detect/report', { method: 'POST', body: fd })
-          const rd = await rr.json()
-          const ids = JSON.parse(localStorage.getItem('report_ids') || '[]')
-          ids.push(rd.report_id)
-          localStorage.setItem('report_ids', JSON.stringify(ids))
-        } catch {}
+        if (payload.report_id) {
+          const ids = new Set<string>(JSON.parse(localStorage.getItem('report_ids') || '[]'))
+          ids.add(payload.report_id)
+          localStorage.setItem('report_ids', JSON.stringify([...ids]))
+        }
       }
     }
   }
@@ -507,4 +442,34 @@ const runAudit = async () => {
 .scan-box{background:#fff;box-shadow:0 20px 56px rgba(16,40,60,.2)}
 .source-btn{min-height:34px;padding:0 14px;color:var(--primary);background:#fff;border:1px solid var(--primary);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.source-btn:disabled{opacity:.45;cursor:not-allowed}
 .sys-rows{gap:8px}.stats-row{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.safety-findings{display:flex;flex-direction:column;gap:7px}.safety-finding{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:9px 10px;background:#f7fafc;border-left:3px solid var(--danger)}.safety-finding span{color:var(--text);font-size:11px;font-weight:650}.safety-finding b{color:var(--danger);font:11px ui-monospace,monospace}.safety-finding p{grid-column:1/3;margin:0;color:var(--muted);font-size:10px;line-height:1.5}.safe-note{padding:9px 10px;color:var(--success);background:rgba(22,128,94,.06);border:1px solid rgba(22,128,94,.16);border-radius:5px;font-size:10px}
+.detect-page{max-width:1280px;gap:14px}
+.top-grid{grid-template-columns:minmax(220px,.75fr) minmax(340px,1.35fr) minmax(250px,.9fr);gap:12px}
+.top-grid>.card{min-height:174px;padding:18px}
+.info-card{position:relative;padding-top:48px!important}
+.card-eyebrow{position:absolute;top:16px;left:18px;color:var(--primary);font-size:11px;font-weight:700;letter-spacing:.04em}
+.info-name{max-width:190px;font-size:15px}.info-sub{margin-top:5px}
+.sys-card .card-title,.ring-card .card-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px}
+.sys-card .card-title,.ring-card .card-title{text-align:left}
+.sys-card .card-title small,.ring-card .card-title small{color:var(--faint);font-size:9px;font-weight:400}
+.ring-card{flex-direction:column;align-items:stretch!important;justify-content:flex-start!important}.ring-card .ring-wrap{margin:auto}.ring-wrap{gap:34px}.ring-svg{width:88px;height:88px}.ring-center{top:43px}
+.stats-row{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.stat-box{min-height:68px;padding:11px 9px}.stat-num{font-size:17px}.stat-label{font-size:10px}
+.action-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:stretch}.upload-zone,.upload-zone :deep(.el-upload){display:flex;min-width:0}.upload-zone :deep(.el-upload){width:100%;flex:1}.upload-zone :deep(.el-upload-dragger){min-height:252px;height:auto;display:grid;place-items:center;flex:1;padding:18px!important}.upload-inner{gap:8px}.upload-text{font-size:14px}
+.control-panel{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-sm)}
+.module-heading{display:flex;align-items:baseline;justify-content:space-between;color:var(--text);font-size:13px;font-weight:700}.module-heading small{color:var(--faint);font-size:10px;font-weight:400}.module-group{display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px solid var(--line)}.module-group>b{margin-bottom:2px;color:var(--muted);font-size:10px;font-weight:700}.module-option{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:6px;min-height:27px;color:var(--text);font-size:11px;cursor:pointer}.module-option input{width:14px;height:14px;accent-color:var(--primary)}.module-option small{color:var(--faint);font-size:9px}.module-actions{display:flex;flex-direction:column;gap:7px;margin-top:auto;padding-top:5px}.module-actions .source-btn,.module-actions .detect-btn{width:100%;min-height:36px}.module-actions .source-btn{font-size:11px}.module-actions .detect-btn{font-size:12px}
+.card[style*="padding:12px 16px"]{padding:16px!important}.card[style*="padding:12px 16px"]>div:first-child{margin-bottom:9px!important;color:var(--text)!important;font-size:12px!important;font-weight:700}.audit-textarea{min-height:76px}
+.results-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-card{min-height:146px}.result-card .card-title{display:flex;align-items:center;gap:8px}.result-card .card-title::before{content:'';width:3px;height:15px;background:var(--primary);border-radius:2px}.result-body{gap:10px}
+@media(max-width:1050px){.top-grid{grid-template-columns:1fr 1fr}.ring-card{grid-column:1/-1}.stats-row{grid-template-columns:repeat(3,minmax(0,1fr))}.action-row{grid-template-columns:minmax(0,1fr) 280px}}
+@media(max-width:700px){.top-grid,.results-grid{grid-template-columns:1fr}.ring-card{grid-column:auto}.action-row{grid-template-columns:1fr}.upload-zone :deep(.el-upload-dragger){height:220px}.control-panel{padding:13px}.module-option{font-size:12px}.module-option small{font-size:10px}}
+.outcome-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:auto 0}.outcome-metric{display:flex;min-width:0;flex-direction:column;gap:5px;padding:10px 8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px}.outcome-metric span,.outcome-metric small{overflow:hidden;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.outcome-metric b{overflow:hidden;color:var(--text);font-size:14px;text-overflow:ellipsis;white-space:nowrap}.outcome-metric b.badge-success{color:var(--success)}.outcome-metric b.badge-danger,.outcome-metric b.metric-danger{color:var(--danger)}.outcome-metric b.badge-warn{color:var(--warning)}
+.score-guide{background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.score-guide summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;color:var(--text);cursor:pointer;font-size:12px;font-weight:700;list-style:none}.score-guide summary::-webkit-details-marker{display:none}.score-guide summary::after{order:-1;content:'+';display:grid;width:18px;height:18px;place-items:center;color:var(--primary);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;font-size:15px;font-weight:400}.score-guide[open] summary::after{content:'−'}.score-guide summary span{margin-right:auto}.score-guide summary small{color:var(--faint);font-size:10px;font-weight:400}.score-guide-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 14px 14px}.score-guide-grid article{padding:10px;background:var(--surface-2);border-left:3px solid var(--primary)}.score-guide-grid b{color:var(--text);font-size:11px}.score-guide-grid p{margin:6px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
+.calibration-status{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.calibration-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.calibration-head h2{margin:3px 0 0;color:var(--text);font-size:14px}.calibration-badge{padding:4px 9px;border-radius:4px;font-size:10px;font-weight:700}.calibration-smoke_only{color:#9a6500;background:#fff7df;border:1px solid #ecd58c}.calibration-not_calibrated{color:var(--muted);background:var(--surface-2);border:1px solid var(--line)}.calibration-calibrated{color:#167e5e;background:#e8f7f0;border:1px solid #a9dfc9}.calibration-claim{margin:10px 0;color:var(--muted);font-size:11px;line-height:1.55}.calibration-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px}.calibration-task{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:9px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px}.calibration-task span{overflow:hidden;color:var(--text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}.calibration-task b{color:var(--warning);font-size:10px}.calibration-task small{grid-column:1/-1;color:var(--faint);font-size:9px}.calibration-task .task-protocol{overflow:hidden;color:var(--muted);text-overflow:ellipsis;white-space:nowrap}.calibration-boundary{display:block;margin-top:9px;color:var(--faint);font-size:10px;line-height:1.5}
+@media(max-width:1050px){.outcome-metrics{max-width:600px}.score-guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.outcome-metrics,.score-guide-grid{grid-template-columns:1fr}.score-guide summary{align-items:flex-start;flex-wrap:wrap}.score-guide summary small{width:100%;padding-left:30px}}
+.calibration-status .card-eyebrow{position:static;display:block}.calibration-partially_calibrated{color:#8a5b00;background:#fff7df;border:1px solid #ecd58c}.calibration-tasks{grid-template-columns:repeat(3,minmax(0,1fr))}.calibration-task span{overflow:visible;font-size:12px;text-overflow:clip;white-space:normal}.calibration-task small{font-size:10px}@media(max-width:900px){.calibration-tasks{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.calibration-tasks{grid-template-columns:1fr}}
+.calibration-task .task-evidence{overflow:hidden;color:var(--faint);text-overflow:ellipsis;white-space:nowrap}
+.calibration-task .task-ci{color:var(--muted);line-height:1.45}
+.result-note{margin:0;color:var(--faint);font-size:10px;line-height:1.55}
+.task-header{display:flex;align-items:center;justify-content:space-between;gap:28px;padding:6px 2px 14px;border-bottom:1px solid var(--line)}.task-heading{display:flex;align-items:center;gap:13px;min-width:280px}.task-heading-icon{width:44px;height:44px;display:grid;place-items:center;flex:0 0 44px;color:#fff;background:var(--primary);border-radius:7px;box-shadow:0 8px 18px rgba(8,126,174,.17)}.task-kicker{color:var(--primary);font-size:9px;font-weight:750}.task-heading h1{margin:3px 0 2px;font-size:20px;line-height:1.2}.task-heading p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}.workflow-steps{display:grid;grid-template-columns:repeat(4,minmax(118px,1fr));min-width:min(660px,62%);border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}.workflow-step{position:relative;display:flex;align-items:center;gap:8px;min-width:0;padding:11px 12px;color:var(--faint);border-right:1px solid var(--line)}.workflow-step:last-child{border-right:0}.workflow-step::after{content:'';position:absolute;left:0;right:100%;bottom:0;height:2px;background:var(--primary);transition:right .25s ease}.workflow-step.active{color:var(--primary);background:rgba(8,126,174,.035)}.workflow-step.active::after,.workflow-step.done::after{right:0}.workflow-step.done{color:var(--success)}.workflow-step>svg{flex:0 0 auto}.workflow-step span{min-width:0}.workflow-step b,.workflow-step small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.workflow-step b{color:var(--text);font-size:10px}.workflow-step small{margin-top:2px;color:inherit;font-size:8px}.stats-row{grid-template-columns:repeat(4,minmax(0,1fr))}.upload-preview{width:min(240px,82%);height:152px;object-fit:contain;background:var(--surface-2);border:1px solid var(--line);border-radius:6px}.result-overview{display:grid;grid-template-columns:220px 1fr;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm)}.result-overview-heading{display:flex;align-items:center;gap:10px;padding:16px 18px;background:var(--surface-2);border-right:1px solid var(--line)}.result-overview-heading>span{width:34px;height:34px;display:grid;place-items:center;color:var(--success);background:rgba(22,128,94,.08);border-radius:5px}.result-overview-heading small{color:var(--primary);font-size:8px;font-weight:750}.result-overview-heading h2{margin:3px 0 0;font-size:14px}.result-overview .outcome-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0}.result-overview .outcome-metric{justify-content:center;padding:13px 16px;background:#fff;border:0;border-right:1px solid var(--line);border-radius:0}.result-overview .outcome-metric:last-child{border-right:0}.result-overview .outcome-metric span,.result-overview .outcome-metric small{font-size:9px}.result-overview .outcome-metric b{font-size:15px}
+@media(max-width:1050px){.task-header{align-items:flex-start;flex-direction:column}.workflow-steps{width:100%;min-width:0}.result-overview{grid-template-columns:180px 1fr}}
+@media(max-width:700px){.task-heading{min-width:0}.task-heading h1{font-size:18px}.workflow-steps{grid-template-columns:1fr 1fr}.workflow-step:nth-child(2){border-right:0}.workflow-step:nth-child(-n+2){border-bottom:1px solid var(--line)}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.result-overview{grid-template-columns:1fr}.result-overview-heading{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metrics{grid-template-columns:1fr}.result-overview .outcome-metric{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metric:last-child{border-bottom:0}}
 </style>

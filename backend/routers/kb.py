@@ -2,12 +2,13 @@
 知识库路由 — /api/kb/*
 """
 import asyncio
+import json
 import os
 import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from services import kb_service
@@ -62,7 +63,9 @@ async def get_chunks(file_id: str):
 
 @router.delete("/files/{file_id}")
 async def delete_file(file_id: str):
-    await asyncio.to_thread(kb_service.delete_file, file_id)
+    deleted = await asyncio.to_thread(kb_service.delete_file, file_id)
+    if not deleted:
+        raise HTTPException(status_code=409, detail="平台维护的公开来源不可在页面删除")
     return {"status": "deleted"}
 
 
@@ -70,7 +73,8 @@ async def delete_file(file_id: str):
 async def chat(question: str = Form(...)):
     def gen():
         for token in kb_service.query_stream(question):
-            yield f"data: {token}\n\n"
+            # JSON preserves newlines and prevents a partial network chunk from corrupting an SSE token.
+            yield f"data: {json.dumps(token, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")

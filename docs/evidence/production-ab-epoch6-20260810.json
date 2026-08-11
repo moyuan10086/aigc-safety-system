@@ -1,0 +1,72 @@
+{
+  "count": 8,
+  "count_per_class": 4,
+  "accuracy_at_0_50": 0.375,
+  "auc": 0.1875,
+  "real_score_mean": 0.85645,
+  "fake_score_mean": 0.705,
+  "operational_decisions": {
+    "real": 0,
+    "review": 2,
+    "fake": 6,
+    "inconclusive": 0
+  },
+  "rows": [
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-real/id0_0000/000.png",
+      "label": 0,
+      "score": 0.6685,
+      "decision": "review",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-real/id0_0000/015.png",
+      "label": 0,
+      "score": 0.9259,
+      "decision": "fake",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-real/id0_0000/030.png",
+      "label": 0,
+      "score": 0.9216,
+      "decision": "fake",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-real/id0_0000/045.png",
+      "label": 0,
+      "score": 0.9098,
+      "decision": "fake",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-synthesis/id0_id1_0000/000.png",
+      "label": 1,
+      "score": 0.2742,
+      "decision": "review",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-synthesis/id0_id1_0000/015.png",
+      "label": 1,
+      "score": 0.8826,
+      "decision": "fake",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-synthesis/id0_id1_0000/030.png",
+      "label": 1,
+      "score": 0.8402,
+      "decision": "fake",
+      "status": "completed"
+    },
+    {
+      "path": "deepfake-detection/datasets/CDFv2/Celeb-synthesis/id0_id1_0000/045.png",
+      "label": 1,
+      "score": 0.823,
+      "decision": "fake",
+      "status": "completed"
+    }
+  ]
+}

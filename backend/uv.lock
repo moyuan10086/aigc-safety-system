@@ -248,6 +248,7 @@ dependencies = [
     { name = "lightning" },
     { name = "loguru" },
     { name = "matplotlib" },
+    { name = "nudenet" },
     { name = "open-clip-torch" },
     { name = "openai" },
     { name = "opencv-python-headless" },
@@ -294,6 +295,7 @@ requires-dist = [
     { name = "lightning", specifier = ">=2.6.1" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "nudenet", specifier = "==3.4.2" },
     { name = "open-clip-torch", specifier = ">=3.3.0" },
     { name = "openai", specifier = ">=2.32.0" },
     { name = "opencv-python-headless", specifier = ">=4.13.0.92" },
@@ -2610,6 +2612,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/74/a1/b3b4adf15585a5bc4c357adde150c01ebeeb642173ded4d871e89468767c/nltk-3.9.4.tar.gz", hash = "sha256:ed03bc098a40481310320808b2db712d95d13ca65b27372f8a403949c8b523d0", size = 2946864, upload-time = "2026-03-24T06:13:40.641Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/91/04e965f8e717ba0ab4bdca5c112deeab11c9e750d94c4d4602f050295d39/nltk-3.9.4-py3-none-any.whl", hash = "sha256:f2fa301c3a12718ce4a0e9305c5675299da5ad9e26068218b69d692fda84828f", size = 1552087, upload-time = "2026-03-24T06:13:38.47Z" },
+]
+
+[[package]]
+name = "nudenet"
+version = "3.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "onnxruntime", version = "1.24.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "onnxruntime", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "opencv-python-headless" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/8f/9e4862f004f648d240039ebffda2441d230741c164efaa25038051b56c60/nudenet-3.4.2.tar.gz", hash = "sha256:b20645d5f06bbb10006e6d4dc8a9513cf684269bbcffb0557a3ed6831aa90d75", size = 10596676, upload-time = "2024-07-03T17:32:05.792Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/ee/1aa02d44ba958cc77e16ff1e41a0aac5e721037db7bf62b9c9d124917f87/nudenet-3.4.2-py3-none-any.whl", hash = "sha256:5937dbd84e5d8e5de038f08ffea5a1bb50a08475776bf2b4795914ce0eaf0331", size = 10595223, upload-time = "2024-07-03T17:32:02.78Z" },
 ]
 
 [[package]]

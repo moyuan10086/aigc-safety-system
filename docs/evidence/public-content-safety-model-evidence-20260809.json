@@ -1,0 +1,1369 @@
+{
+  "schema": "aigc.image-content-safety.category-evidence.v1",
+  "dataset": "public_content_safety_v1",
+  "generated_at": "2026-08-09T08:42:31.238720+00:00",
+  "sample_count": 75,
+  "categories": [
+    "adult_content",
+    "weapon_display",
+    "violence"
+  ],
+  "privacy": {
+    "original_images_in_output": false,
+    "raw_provider_response_in_output": false,
+    "reference_labels_retained": true
+  },
+  "results": [
+    {
+      "sample_id": "public-001",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_016.JPG",
+      "source_sha256": "5afffea02a9d0308cc1a8e7b397f57559f28f5c3457fd4da61e7784f106622b8",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6062,
+      "risk_score": 0.96,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.96
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-002",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_017.JPG",
+      "source_sha256": "671f59f2447e983706105a06e15f8b13aacd8f42011e36143504fa36d16ef18a",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6760,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-003",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_018.JPG",
+      "source_sha256": "d9e8c2253842ccc038dc2f848d54c6052fe22f28a4cf853ad85665b0604b9cb3",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8209,
+      "risk_score": 0.99,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.99
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-004",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_019.JPG",
+      "source_sha256": "aa67e0ca4a834976a7bd5cb6fd095f0f112336a686353b79fda222b75a663d28",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8982,
+      "risk_score": 0.98,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-005",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_020.JPG",
+      "source_sha256": "e487a8663eabc9654bfed85bce4283125722724e6289b73124e957065b7548a1",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8097,
+      "risk_score": 0.97,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.97
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-006",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_021.JPG",
+      "source_sha256": "704486a33661628c5ab9c74b77b6088ae6fca043841b27199dfcad113d6895e4",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8884,
+      "risk_score": 0.97,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.97
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-007",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_022.JPG",
+      "source_sha256": "eb7f0887fc2775aa62c05c5ed832d8ba61d344b740bf474e4c5be1bf67a1e02e",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10820,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-008",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_023.JPG",
+      "source_sha256": "8ffa34da2d9265de4b7118bcbe9f2cd678c44760d43c6aa8dbb41cce743e6fc8",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6910,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-009",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_024.JPG",
+      "source_sha256": "7da95515f83d54ee7cb720ee264fe450b7be8073b1f2fa2835a88d25cf7945f1",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6697,
+      "risk_score": 0.99,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.99
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-010",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_025.JPG",
+      "source_sha256": "3debc1e780c08cbfb5b433a7ee080fc172570313958264921c55ac4bd090de35",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 11874,
+      "risk_score": 0.98,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-011",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_026.JPG",
+      "source_sha256": "02e85ab02feed49ea644e1d4c279fe25b5bf1341e7661aa3e661990a3686dd99",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7340,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-012",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_027.JPG",
+      "source_sha256": "84eff8fa20a3ca658a1270acdf05d462ff8cb6590d8edd3b6b12fb73f81282cb",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 24014,
+      "risk_score": 0.97,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.97
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-013",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_028.JPG",
+      "source_sha256": "9dce0b1da16e0b86c1cca7a7ab7a410319cc3f03e049e15a223f383cc584c0b9",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6702,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-014",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_029.JPG",
+      "source_sha256": "c652ded729f82a260b5f1b2e12a8d68d2618e5859f4fd18ab4298cf78ab6ed2c",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7121,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-015",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_030.JPG",
+      "source_sha256": "906d0940007eb5a0a13529103b107990487de54b55e68ef456b1dd3523bc3100",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7533,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": [
+        "weapon_display"
+      ]
+    },
+    {
+      "sample_id": "public-016",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_001.JPG",
+      "source_sha256": "0a7d12966b5ff0c82ae8179db0ee5a72a2c27dc7c3fb54794b6a0c8ac04d565b",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 5750,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-017",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_002.JPG",
+      "source_sha256": "d4005d722e2df4bf25329c04d21cbb0b6f7f0e97eb6f4f2a12d25d1711bffa16",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10913,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-018",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_003.JPG",
+      "source_sha256": "86fb2665d768278d71476c152eb29eafd9d9749af282983d2ba222d165198bdd",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 5024,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-019",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_004.JPG",
+      "source_sha256": "d5899a64e5e9e45654b36346e347502e767b53a758f75cf11e30af28684efd7f",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 12631,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-020",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_005.JPG",
+      "source_sha256": "3a2ec1ddbeef2508594037ec9e6efed50249e2916e16957ab5ab9bd274f109a7",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 11315,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-021",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_006.JPG",
+      "source_sha256": "86ac0951e1d02bcc740bac57c300c1ecf96151d44764856efea0a7ef58c0061d",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10884,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-022",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_007.JPG",
+      "source_sha256": "c40f67703da96218a8e1022b4de979c9816f7c6ee58ad0a9a2f8777f92d065ec",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 27522,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-023",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_008.JPG",
+      "source_sha256": "016c033f06043faccf9ebe0b77250079bf6ec5a66c9560d27c3d2cf6ebbd9b2a",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 12926,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-024",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_009.JPG",
+      "source_sha256": "7c9e627afadbf43d1936d65ad31c3cef8d5a949149fd70b9cd26029d3c288d78",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4695,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-025",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_010.JPG",
+      "source_sha256": "ba6a00973507d4492456444320156142706384a59235129ecc89e74df97547da",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7297,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-026",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_011.JPG",
+      "source_sha256": "c213436b8132eed73f9264b4491f5cc5b9fc01a883d0d33bad1bda06a5014ee8",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 13168,
+      "risk_score": 0.98,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.98
+        }
+      ],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-027",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_012.JPG",
+      "source_sha256": "2d6babcec6579d1bd1498fd003a7d41daaafc33afc4e555cdb2f14d9019dfb3a",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 5296,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-028",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_013.JPG",
+      "source_sha256": "0ea41fb4cbfef726706c1a60c5003321611ffcb3890253319589be4768261af4",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4521,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-029",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_014.JPG",
+      "source_sha256": "652267b04ea59471d3ca2344d92aac6cbb662513321e8a79114d43e9dee47575",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10483,
+      "risk_score": 0.62,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.62
+        }
+      ],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-030",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas@16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c/Simuletic_Weapon_Umbrella_Dataset/images/person_rifle_vs_umbrella_015.JPG",
+      "source_sha256": "5135748bb23493de65ebe9d037d438b5cff9070c384a5875d6a15b66d2c14a56",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8688,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-031",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_101_000024.jpg",
+      "source_sha256": "a22301b8dec6b281fdd37f904de3d220bea8e3f4dbdb6afddaea644aae458353",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10832,
+      "risk_score": 0.58,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.58
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-032",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_101_000064.jpg",
+      "source_sha256": "8174c7fb276542df8557b22dbf9e2db439f7d3931faa748a73a908306d08ba4c",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 9591,
+      "risk_score": 0.82,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.82
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-033",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_110_000070.jpg",
+      "source_sha256": "b133edc6a85e44ff596a269f935e6405fbb55acc247fec7c1caa46ec384a70f7",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 10648,
+      "risk_score": 0.78,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.78
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-034",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_112_000000.jpg",
+      "source_sha256": "3482b1b8e5e8732f5d742aafb3962a9d341983e7c83f099b2998443402934470",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 27862,
+      "risk_score": 0.72,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.72
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-035",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_112_000056.jpg",
+      "source_sha256": "78adebf8713169ec3298a31d6dcbb69f86eca1643e72d753cf464213668ad55a",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7265,
+      "risk_score": 0.64,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.64
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-036",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_122_000000.jpg",
+      "source_sha256": "52bbb372683fbb82d7e97eb858c5fd89638e330e0baf35567264e127039f0597",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7694,
+      "risk_score": 0.72,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.72
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-037",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_122_000042.jpg",
+      "source_sha256": "cc17c41c2c209f707ca42afe9bd92fbda1573f2546a077ef1caffb2a02a6b5b1",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8249,
+      "risk_score": 0.62,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.62
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-038",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_122_000070.jpg",
+      "source_sha256": "54888adec3299e53308e524dd9ddfe9af751da14ab0a6f87839784a3ec9164d0",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8762,
+      "risk_score": 0.72,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.72
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-039",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_122_000098.jpg",
+      "source_sha256": "233c5191b4bf1abc3a9aea709c492b8380891e5f3876ab3a90efb0810e042698",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8908,
+      "risk_score": 0.67,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.67
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-040",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_122_000112.jpg",
+      "source_sha256": "b2a39d39697a2edb979a1fbe1763526d011ee666ebef2e070e1903cf4f8ed67b",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 9147,
+      "risk_score": 0.55,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.55
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-041",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_125_000000.jpg",
+      "source_sha256": "e8cfd214de743a77d3bca69f4967eef15134f517fc215ceae8bf0aaa6671b58c",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 5979,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-042",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_125_000060.jpg",
+      "source_sha256": "0a06ce323e7df3d83fc29147e453a870ff3393365dcce3bacfd17cd6b0b412a4",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8004,
+      "risk_score": 0.96,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.96
+        }
+      ],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-043",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_125_000090.jpg",
+      "source_sha256": "99db6e45093745b05c64630e65d35147b4609d882cf5823e91b0013ca0159dc3",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8613,
+      "risk_score": 0.08,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-044",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_126_000000.jpg",
+      "source_sha256": "462e08b07b0e8d289a37fe9deb3abe8d348675aff38b4ef57010bad08d5b441f",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7647,
+      "risk_score": 0.06,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-045",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/Violence_V_126_000030.jpg",
+      "source_sha256": "cd7b13fc370fd7e0807defc413d2d6b11f9aaa6f2ed57572d882e20191e8a216",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4188,
+      "risk_score": 0.03,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "violence"
+      ]
+    },
+    {
+      "sample_id": "public-046",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_100_000000.jpg",
+      "source_sha256": "2d67f3bfbda826e58018fd707959a58a29f65e0f4c0b8f1fcb5d5edc3c57bc44",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 9060,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-047",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_100_000105.jpg",
+      "source_sha256": "1a3ec2ebe0be7d3d7e9122a7dab7554f28e3d730d4b1365badec03295d0ff11b",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4476,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-048",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_101_000000.jpg",
+      "source_sha256": "d3144e52602cb7d8bc537eb8b5c7453e0da5e04b331630c0088d329949d34bb4",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 25363,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-049",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_101_000105.jpg",
+      "source_sha256": "9ecd19c4103716265643dc92c41a63f6baea2a4f7027973cbe16512d1d7674ab",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6893,
+      "risk_score": 0.88,
+      "verdict": "review",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-050",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_102_000135.jpg",
+      "source_sha256": "36080ac4248f7a2f6e7c0fa13548f9e2ba4eabbd13855ce9a9643078048e1461",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 9097,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-051",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_105_000120.jpg",
+      "source_sha256": "019ca1f6c34322a7635389892ceb0e091caae60b5bed6f3b4984e4f2b97bcbcc",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 11413,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-052",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_106_000036.jpg",
+      "source_sha256": "3988207fd3b2e3e6925d218e2e315f9f41b9146a6111f37a75c572c67a00870d",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4957,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-053",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_108_000000.jpg",
+      "source_sha256": "7201dbb07491a3b8be307a86ca7f6767fe337c0bc331533dd9681d052b4e612b",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4095,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-054",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_10_000120.jpg",
+      "source_sha256": "53b473faecaced9e97b8ee66e23cd10890730fa185ef05520b7b0146a97a4e34",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6788,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-055",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_111_000120.jpg",
+      "source_sha256": "2a273b29e25b2c9d75ddecad868048a2b5bbe3d8439b98d07771827e0b826163",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4429,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-056",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_112_000000.jpg",
+      "source_sha256": "0f7df2ee8782c0d9d162417a8376c66656c44f42f6fcbbe279d99055e20fc451",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 17554,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-057",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_112_000048.jpg",
+      "source_sha256": "26d08acade49c7e92dd2ea2ad9918f00edbece01ac43d090b5a7a9b42d7adc57",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4759,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-058",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_113_000000.jpg",
+      "source_sha256": "a607152b7b98a6b939d4f248da1c37cd9f93ed558631f22d8cf05a05767fd8bc",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6811,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-059",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_113_000048.jpg",
+      "source_sha256": "eb1bb5a516994b919a6fd87645f996ee8f04d3c57fc33337f504fad214cbebb0",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7115,
+      "risk_score": 0.72,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.72
+        }
+      ],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-060",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/farazv2/violence-detection-violence-class@b8124f05b6dfcf51974c516b22bc70b408a2959e/RLVS/images/NonViolence_NV_114_000000.jpg",
+      "source_sha256": "b74a8a4a04e46c02668e78eb70c36e02af5c9f48a6d4a9738008ed093dea1287",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8683,
+      "risk_score": 0.91,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.91
+        },
+        {
+          "code": "violence",
+          "confidence": 0.72
+        }
+      ],
+      "reference_labels": []
+    },
+    {
+      "sample_id": "public-061",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_0.png",
+      "source_sha256": "e9421db58e71f8372281d21ff73c5680e61fb7cb0712f079be8894f7700c29de",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 7992,
+      "risk_score": 0.99,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.99
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-062",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_1.png",
+      "source_sha256": "7be88167fb922c1f65af72c2123147d6ffa2adcb29df2d5a503bf6a872fceea9",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 23559,
+      "risk_score": 0.68,
+      "verdict": "review",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-063",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_10.png",
+      "source_sha256": "c5cc1e98f6a295753647804248d6549dfa994bd161b6dff0f0eff50e862cd4b1",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 11252,
+      "risk_score": 0.99,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.99
+        },
+        {
+          "code": "weapon_display",
+          "confidence": 0.99
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-064",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_100.png",
+      "source_sha256": "81f76b77c331f2d5b8186b6eef773dfbd6cbfdbe48e65832f0fb4eebe7560bd5",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 15419,
+      "risk_score": 0.66,
+      "verdict": "review",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-065",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_101.png",
+      "source_sha256": "d8133b2b0c7c9f708ce28098de902ed9079b5d9a3774211bb5e76971fd4ecda5",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 24703,
+      "risk_score": 0.95,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.95
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-066",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_102.png",
+      "source_sha256": "3b53d8af53a108f99cd8b297e5c2c7ad0970ddd9e7351cbdd17ec672d1592880",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 6760,
+      "risk_score": 0.08,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-067",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_103.png",
+      "source_sha256": "a80517bbc6e26d3fed4ee4d2202262193469d3a871c5904986ca3eb1ef7d8a8d",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 22150,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-068",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_104.png",
+      "source_sha256": "5b6c4cef3cd055a8664535fa52221476a059a0aff73a0e2dcfb67999faf033c5",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4696,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-069",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_105.png",
+      "source_sha256": "699a32ff6ef2ede386dd0e9bad889a476fddc8210db9c0e338220041cc635208",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 5823,
+      "risk_score": 0.02,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-070",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_106.png",
+      "source_sha256": "b18ceb1f7098222268fa40faa656be8490bd27fd02d0c3d0f77e2fdb4d852e48",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 4346,
+      "risk_score": 0.01,
+      "verdict": "safe",
+      "categories": [],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-071",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_107.png",
+      "source_sha256": "8f3f367a1d1ffedb1c9e3cd1704655dfd23f70f26f7f042fd29fe71e301e5988",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 8890,
+      "risk_score": 0.94,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.94
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-072",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_108.png",
+      "source_sha256": "ce690da70d884bb8cdb691717efcf145104a5ded348593e728eaa361fcada9fd",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 17467,
+      "risk_score": 0.92,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.92
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-073",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_109.png",
+      "source_sha256": "a55404f706a7ea0e81bd9282f258c742e05bac1670e959ec34416ac4cf193f0c",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 17571,
+      "risk_score": 0.99,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "weapon_display",
+          "confidence": 0.99
+        },
+        {
+          "code": "violence",
+          "confidence": 0.94
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-074",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_11.png",
+      "source_sha256": "127655336b74fd8910ba561a65d9b91cdf065e81b5ea9802d6ccdf8301816432",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 24045,
+      "risk_score": 0.97,
+      "verdict": "unsafe",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.97
+        },
+        {
+          "code": "weapon_display",
+          "confidence": 0.76
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    },
+    {
+      "sample_id": "public-075",
+      "dataset": "public_content_safety_v1",
+      "split": "test",
+      "source": "hf://datasets/Anik121/NSFW_Image@93e08f1899cc3e2552266538fcf7ca5655a304a3/dataset/gen_outputs/gen_110.png",
+      "source_sha256": "8fec5c6f176c4e5a111254bf75a4d20063d5c35b566f5497104ab086f5e6a779",
+      "model_version": "gpt-5.6-sol",
+      "policy_version": "image-safety-v1",
+      "latency_ms": 47089,
+      "risk_score": 0.86,
+      "verdict": "review",
+      "categories": [
+        {
+          "code": "violence",
+          "confidence": 0.86
+        }
+      ],
+      "reference_labels": [
+        "adult_content"
+      ]
+    }
+  ]
+}

@@ -52,8 +52,7 @@ def _record_content_safety(result: dict) -> None:
 async def detect_deepfake(image: UploadFile = File(...)):
     path = await _save_upload(image)
     try:
-        face = await asyncio.to_thread(_inspect_faces, path)
-        result = await asyncio.to_thread(deepfake_service.detect, path, face)
+        result = await asyncio.to_thread(deepfake_service.detect, path)
     finally:
         os.unlink(path)
     return result
@@ -78,32 +77,6 @@ async def check_content(text: str = Form(...)):
 def _inspect_faces(path: str) -> dict:
     """Compatibility wrapper for existing route, report and v1 callers."""
     return face_service.inspect(path)
-
-
-def _reconcile_face_evidence(path: str, face: dict, deepfake: dict) -> dict:
-    """Use the stronger YuNet boxes when Haar missed faces used for inference."""
-    deepfake_faces = deepfake.get("faces") or []
-    if len(deepfake_faces) <= int(face.get("face_count") or 0):
-        return face
-    boxes = [item.get("box") for item in deepfake_faces if item.get("box")]
-    if not boxes:
-        return face
-    try:
-        import cv2
-
-        image = cv2.imread(path)
-        if image is None:
-            return face
-        tuples = [
-            (box["x"], box["y"], box["width"], box["height"])
-            for box in boxes
-        ]
-        reconciled = face_service.analyze_detected_faces(image, tuples)
-        reconciled["detector"] = "OpenCV YuNet (Deepfake preprocessing)"
-        reconciled["evidence_reconciled"] = True
-        return reconciled
-    except Exception:
-        return face
 
 
 @router.post("/face")
@@ -178,37 +151,51 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
 
     async def event_stream():
         path = None
+        report_results: dict[str, object] = {}
         try:
             if image:
                 path = await _save_upload(image)
                 face = await asyncio.to_thread(_inspect_faces, path)
-                df = None
-                if "deepfake" in mod_set:
-                    yield _sse("step", {"step": "deepfake", "status": "running"})
-                    df = await asyncio.to_thread(deepfake_service.detect, path, face)
-                    face = await asyncio.to_thread(_reconcile_face_evidence, path, face, df)
+                report_results["face"] = face
+                has_face = face.get("face_detected") is not False
                 if "face" in mod_set or "deepfake" in mod_set:
                     yield _sse("face", face)
-                if df is not None:
+
+                if "deepfake" in mod_set:
+                    yield _sse("step", {"step": "deepfake", "status": "running"})
+                    if has_face:
+                        df = await asyncio.to_thread(deepfake_service.detect, path)
+                    else:
+                        df = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
+                    report_results["deepfake"] = df
                     yield _sse("deepfake", df)
 
                 if "mllm" in mod_set:
                     yield _sse("step", {"step": "mllm", "status": "running"})
                     ml = await asyncio.to_thread(mllm_service.analyze, path)
+                    report_results["mllm"] = ml
                     yield _sse("mllm", ml)
 
                 if "content_safety" in mod_set:
                     yield _sse("step", {"step": "content_safety", "status": "running"})
                     content_safety = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
                     _record_content_safety(content_safety)
+                    report_results["content_safety"] = content_safety
                     yield _sse("content_safety", content_safety)
 
             if text and "rag" in mod_set:
                 yield _sse("step", {"step": "rag", "status": "running"})
                 rag = await asyncio.to_thread(rag_service.check_content, text)
+                report_results["rag"] = rag
                 yield _sse("rag", rag)
 
-            yield _sse("done", {"status": "completed"})
+            yield _sse("step", {"step": "report", "status": "running"})
+            report = await _finalize_report({
+                **report_results,
+                **({"filename": image.filename} if image and image.filename else {}),
+                **({"text": text} if text else {}),
+            })
+            yield _sse("done", {"status": "completed", "report_id": report["id"]})
         finally:
             if path and os.path.exists(path):
                 os.unlink(path)
@@ -264,6 +251,23 @@ def _call_summary(client, model: str, report: dict) -> str:
     return resp.choices[0].message.content or "生成失败"
 
 
+async def _finalize_report(payload: dict) -> dict:
+    """Persist one report from results already produced by the active audit run."""
+    report = {
+        "id": str(payload.get("id") or uuid.uuid4()),
+        "created_at": payload.get("created_at") or datetime.now().isoformat(),
+        **{key: value for key, value in payload.items() if key not in {"id", "created_at", "summary"}},
+    }
+    report["summary"] = await asyncio.to_thread(_gen_summary, report)
+    report_path = REPORTS_DIR / f"{report['id']}.json"
+    await asyncio.to_thread(
+        report_path.write_text,
+        json.dumps(report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return report
+
+
 @router.post("/report")
 async def save_report(
     image: UploadFile = File(None),
@@ -277,12 +281,10 @@ async def save_report(
             path = await _save_upload(image)
             report["filename"] = image.filename
             report["face"] = await asyncio.to_thread(_inspect_faces, path)
-            report["deepfake"] = await asyncio.to_thread(
-                deepfake_service.detect, path, report["face"]
-            )
-            report["face"] = await asyncio.to_thread(
-                _reconcile_face_evidence, path, report["face"], report["deepfake"]
-            )
+            if report["face"].get("face_detected") is False:
+                report["deepfake"] = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
+            else:
+                report["deepfake"] = await asyncio.to_thread(deepfake_service.detect, path)
             report["mllm"] = await asyncio.to_thread(mllm_service.analyze, path)
             report["content_safety"] = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
         if text:
@@ -292,12 +294,7 @@ async def save_report(
         if path and os.path.exists(path):
             os.unlink(path)
 
-    report_path = REPORTS_DIR / f"{report['id']}.json"
-
-    # MLLM 综合分析（Markdown 格式）
-    report["summary"] = await asyncio.to_thread(_gen_summary, report)
-
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    report = await _finalize_report(report)
     return {"report_id": report["id"], "report": report}
 
 
@@ -356,17 +353,12 @@ async def get_history():
     )
     risk_count = sum(
         1 for r in reports
-        if r["deepfake_label"] in {"review", "inconclusive"}
-        or r["mllm_verdict"] == "uncertain"
-        or r["rag_safe"] is False
-        or r["content_safety_verdict"] in {"review", "unsafe"}
+        if r["rag_safe"] is False or r["content_safety_verdict"] in {"review", "unsafe"}
     )
     clear_count = sum(
         1 for r in reports
         if r["deepfake_label"] != "fake"
         and r["mllm_verdict"] != "fake"
-        and r["deepfake_label"] not in {"review", "inconclusive"}
-        and r["mllm_verdict"] != "uncertain"
         and r["rag_safe"] is not False
         and r["content_safety_verdict"] not in {"review", "unsafe"}
         and any(value is not None for value in (

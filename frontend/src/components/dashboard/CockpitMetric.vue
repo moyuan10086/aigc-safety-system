@@ -1,5 +1,12 @@
 <template>
-  <article class="cockpit-metric" :class="[tone, status, { 'is-alert': alert }]">
+  <component
+    :is="interactive ? 'button' : 'article'"
+    class="cockpit-metric"
+    :class="[tone, status, { 'is-alert': alert, interactive }]"
+    :type="interactive ? 'button' : undefined"
+    :title="interactive ? actionLabel : undefined"
+    @click="interactive && emit('activate')"
+  >
     <span class="metric-edge" aria-hidden="true"></span>
     <span class="metric-emblem"><slot name="icon" /></span>
     <span class="metric-copy">
@@ -8,7 +15,7 @@
     </span>
     <strong class="metric-value"><span ref="valueHost">{{ value }}</span></strong>
     <span v-if="alert" class="metric-pulse" aria-hidden="true"></span>
-  </article>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -23,7 +30,11 @@ const props = withDefaults(defineProps<{
   /** 告警态：持续呼吸提示，用于风险告警等需要值守的指标 */
   alert?: boolean
   status?: 'normal' | 'warning' | 'critical'
-}>(), { tone: 'blue', alert: false, status: 'normal' })
+  interactive?: boolean
+  actionLabel?: string
+}>(), { tone: 'blue', alert: false, status: 'normal', interactive: false, actionLabel: '' })
+
+const emit = defineEmits<{ activate: [] }>()
 
 const valueHost = ref<HTMLElement | null>(null)
 let counter: CountUp | null = null
@@ -62,7 +73,12 @@ onBeforeUnmount(() => counter?.reset())
     linear-gradient(140deg,var(--sc-panel-3),rgba(6,24,42,0) 58%),
     var(--sc-panel);
   box-shadow:var(--sc-inset),var(--sc-depth);
+  color:inherit;font:inherit;text-align:left;
 }
+.cockpit-metric.interactive{cursor:pointer}
+.cockpit-metric.interactive::after{content:'\2197';position:absolute;right:7px;top:5px;z-index:3;color:var(--tone);font:11px var(--font-code);opacity:.58;transition:opacity .18s ease,transform .18s ease}
+.cockpit-metric.interactive:hover,.cockpit-metric.interactive:focus-visible{border-color:color-mix(in srgb,var(--tone) 48%,transparent);filter:brightness(1.08);outline:none}
+.cockpit-metric.interactive:hover::after,.cockpit-metric.interactive:focus-visible::after{opacity:1;transform:translate(1px,-1px)}
 .cockpit-metric.cyan{--tone:var(--sc-cyan);--tone-deep:var(--sc-cyan-deep);--tone-soft:rgba(34,227,216,.10)}
 .cockpit-metric.violet{--tone:var(--sc-violet);--tone-deep:var(--sc-violet-deep);--tone-soft:rgba(143,125,255,.12)}
 .cockpit-metric.mint{--tone:var(--sc-mint);--tone-deep:var(--sc-mint-deep);--tone-soft:rgba(60,232,170,.10)}
@@ -100,7 +116,7 @@ onBeforeUnmount(() => counter?.reset())
 }
 .metric-emblem :deep(svg){
   position:relative;z-index:1;width:20px;height:20px;stroke-width:1.9;
-  filter:drop-shadow(0 0 5px rgba(226,250,255,.7));
+  color:#f2fcff;stroke:#f2fcff;filter:drop-shadow(0 0 5px rgba(226,250,255,.82));
 }
 
 /* 标签用正文档、代号退到最弱档：与数字形成三级落差 */

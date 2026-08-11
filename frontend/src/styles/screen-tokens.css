@@ -11,7 +11,7 @@
   --sc-space-hi:#072b47;                 /* 背景高亮处（中心区） */
   --sc-nebula:rgba(20,112,192,.20);      /* 中心蓝色星云 */
   --sc-nebula-2:rgba(104,78,224,.13);    /* 紫色辅光，制造色相层次 */
-  --sc-nebula-3:rgba(0,214,208,.08);     /* 青色辅光 */
+  --sc-nebula-3:rgba(0,132,255,.08);     /* 电蓝辅光 */
   --sc-grid:rgba(74,158,208,.05);        /* 细网格 */
   --sc-grid-major:rgba(74,158,208,.10);  /* 主网格 */
 
@@ -19,13 +19,13 @@
   --sc-panel:rgba(5,20,36,.86);
   --sc-panel-2:rgba(10,40,66,.70);
   --sc-panel-3:rgba(15,58,90,.46);
-  --sc-panel-bleed:rgba(0,229,255,.09);  /* 左上角环境光渗透 */
+  --sc-panel-bleed:rgba(22,140,255,.09);  /* 左上角环境光渗透 */
   --sc-panel-head:linear-gradient(90deg,rgba(19,78,116,.44),rgba(8,32,54,0) 70%);
   --sc-inset:inset 0 1px 0 rgba(126,224,255,.11);
   --sc-depth:0 18px 40px -18px rgba(0,0,0,.72);
 
   /* ---------- 3. 描边体系 ---------- */
-  --sc-line:rgba(0,229,255,.18);         /* 默认卡片描边 */
+  --sc-line:rgba(42,143,255,.18);         /* 默认卡片描边 */
   --sc-line-2:rgba(74,166,214,.30);      /* 结构分隔 */
   --sc-line-hi:rgba(112,224,255,.58);    /* 高亮 / 焦点 */
   --sc-line-soft:rgba(74,166,214,.11);   /* 行分隔 */
@@ -37,11 +37,11 @@
   --sc-ink-4:#62889e;                    /* 最弱：英文代号 / 脚注 */
 
   /* ---------- 5. 科技高亮（蓝 / 青 / 紫 三段色相） ---------- */
-  --sc-accent:#2ac9ff;                   /* 主蓝 */
-  --sc-accent-deep:#0a6ea8;
-  --sc-cyan:#22e3d8;                     /* 青 */
-  --sc-cyan-deep:#0a8f92;
-  --sc-violet:#8f7dff;                   /* 紫：第三类别与辅助光 */
+  --sc-accent:#168cff;                   /* 主电蓝 */
+  --sc-accent-deep:#064aa8;
+  --sc-cyan:#38bfff;                     /* 冰蓝高光 */
+  --sc-cyan-deep:#0a5fb0;
+  --sc-violet:#706bff;                   /* 紫蓝：第三类别与辅助光 */
   --sc-violet-deep:#4a3aa8;
   --sc-mint:#3ce8aa;                     /* 健康 / 通过 */
   --sc-mint-deep:#0b7d63;

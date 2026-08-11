@@ -12,7 +12,7 @@
     <section class="metrics">
       <article><span>知识文件</span><b>{{ stats.file_count ?? 0 }}</b><small>已入库数据源</small></article>
       <article><span>有效分块</span><b>{{ stats.chunk_count ?? 0 }}</b><small>可检索证据单元</small></article>
-      <article><span>检索方式</span><b class="metric-text">混合召回</b><small>向量 70% + 词法 30%</small></article>
+      <article><span>RAG 检索链路</span><b class="metric-text">混合召回</b><small>向量 70% + 词法 30%</small></article>
       <article><span>默认阈值</span><b>{{ stats.score_threshold ?? 0.32 }}</b><small>低于阈值不进入上下文</small></article>
     </section>
 
@@ -53,9 +53,11 @@
       </section>
 
       <section class="panel config-panel">
-        <div class="panel-title"><div><b>当前引擎配置</b><span>运行时实际配置，不是演示占位</span></div></div>
+        <div class="panel-title"><div><b>RAG 运行链路配置</b><span>RAG 是检索编排流程，向量数据库只负责存储与召回</span></div></div>
         <dl>
-          <div><dt>向量数据库</dt><dd>{{ stats.engine || 'ChromaDB' }}</dd></div>
+          <div><dt>检索编排</dt><dd>{{ stats.engine || 'RAG hybrid retrieval' }}</dd></div>
+          <div><dt>向量存储</dt><dd>{{ stats.vector_store || 'ChromaDB' }}</dd></div>
+          <div><dt>处理链路</dt><dd>{{ stats.pipeline || 'embedding → retrieval → rerank → evidence' }}</dd></div>
           <div><dt>嵌入模型</dt><dd>{{ stats.embedding_model || '-' }}</dd></div>
           <div><dt>切分策略</dt><dd>段落感知 + 长段滑窗</dd></div>
           <div><dt>融合重排</dt><dd>Weighted Fusion</dd></div>

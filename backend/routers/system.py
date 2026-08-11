@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pathlib import Path
 import config
-from services import audit_log_service, auth_service, deepfake_service, readiness_service
+from services import audit_log_service, auth_service, readiness_service, evaluation_service
 
 router = APIRouter(prefix="/api/system")
 COOKIE_NAME = "aigc_operator_session"
@@ -23,7 +23,6 @@ def _operator(request: Request) -> dict[str, Any]:
 async def system_info():
     return JSONResponse({
         "mllm_model": config.MLLM_MODEL,
-        "mllm_base_url_configured": bool(config.MLLM_BASE_URL),
         "chat_model": config.CHAT_MODEL_NAME,
         "mllm_configured": bool(config.MLLM_API_KEY),
         "chat_model_configured": bool(
@@ -31,9 +30,7 @@ async def system_info():
             and config.CHAT_MODEL_BASE_URL
             and config.CHAT_MODEL_NAME
         ),
-        "deepfake_configured": bool(config.DEEPFAKE_MODEL_PATH and config.DEEPFAKE_MODEL_SHA256),
-        "deepfake_model_revision": config.DEEPFAKE_MODEL_REVISION,
-        "deepfake_runtime": deepfake_service.runtime_status(),
+        "deepfake_configured": bool(config.DEEPFAKE_MODEL_PATH),
         "rag_configured": bool(config.CHROMA_PATH),
         "lexicon_configured": bool(config.LEXICON_PATH),
         "config_writable": config.SYSTEM_CONFIG_WRITABLE,
@@ -44,6 +41,15 @@ async def system_info():
 async def system_readiness(refresh: bool = Query(default=False)):
     return JSONResponse(
         readiness_service.snapshot(refresh=refresh),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/evaluation")
+async def system_evaluation():
+    """Expose evaluation evidence state without exposing source samples."""
+    return JSONResponse(
+        evaluation_service.evaluation_status(),
         headers={"Cache-Control": "no-store"},
     )
 

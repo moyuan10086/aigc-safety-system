@@ -1,0 +1,41 @@
+{
+  "report_type": "heldout_detection_score_evaluation",
+  "generated_at": "2026-08-08T19:49:16.931847+00:00",
+  "input": "docs\\evaluation\\heldout.smoke.jsonl",
+  "record_count": 12,
+  "tasks": {
+    "content_safety:adult_content": {
+      "sample_count": 3,
+      "positive_count": 1,
+      "negative_count": 2,
+      "threshold": 0.5,
+      "status": "insufficient_samples",
+      "reason": "requires at least 30 samples and 5 samples per class"
+    },
+    "content_safety:marketing_violation": {
+      "sample_count": 3,
+      "positive_count": 1,
+      "negative_count": 2,
+      "threshold": 0.5,
+      "status": "insufficient_samples",
+      "reason": "requires at least 30 samples and 5 samples per class"
+    },
+    "content_safety:political_sensitive": {
+      "sample_count": 3,
+      "positive_count": 1,
+      "negative_count": 2,
+      "threshold": 0.5,
+      "status": "insufficient_samples",
+      "reason": "requires at least 30 samples and 5 samples per class"
+    },
+    "content_safety:weapon_display": {
+      "sample_count": 3,
+      "positive_count": 1,
+      "negative_count": 2,
+      "threshold": 0.5,
+      "status": "insufficient_samples",
+      "reason": "requires at least 30 samples and 5 samples per class"
+    }
+  },
+  "boundary": "Only independent, human-labelled held-out samples can support a calibration claim."
+}

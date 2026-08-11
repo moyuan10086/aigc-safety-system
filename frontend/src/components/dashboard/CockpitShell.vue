@@ -53,7 +53,9 @@ onBeforeUnmount(() => observer?.disconnect())
 <style scoped>
 .cockpit-viewport{position:fixed;inset:0;z-index:500;overflow:hidden;background:var(--screen-bg)}
 .cockpit-shell{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:12px;padding:12px 14px 8px;overflow:hidden;color:var(--screen-text-secondary);background:var(--screen-bg);font-family:var(--font-body);transform-origin:0 0}
-.cockpit-ambient{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 46% 44% at 50% 42%,rgba(20,112,192,.18),transparent 68%),radial-gradient(ellipse 34% 32% at 12% 76%,rgba(104,78,224,.10),transparent 66%),radial-gradient(ellipse 30% 30% at 88% 22%,rgba(0,214,208,.07),transparent 66%),linear-gradient(rgba(74,158,208,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(74,158,208,.035) 1px,transparent 1px);background-size:auto,auto,auto,58px 58px,58px 58px}
+.cockpit-shell::before,.cockpit-shell::after{content:'';position:absolute;z-index:4;inset:8px;pointer-events:none;border:1px solid rgba(42,157,235,.16);clip-path:polygon(0 0,18% 0,18% 1px,82% 1px,82% 0,100% 0,100% 18%,calc(100% - 1px) 18%,calc(100% - 1px) 82%,100% 82%,100% 100%,82% 100%,82% calc(100% - 1px),18% calc(100% - 1px),18% 100%,0 100%,0 82%,1px 82%,1px 18%,0 18%);box-shadow:inset 0 0 42px rgba(0,95,180,.08)}
+.cockpit-shell::after{inset:9px;border-color:rgba(0,185,255,.28);opacity:.5;transform:scale(1.001)}
+.cockpit-ambient{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 46% 44% at 50% 42%,rgba(0,96,214,.22),transparent 68%),radial-gradient(ellipse 34% 32% at 12% 76%,rgba(64,71,224,.12),transparent 66%),radial-gradient(ellipse 30% 30% at 88% 22%,rgba(0,142,255,.11),transparent 66%),radial-gradient(circle at 50% 48%,rgba(30,146,255,.10),transparent 20%),linear-gradient(rgba(74,158,208,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(74,158,208,.04) 1px,transparent 1px);background-size:auto,auto,auto,auto,58px 58px,58px 58px}
 .cockpit-shell :deep(>*){position:relative;z-index:1;box-sizing:border-box}
 :global(body:has(.cockpit-viewport)){overflow:hidden}
 </style>

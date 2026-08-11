@@ -1,0 +1,91 @@
+{
+  "audit_date": "2026-08-09",
+  "method": "GitHub remote refs, repository API metadata and repository license/readme pages",
+  "datasets": [
+    {
+      "dataset_id": "genimage",
+      "repository": "https://github.com/GenImage-Dataset/GenImage",
+      "verified_head": "746781bfa446619e1a4629726eb98d5e69c18240",
+      "license_status": "restricted_non_commercial",
+      "license_text_observed": "CC BY-NC-SA 4.0 with additional Dataset Terms; no commercial use",
+      "official_download_channels_observed": ["Google Drive", "Baidu Yunpan"],
+      "dataset_scale": "over one million image pairs",
+      "download_status": "metadata_only",
+      "onsite_display": "metrics_only",
+      "decision": "eligible for academic/local evaluation after per-file terms review; do not commit or expose raw images"
+    },
+    {
+      "dataset_id": "faceforensics_plus_plus",
+      "repository": "https://github.com/ondyari/FaceForensics",
+      "verified_head": "b952e41cba017eb37593c39e12bd884a934791e1",
+      "license_status": "terms_required",
+      "license_text_observed": "data released under FaceForensics Terms of Use; code MIT",
+      "access_requirement": "download link requires completing the official request form",
+      "public_benchmark_archive_observed": "https://kaldir.vc.in.tum.de/faceforensics_benchmark_images.zip",
+      "public_benchmark_archive_size_bytes": 592663962,
+      "download_status": "downloaded_verified_local_cache",
+      "download_attempt": "2026-08-09: full HTTPS GET stalled; 71 concurrent Range chunks completed and were merged successfully",
+      "downloaded_size_bytes": 592663962,
+      "downloaded_sha256": "eb7494e0ea0d8e20603b57b5066bc1f13437062771d6b4f0f6b4c26ea786e4d0",
+      "archive_png_count": 1000,
+      "ground_truth_status": "blind benchmark; labels are not present in the archive",
+      "onsite_display": "metrics_only",
+      "decision": "request access before any sample download or benchmark run"
+    },
+    {
+      "dataset_id": "df40_derived_deepfake_face_classification",
+      "repository": "https://huggingface.co/datasets/pujanpaudel/deepfake_face_classification",
+      "license_status": "non_commercial_reported",
+      "license_text_observed": "Dataset README reports CC BY-NC 4.0; verify the current repository terms before redistribution",
+      "download_status": "labelled_predictions_only_in_repo",
+      "ground_truth_status": "folder-derived fake/real labels preserved in independent validation and test splits",
+      "split_counts": {"validation": 3012, "test": 3012, "per_class_each_split": 1506},
+      "onsite_display": "metrics_only",
+      "decision": "eligible for local academic evaluation under the reported terms; do not redistribute raw samples or call this a universal SOTA benchmark"
+    },
+    {
+      "dataset_id": "unsafebench",
+      "repository": "https://github.com/YitingQu/UnsafeBench",
+      "dataset_page": "https://huggingface.co/datasets/yiting/UnsafeBench",
+      "license_status": "dua_gated",
+      "license_text_observed": "Hugging Face Data Use Agreement: research/education and responsible commercial use; misuse prohibited",
+      "dataset_scale": 10146,
+      "label_schema": {"safe": 6098, "unsafe": 4048, "unsafe_categories": 11, "sources": ["LAION-5B", "Lexica"]},
+      "download_status": "metadata_only_pending_access",
+      "access_requirement": "request access and acknowledge DUA; page reports 1-2 day processing",
+      "onsite_display": "metrics_only",
+      "decision": "best-aligned image safety benchmark; do not download or run until account approval is explicitly granted"
+    },
+    {
+      "dataset_id": "mm_safetybench",
+      "repository": "https://github.com/isXinLiu/MM-SafetyBench",
+      "license_status": "cc_by_nc_4_research_only",
+      "license_text_observed": "Repository README reports CC BY-NC 4.0 and research/non-commercial use only",
+      "dataset_scale": "5040 text-image pairs across 13 scenarios",
+      "official_download_channels_observed": ["Google Drive", "Baidu Yunpan"],
+      "download_status": "metadata_only",
+      "ground_truth_status": "scenario and response-safety benchmark; not a balanced five-category image classification label set",
+      "onsite_display": "metrics_only",
+      "decision": "candidate for MLLM safety-response evaluation after license and scenario-label review; do not map directly to the five image content-safety tasks"
+    },
+    {
+      "dataset_id": "mm_safetybench_pii_ocr",
+      "repository": "https://github.com/YoutingWang/MM-SafetyBench",
+      "license_status": "mit_observed",
+      "license_text_observed": "Repository README and LICENSE report MIT; images are synthetic and PII values are not real individuals",
+      "dataset_scale": "1000 synthetic adversarial images: 500 OCR injection and 500 PII leakage",
+      "label_source": "metadata.csv in repository",
+      "download_status": "metadata_only",
+      "ground_truth_status": "category and target fields are documented; must verify current file and split before evaluation",
+      "onsite_display": "metrics_only",
+      "decision": "candidate for separate privacy/image-injection tasks; not a substitute for the five red-line image content categories"
+    },
+    {
+      "dataset_id": "synthbuster",
+      "repository": "https://github.com/sip-group/synthbuster",
+      "license_status": "unverified",
+      "download_status": "repository_not_found",
+      "decision": "do not download or cite as an executed benchmark until the canonical source is verified"
+    }
+  ]
+}

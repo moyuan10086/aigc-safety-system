@@ -32,16 +32,16 @@
         {{ r.filename || '文本审核' }}
         <span style="margin-left:auto;font-size:11px;color:#94a3b8;font-weight:400">{{ r.created_at?.slice(0,19).replace('T',' ') }}</span>
         <button @click="copyId(r.id)" style="margin-left:8px;font-size:11px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;hover:background:#f1f5f9" title="复制报告ID">📋</button>
-        <a :href="`/api/detect/report/${r.id}/download`" class="download-link">JSON</a>
-        <a :href="`/api/detect/report/${r.id}/download/md`" class="download-link">MD</a>
+        <a :href="`/api/detect/report/${r.id}/download`" class="download-link">JSON 下载</a>
+        <a :href="`/api/detect/report/${r.id}/download/md`" class="download-link">MD 下载</a>
       </div>
 
       <!-- 检测结果摘要 -->
       <div class="report-grid">
         <div v-if="r.deepfake">
           <div class="section-label">Deepfake</div>
-          <span class="badge" :class="deepfakeClass(r.deepfake.label)">
-            {{ deepfakeLabel(r.deepfake.label) }}
+          <span class="badge" :class="r.deepfake.label==='fake'?'badge-danger':r.deepfake.label==='skipped'?'badge-warn':'badge-success'">
+            {{ r.deepfake.label==='fake'?'伪造':r.deepfake.label==='skipped'?'非人脸':'真实' }}
           </span>
           <span style="font-size:12px;color:#64748b;margin-left:8px">得分 {{ (r.deepfake.score*100).toFixed(1) }}%</span>
         </div>
@@ -52,7 +52,7 @@
           </span>
         </div>
         <div v-if="r.rag">
-          <div class="section-label">RAG审核</div>
+          <div class="section-label">知识库检索增强审核</div>
           <span class="badge" :class="r.rag.safe?'badge-success':'badge-danger'">{{ r.rag.safe?'安全':'风险' }}</span>
           <span style="font-size:12px;color:#64748b;margin-left:8px">{{ r.rag.risk_level?.toUpperCase() }}</span>
         </div>
@@ -65,10 +65,10 @@
       </div>
 
       <!-- MLLM 综合分析（Markdown 渲染） -->
-      <div v-if="r.summary" style="margin-top:16px;border-top:1px solid #fce7f3;padding-top:14px">
-        <div class="section-label" style="margin-bottom:8px">综合分析报告</div>
+      <section v-if="r.summary" class="markdown-report">
+        <div class="section-label">综合分析报告 · MARKDOWN PREVIEW</div>
         <div class="md-body" v-html="renderMd(r.summary)" />
-      </div>
+      </section>
     </div>
     </div>
   </div>
@@ -77,13 +77,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useClipboard } from '@vueuse/core'
 import { toast } from 'vue3-toastify'
 import { FileText, ShieldCheck } from 'lucide-vue-next'
 import AuditLogPanel from '../components/audit/AuditLogPanel.vue'
 
 const { copy } = useClipboard()
-const activeView = ref<'reports' | 'logs'>('logs')
+const activeView = ref<'reports' | 'logs'>('reports')
 
 const reports = ref<any[]>([])
 const stats = ref<any>(null)
@@ -91,7 +92,7 @@ const loading = ref(false)
 const reportsLoaded = ref(false)
 
 function renderMd(md: string): string {
-  return marked.parse(md) as string
+  return DOMPurify.sanitize(marked.parse(md, { gfm: true, breaks: true }) as string)
 }
 
 const copyId = async (id: string) => {
@@ -120,11 +121,9 @@ async function loadReports() {
   }
 }
 
-watch(activeView, view => { if (view === 'reports') loadReports() })
+watch(activeView, view => { if (view === 'reports') loadReports() }, { immediate: true })
 function contentSafetyClass(verdict: string) { return verdict === 'unsafe' ? 'badge-danger' : verdict === 'safe' ? 'badge-success' : 'badge-warn' }
 function contentSafetyLabel(verdict: string) { return ({ safe: '安全', review: '人工复核', unsafe: '阻断' } as Record<string, string>)[verdict] || '结论不足' }
-function deepfakeClass(label: string) { return label === 'fake' ? 'badge-danger' : label === 'real' ? 'badge-success' : 'badge-warn' }
-function deepfakeLabel(label: string) { return ({ fake: '伪造', real: '真实', review: '人工复核', inconclusive: '结论不足', skipped: '非人脸' } as Record<string, string>)[label] || '结论不足' }
 function formatPercent(value: unknown) { const score = Number(value); return Number.isFinite(score) ? `${(score * 100).toFixed(1)}%` : '未知' }
 function categorySummary(items: any[]) { return items.slice(0, 3).map(item => `${item.label || item.code} ${formatPercent(item.confidence)}`).join(' · ') }
 </script>
@@ -139,7 +138,7 @@ function categorySummary(items: any[]) { return items.slice(0, 3).map(item => `$
 .badge-success { background:rgba(52,211,153,.1);color:var(--success) }
 .badge-danger { background:rgba(251,113,133,.1);color:var(--danger) }
 .badge-warn { background:rgba(245,158,11,.1);color:var(--warning) }
-.download-link{margin-left:8px;font-size:11px;color:var(--primary);text-decoration:none}.md-body { font-size:13px;line-height:1.7;color:var(--muted) }
+.download-link{margin-left:8px;font-size:11px;color:var(--primary);text-decoration:none}.markdown-report{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}.markdown-report>.section-label{margin-bottom:10px}.md-body{overflow-wrap:anywhere;color:var(--muted);font-size:13px;line-height:1.75}
 .category-summary{display:block;margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5}
 .md-body :deep(h1),.md-body :deep(h2),.md-body :deep(h3) { font-weight:700;margin:12px 0 6px;color:var(--text) }
 .md-body :deep(h2) { font-size:14px }
@@ -148,5 +147,5 @@ function categorySummary(items: any[]) { return items.slice(0, 3).map(item => `$
 .md-body :deep(li) { margin:3px 0 }
 .md-body :deep(strong) { color:var(--text) }
 .md-body :deep(p) { margin:6px 0 }
-.md-body :deep(code) { background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:12px }
+.md-body :deep(a){color:var(--primary);text-decoration:none}.md-body :deep(blockquote){margin:10px 0;padding:8px 12px;color:var(--muted);background:var(--surface-2);border-left:3px solid var(--primary)}.md-body :deep(hr){margin:14px 0;border:0;border-top:1px solid var(--line)}.md-body :deep(pre){max-width:100%;margin:10px 0;padding:12px;overflow:auto;color:var(--text);background:var(--surface-3);border:1px solid var(--line);border-radius:6px}.md-body :deep(code){padding:1px 5px;background:var(--surface-3);border-radius:3px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.md-body :deep(pre code){padding:0;background:transparent}.md-body :deep(table){width:100%;margin:10px 0;border-collapse:collapse;font-size:12px}.md-body :deep(th),.md-body :deep(td){padding:7px 9px;border:1px solid var(--line);text-align:left}.md-body :deep(th){color:var(--text);background:var(--surface-2)}
 </style>

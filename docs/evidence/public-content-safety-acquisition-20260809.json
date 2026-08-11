@@ -1,0 +1,63 @@
+{
+  "evidence_type": "licensed_public_content_safety_acquisition",
+  "acquired_at": "2026-08-09",
+  "sample_count": 75,
+  "storage": "/root/CH/evaluation-cache/public-content-safety-v1",
+  "raw_images_committed": false,
+  "raw_images_deployed_as_public_assets": false,
+  "manifest_sha256": "626ada98944fd18aca9cc1fe5c0b9fd9cdfd6a15bb5650c8d150f0d4c927cae6",
+  "datasets": [
+    {
+      "task": "weapon_display",
+      "repository": "Simuletic/CCTV_Weapon_Detection_Rifles_vs_Umbrellas",
+      "revision": "16f0fd4cb28dd43ce8c4d942eba3cd6532c6ea9c",
+      "license": "CC BY-NC 4.0",
+      "selected": {"rifle_positive": 15, "umbrella_negative": 15},
+      "label_authority": "YOLO class 1 rifle and class 2 umbrella"
+    },
+    {
+      "task": "violence",
+      "repository": "farazv2/violence-detection-violence-class",
+      "revision": "b8124f05b6dfcf51974c516b22bc70b408a2959e",
+      "license": "MIT",
+      "selected": {"violence_positive": 15, "non_violence_negative": 15},
+      "label_authority": "RLVS Violence/NonViolence filename ground truth"
+    },
+    {
+      "task": "adult_content",
+      "repository": "Anik121/NSFW_Image",
+      "revision": "93e08f1899cc3e2552266538fcf7ca5655a304a3",
+      "license": "MIT",
+      "selected": {"adult_positive": 15, "cross_source_negative": 60},
+      "label_authority": "dataset NSFW generation purpose; negatives are the other licensed benchmark samples"
+    }
+  ],
+  "model": "gpt-5.6-sol",
+  "inference": {
+    "completed_samples": 75,
+    "heldout_records": 225,
+    "mean_latency_ms": 10717,
+    "min_latency_ms": 4095,
+    "max_latency_ms": 47089,
+    "checkpointed": true
+  },
+  "artifacts": {
+    "model_evidence": {
+      "path": "docs/evidence/public-content-safety-model-evidence-20260809.json",
+      "sha256": "5b0965631a41ea75548b7ace1ba14bd9d4d43317eb2f1edbadbeb4da6afbb253"
+    },
+    "heldout_scores": {
+      "path": "docs/evaluation/public-content-safety-heldout-20260809.jsonl",
+      "sha256": "4028fdbab070057211e6cd12cf98ebb9a6c870cf4918e879083bc5a56b92240e"
+    },
+    "statistical_report": {
+      "path": "docs/evidence/public-content-safety-statistical-evaluation-20260809.json",
+      "sha256": "28b69b1853b6a9d2d220c99d1e69c7b0946f863eb05dcf4f9da92b7f17cd8543"
+    }
+  },
+  "boundaries": [
+    "Adult-content negatives come from different source datasets, so the metric is not a universal real-world estimate.",
+    "Political-sensitive and marketing-violation remain uncalibrated until datasets with matching business labels and verified licenses are obtained.",
+    "A completed statistical run does not imply that the model meets an operational safety threshold."
+  ]
+}

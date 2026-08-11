@@ -10,8 +10,17 @@
     </header>
 
     <div class="dashboard-toolbar">
-      <div class="range-switch" aria-label="统计时间窗口">
-        <button v-for="item in ranges" :key="item.value" :class="{ active: hours === item.value }" @click="hours = item.value">{{ item.label }}</button>
+      <div class="range-control">
+        <div class="range-switch" aria-label="统计时间窗口">
+          <button v-for="item in ranges" :key="item.value" type="button" :class="{ active: !startDate && hours === item.value }" @click="selectPreset(item.value)">{{ item.label }}</button>
+          <button type="button" :class="{ active: Boolean(startDate) }" @click="customOpen = !customOpen"><CalendarDays :size="14" />自定义</button>
+        </div>
+        <form v-if="customOpen" class="custom-range" @submit.prevent="applyCustomRange">
+          <label><span>开始日期</span><input v-model="customStart" type="date" :max="today" required /></label>
+          <i></i>
+          <label><span>结束日期</span><input v-model="customEnd" type="date" :min="customStart" :max="today" required /></label>
+          <button type="submit">应用</button>
+        </form>
       </div>
       <span v-if="data" class="generated-at">更新于 {{ formatDate(data.generated_at) }}</span>
       <button class="icon-command" title="刷新数据" :disabled="loading" @click="refresh(true)"><RefreshCw :size="16" :class="{ spinning: loading }" /></button>
@@ -23,7 +32,7 @@
     <div v-else-if="error && !data" class="access-state error"><CircleAlert :size="26" /><strong>{{ error }}</strong><button @click="refresh(true)">重新加载</button></div>
     <template v-else-if="data">
       <div class="metric-grid">
-        <MetricCard :icon="ClipboardCheck" label="审核量" :value="data.summary.business_reviews" :detail="`${data.window.hours} 小时内真实审核任务`" tone="primary" />
+        <MetricCard :icon="ClipboardCheck" label="安全判定" :value="data.summary.business_reviews" :detail="`${data.window.hours} 小时内护栏与检测判定`" tone="primary" />
         <MetricCard :icon="ShieldAlert" label="风险告警" :value="data.summary.alerts" :detail="`阻断 ${data.summary.blocked} 次 · ${data.summary.block_rate}%`" tone="danger" />
         <MetricCard :icon="Activity" label="接口调用" :value="data.summary.request_count" :detail="`成功率 ${data.summary.success_rate}%`" tone="success" />
         <MetricCard :icon="Timer" label="P95 延迟" :value="`${data.summary.p95_latency_ms} ms`" :detail="`平均 ${data.summary.average_latency_ms} ms`" tone="warning" />
@@ -33,7 +42,7 @@
 
       <div class="dashboard-grid main-grid">
         <DashboardPanel title="审核与风险趋势" :subtitle="`${data.window.bucket_hours} 小时粒度`" class="trend-panel"><BaseChart :option="trendOption" aria-label="审核与风险趋势图" /></DashboardPanel>
-        <DashboardPanel title="风险分布" subtitle="按护栏类别统计"><div v-if="data.risk_distribution.length" class="chart-box"><BaseChart :option="riskOption" aria-label="风险类别分布图" /></div><div v-else class="empty-state">当前窗口暂无风险分类</div></DashboardPanel>
+        <DashboardPanel title="风险分布" subtitle="按护栏类别统计" class="risk-panel"><RiskDistributionOverview :items="data.risk_distribution" /></DashboardPanel>
       </div>
 
       <div class="dashboard-grid detail-grid">
@@ -69,22 +78,26 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EChartsCoreOption } from 'echarts/core'
-import { Activity, CircleAlert, ClipboardCheck, Database, FileCheck2, LayoutDashboard, LockKeyhole, MonitorUp, Network, RefreshCw, ScanLine, ShieldAlert, Timer } from 'lucide-vue-next'
+import { Activity, CalendarDays, CircleAlert, ClipboardCheck, Database, FileCheck2, LayoutDashboard, LockKeyhole, MonitorUp, Network, RefreshCw, ScanLine, ShieldAlert, Timer } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import AuditLogDetail from '../components/audit/AuditLogDetail.vue'
 import type { AuditEvent } from '../composables/useAuditLogs'
 import BaseChart from '../components/dashboard/BaseChart.vue'
 import DashboardPanel from '../components/dashboard/DashboardPanel.vue'
 import MetricCard from '../components/dashboard/MetricCard.vue'
+import RiskDistributionOverview from '../components/dashboard/RiskDistributionOverview.vue'
 import ShadowReviewPanel from '../components/dashboard/ShadowReviewPanel.vue'
 import { useDashboard } from '../composables/useDashboard'
 
 const router = useRouter()
-const { data, hours, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, openLogin } = useDashboard()
+const { data, hours, startDate, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, setCustomRange, clearCustomRange, openLogin } = useDashboard()
 const selectedAuditEvent = ref<AuditEvent | null>(null)
 const selectedReviewItem = computed(() => data.value?.shadow_reviews.find(item => item.event_id === selectedAuditEvent.value?.id) || null)
-const ranges = [{ label: '24 小时', value: 24 }, { label: '3 天', value: 72 }, { label: '7 天', value: 168 }]
-const categoryNames: Record<string, string> = { jailbreak: '越狱攻击', prompt_injection: '提示词注入', cyber_abuse: '网络攻击滥用', weapons_violence: '武器暴力', self_harm: '自伤风险', sexual_content: '色情内容', child_safety: '未成年人安全', personal_data: '隐私数据', illegal_activity: '违法活动', agent_security: 'Agent 安全', adult_content: '成人内容', weapon_display: '武器展示', graphic_violence: '暴力血腥', political_sensitive: '政治敏感', marketing_violation: '营销违规' }
+const ranges = [{ label: '24 小时', value: 24 }, { label: '3 天', value: 72 }, { label: '7 天', value: 168 }, { label: '1 个月', value: 720 }, { label: '3 个月', value: 2160 }]
+const today = localDateValue(new Date())
+const customOpen = ref(false)
+const customStart = ref(localDateValue(new Date(Date.now() - 6 * 86400000)))
+const customEnd = ref(today)
 const chartText = '#5d7082'
 const gridLine = '#e8edf2'
 
@@ -100,13 +113,6 @@ const trendOption = computed<EChartsCoreOption>(() => ({
     { name: '风险告警', type: 'line', smooth: true, showSymbol: false, lineStyle: { color: '#b86f12', width: 2 }, data: data.value?.timeline.map(item => item.alerts) || [] },
     { name: '阻断', type: 'line', smooth: true, showSymbol: false, lineStyle: { color: '#cf3f4f', width: 2 }, data: data.value?.timeline.map(item => item.blocked) || [] },
   ],
-}))
-
-const riskOption = computed<EChartsCoreOption>(() => ({
-  tooltip: { trigger: 'item' },
-  legend: { bottom: 0, left: 'center', textStyle: { color: chartText, fontSize: 9 } },
-  color: ['#cf3f4f', '#b86f12', '#087eae', '#16805e', '#7356a8', '#5d7082'],
-  series: [{ type: 'pie', radius: ['48%', '70%'], center: ['50%', '43%'], label: { show: false }, data: data.value?.risk_distribution.map(item => ({ name: categoryNames[item.name] || item.name, value: item.value })) || [] }],
 }))
 
 async function enterBigScreen() {
@@ -147,10 +153,22 @@ function formatDate(value: string) { return new Date(value).toLocaleString('zh-C
 function formatTime(value: string) { return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) }
 function formatAxis(value: string) { const date = new Date(value); return hours.value <= 48 ? `${date.getHours().toString().padStart(2, '0')}:00` : `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:00` }
 function statusLabel(status: string) { return ({ enabled: '已启用', configured: '已配置', standby: '待机', degraded: '需检查', unconfigured: '未配置' } as Record<string, string>)[status] || status }
+function localDateValue(date: Date) { const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 10) }
+function selectPreset(value: number) { customOpen.value = false; clearCustomRange(); hours.value = value }
+function applyCustomRange() {
+  const start = new Date(`${customStart.value}T00:00:00`)
+  const end = new Date(`${customEnd.value}T00:00:00`)
+  const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
+  if (!customStart.value || !customEnd.value || days < 1) return toast.error('请选择有效的开始和结束日期')
+  if (days > 90) return toast.error('自定义统计范围最多支持 90 天')
+  setCustomRange(customStart.value, customEnd.value)
+  customOpen.value = false
+}
 </script>
 
 <style scoped>
-.dashboard-page{width:100%;max-width:1540px;margin:0 auto}.page-heading{display:flex;align-items:flex-end;gap:18px;margin-bottom:16px}.page-heading p{margin:0 0 5px;color:var(--primary);font:700 9px/1 ui-monospace,monospace}.page-heading h1{margin:0;font-size:20px}.mode-switch,.range-switch{display:flex;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.mode-switch{margin-left:auto}.mode-switch button,.range-switch button{height:32px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;color:var(--muted);background:transparent;border:0;border-radius:5px;font-size:11px;cursor:pointer}.mode-switch button.active,.range-switch button.active{color:#fff;background:var(--primary);font-weight:650}.dashboard-toolbar{height:42px;display:flex;align-items:center;gap:10px;margin-bottom:14px}.generated-at{margin-left:auto;color:var(--faint);font-size:10px}.dashboard-toolbar .icon-command:disabled{cursor:wait;opacity:.6}.spinning{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.metric-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:12px}.dashboard-grid{display:grid;gap:12px;margin-bottom:12px}.main-grid{grid-template-columns:minmax(0,2fr) minmax(300px,.8fr)}.detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.main-grid .dashboard-panel{height:340px}.detail-grid .dashboard-panel{height:320px}.shadow-review-panel{margin-bottom:12px}.shadow-review-panel :deep(.panel-body){padding:0}.chart-box{height:260px}.trend-panel :deep(.panel-body){height:284px;padding:6px 10px 10px}.model-list,.source-list,.alert-list{display:flex;flex-direction:column}.model-row,.source-row,.alert-row{min-height:50px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}.model-row:last-child,.source-row:last-child,.alert-row:last-child{border-bottom:0}.model-row i,.alert-row i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--faint)}.model-row i.enabled,.model-row i.configured{background:var(--success);box-shadow:0 0 8px rgba(22,128,94,.35)}.model-row i.standby{background:var(--warning)}.model-row>div,.alert-row>div{min-width:0;display:flex;flex:1;flex-direction:column}.model-row strong,.alert-row strong{color:var(--text);font-size:11px}.model-row span,.alert-row span{margin-top:3px;color:var(--faint);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.model-row b{color:var(--muted);font-size:9px}.source-row code{color:var(--text);font-size:10px}.source-row span{margin-left:auto;color:var(--muted);font-size:10px}.source-row b{color:var(--danger);font-size:9px}.alert-row i.warning{background:var(--warning)}.alert-row i.high,.alert-row i.critical{background:var(--danger)}.alert-row time{color:var(--faint);font-size:9px}.empty-state{height:230px;display:grid;place-items:center;color:var(--faint);font-size:11px}.access-state{min-height:330px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px}.access-state button{height:34px;padding:0 14px;color:#fff;background:var(--primary);border:0;border-radius:6px;cursor:pointer}.access-state.error{color:var(--danger)}.data-foot{min-height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:7px;font-size:9px}.data-foot span{flex:1}.data-foot b{padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:4px}.data-foot b.healthy{color:var(--success)}@media(max-width:1260px){.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:860px){.page-heading{align-items:flex-start;flex-direction:column}.mode-switch{width:100%;margin-left:0}.mode-switch button{flex:1}.main-grid,.detail-grid{grid-template-columns:minmax(0,1fr)}.detail-grid .dashboard-panel{height:auto;min-height:280px}}@media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-card{height:112px}.dashboard-toolbar{flex-wrap:wrap;height:auto}.generated-at{order:3;width:100%;margin-left:0}.data-foot{align-items:flex-start;flex-wrap:wrap;padding:10px}.data-foot span{flex-basis:100%}}
+.dashboard-page{width:100%;max-width:1540px;margin:0 auto}.page-heading{display:flex;align-items:flex-end;gap:18px;margin-bottom:16px}.page-heading p{margin:0 0 5px;color:var(--primary);font:700 9px/1 ui-monospace,monospace}.page-heading h1{margin:0;font-size:20px}.mode-switch,.range-switch{display:flex;padding:3px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.mode-switch{margin-left:auto}.mode-switch button,.range-switch button{height:32px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;color:var(--muted);background:transparent;border:0;border-radius:5px;font-size:11px;cursor:pointer}.mode-switch button.active,.range-switch button.active{color:#fff;background:var(--primary);font-weight:650}.dashboard-toolbar{height:42px;display:flex;align-items:center;gap:10px;margin-bottom:14px}.generated-at{margin-left:auto;color:var(--faint);font-size:10px}.dashboard-toolbar .icon-command:disabled{cursor:wait;opacity:.6}.spinning{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.metric-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:12px}.dashboard-grid{display:grid;gap:12px;margin-bottom:12px}.main-grid{grid-template-columns:minmax(0,2fr) minmax(300px,.8fr)}.detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.main-grid .dashboard-panel{height:340px}.detail-grid .dashboard-panel{height:320px}.shadow-review-panel{margin-bottom:12px}.shadow-review-panel :deep(.panel-body){padding:0}.risk-panel :deep(.panel-body){container-type:inline-size;padding:14px 16px}.trend-panel :deep(.panel-body){height:284px;padding:6px 10px 10px}.model-list,.source-list,.alert-list{display:flex;flex-direction:column}.model-row,.source-row,.alert-row{min-height:50px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}.model-row:last-child,.source-row:last-child,.alert-row:last-child{border-bottom:0}.model-row i,.alert-row i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--faint)}.model-row i.enabled,.model-row i.configured{background:var(--success);box-shadow:0 0 8px rgba(22,128,94,.35)}.model-row i.standby{background:var(--warning)}.model-row>div,.alert-row>div{min-width:0;display:flex;flex:1;flex-direction:column}.model-row strong,.alert-row strong{color:var(--text);font-size:11px}.model-row span,.alert-row span{margin-top:3px;color:var(--faint);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.model-row b{color:var(--muted);font-size:9px}.source-row code{color:var(--text);font-size:10px}.source-row span{margin-left:auto;color:var(--muted);font-size:10px}.source-row b{color:var(--danger);font-size:9px}.alert-row i.warning{background:var(--warning)}.alert-row i.high,.alert-row i.critical{background:var(--danger)}.alert-row time{color:var(--faint);font-size:9px}.empty-state{height:230px;display:grid;place-items:center;color:var(--faint);font-size:11px}.access-state{min-height:330px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px}.access-state button{height:34px;padding:0 14px;color:#fff;background:var(--primary);border:0;border-radius:6px;cursor:pointer}.access-state.error{color:var(--danger)}.data-foot{min-height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--faint);background:var(--surface);border:1px solid var(--line);border-radius:7px;font-size:9px}.data-foot span{flex:1}.data-foot b{padding:3px 6px;color:var(--muted);background:var(--surface-3);border-radius:4px}.data-foot b.healthy{color:var(--success)}@media(max-width:1260px){.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:860px){.page-heading{align-items:flex-start;flex-direction:column}.mode-switch{width:100%;margin-left:0}.mode-switch button{flex:1}.main-grid,.detail-grid{grid-template-columns:minmax(0,1fr)}.detail-grid .dashboard-panel{height:auto;min-height:280px}}@media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-card{height:112px}.dashboard-toolbar{flex-wrap:wrap;height:auto}.generated-at{order:3;width:100%;margin-left:0}.data-foot{align-items:flex-start;flex-wrap:wrap;padding:10px}.data-foot span{flex-basis:100%}}
 .model-row i.degraded{background:var(--danger)}
 .platform-scope{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+.range-control{position:relative}.custom-range{position:absolute;top:calc(100% + 7px);left:0;z-index:30;display:flex;align-items:flex-end;gap:9px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:0 14px 35px rgba(15,35,48,.16)}.custom-range label{display:flex;flex-direction:column;gap:5px;color:var(--faint);font-size:9px}.custom-range input{width:132px;height:32px;padding:0 8px;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:5px;outline:none;font:10px inherit}.custom-range input:focus{border-color:var(--primary)}.custom-range i{width:8px;height:1px;margin-bottom:16px;background:var(--line-bright)}.custom-range>button{height:32px;padding:0 13px;color:#fff;background:var(--primary);border:0;border-radius:5px;font-size:10px;cursor:pointer}@media(max-width:760px){.range-switch{max-width:calc(100vw - 52px);overflow-x:auto}.range-switch button{flex:0 0 auto}.custom-range{position:fixed;top:50%;left:50%;width:min(420px,calc(100vw - 28px));align-items:stretch;flex-direction:column;transform:translate(-50%,-50%)}.custom-range input{width:100%}.custom-range i{display:none}}
 </style>

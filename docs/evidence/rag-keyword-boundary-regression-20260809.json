@@ -1,0 +1,23 @@
+{
+  "schema": "aigc.rag.keyword-regression.v1",
+  "tested_at": "2026-08-09",
+  "input": "This is a benign safety review demonstration.",
+  "before": {
+    "matched_keywords": ["IS", "this"],
+    "risk_level": "high",
+    "decision": "unsafe",
+    "action": "block"
+  },
+  "after": {
+    "matched_keywords": [],
+    "risk_level": "low",
+    "decision": "safe",
+    "action": "allow"
+  },
+  "rule": "Chinese phrases use phrase matching; ASCII terms require word boundaries and generic stopwords are ignored.",
+  "verification": {
+    "endpoint": "POST /api/detect/batch",
+    "http_status": 200,
+    "raw_user_content_retained": false
+  }
+}

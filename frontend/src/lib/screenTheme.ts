@@ -10,6 +10,9 @@ const FALLBACK: Record<string, string> = {
   '--sc-ink-3': '#8fb2c7',
   '--sc-ink-4': '#62889e',
   '--sc-accent': '#2ac9ff',
+  '--screen-core-blue': '#168cff',
+  '--screen-core-light': '#72d9ff',
+  '--screen-core-deep': '#063e9b',
   '--sc-cyan': '#22e3d8',
   '--sc-violet': '#8f7dff',
   '--sc-mint': '#3ce8aa',
@@ -20,6 +23,7 @@ const FALLBACK: Record<string, string> = {
   '--sc-critical': '#ff4363',
   '--sc-line-2': 'rgba(74,166,214,.30)',
   '--sc-line-soft': 'rgba(74,166,214,.11)',
+  '--screen-bg': '#020913',
 }
 
 const cache = new Map<string, string>()
@@ -30,7 +34,7 @@ export function token(name: string): string {
   if (hit) return hit
   let value = ''
   if (typeof document !== 'undefined') {
-    const host = document.querySelector('.big-screen')
+    const host = document.querySelector('.big-screen, .cockpit-viewport')
     if (host) value = getComputedStyle(host).getPropertyValue(name).trim()
   }
   const resolved = value || FALLBACK[name] || '#2ac9ff'
@@ -56,6 +60,7 @@ const CATEGORY_LEVEL: Record<string, RiskLevel> = {
   weapons_violence: 'critical',
   self_harm: 'critical',
   illegal_activity: 'critical',
+  violence: 'high',
   graphic_violence: 'high',
   sexual_content: 'high',
   adult_content: 'high',
@@ -75,10 +80,16 @@ export function categoryLevel(name: string): RiskLevel {
 
 /** 类别序列色：同级别按明度轻微错开，避免相邻扇区糊成一片。 */
 export function categoryColor(name: string, index: number): string {
-  const base = riskColor(categoryLevel(name))
-  const tilt = index % 3
-  if (tilt === 0) return base
-  return mix(base, tilt === 1 ? '#ffffff' : '#0b2135', tilt === 1 ? 0.18 : 0.16)
+  const level = categoryLevel(name)
+  if (level === 'critical' || level === 'high') return riskColor(level)
+  const operationalPalette = [
+    token('--screen-core-blue'),
+    token('--screen-core-light'),
+    token('--sc-violet'),
+    token('--sc-accent'),
+    token('--screen-core-deep'),
+  ]
+  return operationalPalette[index % operationalPalette.length]
 }
 
 /** 简易色彩混合，用于生成同色系深浅变体（不引入额外依赖）。 */

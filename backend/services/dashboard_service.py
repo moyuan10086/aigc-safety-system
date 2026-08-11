@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 import config
-from services import audit_log_service, guarded_chat_service
+from services import audit_log_service, guarded_chat_service, ip_region_service
 
 REPORTS_DIR = Path(__file__).parents[1] / "reports"
+DEEPFAKE_WEIGHTS = Path(__file__).parents[2] / "deepfake-detection" / "weights" / "model.ckpt"
 
 
-def _report_statistics(start: datetime) -> dict[str, Any]:
+def _report_statistics(start: datetime, end: datetime | None = None) -> dict[str, Any]:
     total = 0
     in_window = 0
     fake_count = 0
@@ -35,7 +36,7 @@ def _report_statistics(start: datetime) -> dict[str, Any]:
             created_at = datetime.fromisoformat(created_text.replace("Z", "+00:00"))
             if created_at.tzinfo is None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
-            if created_at >= start:
+            if created_at >= start and (end is None or created_at <= end):
                 in_window += 1
                 deepfake = report.get("deepfake") or {}
                 mllm = report.get("mllm") or {}
@@ -57,10 +58,7 @@ def _report_statistics(start: datetime) -> dict[str, Any]:
 
 
 def _model_states() -> list[dict[str, Any]]:
-    from services import deepfake_service
-
     chat = guarded_chat_service.model_status()
-    deepfake = deepfake_service.runtime_status()
     return [
         {
             "id": "generator",
@@ -102,29 +100,42 @@ def _model_states() -> list[dict[str, Any]]:
             "id": "deepfake",
             "label": "Deepfake 检测",
             "model": "DFDet model.ckpt",
-            "status": "enabled" if deepfake["state"] == "ready" else "configured" if config.DEEPFAKE_MODEL_PATH else "degraded",
+            "status": "configured" if DEEPFAKE_WEIGHTS.exists() else "degraded",
         },
         {
             "id": "rag",
-            "label": "红线知识引擎",
-            "model": "ChromaDB + Sensitive Lexicon",
+            "label": "红线知识库审核（RAG）",
+            "model": "RAG hybrid retrieval · ChromaDB vector store",
             "status": "enabled" if config.GUARDRAIL_ENABLE_RAG else "standby",
         },
     ]
 
 
-def overview(hours: int = 24, *, reviewer: str | None = None) -> dict[str, Any]:
+def overview(hours: int = 24, *, reviewer: str | None = None, start: datetime | None = None, end: datetime | None = None) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
-    audit = audit_log_service.dashboard_statistics(hours=hours, now=now)
-    reports = _report_statistics(now - timedelta(hours=audit["window"]["hours"]))
+    audit = audit_log_service.dashboard_statistics(hours=hours, now=now, start=start, end=end)
+    history = audit_log_service.dashboard_statistics(hours=168, now=now)
+    window_start = datetime.fromisoformat(audit["window"]["start"].replace("Z", "+00:00"))
+    window_end = datetime.fromisoformat(audit["window"]["end"].replace("Z", "+00:00"))
+    custom_window = start is not None or end is not None
+    reports = _report_statistics(window_start, window_end if custom_window else None)
     shadow = audit_log_service.shadow_review_statistics(
-        hours=audit["window"]["hours"], now=now, reviewer=reviewer
+        hours=audit["window"]["hours"], now=now, start=window_start, end=window_end if custom_window else None, reviewer=reviewer
     )
     models = _model_states()
-    audit["summary"]["business_reviews"] += reports["in_window"]
+    region_sources = audit["top_sources"] or history["top_sources"]
     audit.update({
         "generated_at": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
         "reports": reports,
+        "historical": {
+            "window": history["window"],
+            "summary": history["summary"],
+            "timeline": history["timeline"],
+            "risk_distribution": history["risk_distribution"],
+            "recent_alerts": history["recent_alerts"],
+            "top_sources": history["top_sources"],
+        },
+        "source_regions": ip_region_service.aggregate_source_regions(region_sources),
         "shadow_evaluation": {key: value for key, value in shadow.items() if key != "queue"},
         "shadow_reviews": shadow["queue"],
         "models": models,

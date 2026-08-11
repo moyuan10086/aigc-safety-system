@@ -2,6 +2,7 @@
 RAG 内容安全审核服务 — ChromaDB + Sensitive-lexicon
 """
 import sys
+import re
 from pathlib import Path
 import chromadb
 from sentence_transformers import SentenceTransformer
@@ -16,6 +17,45 @@ _collection = None
 _embedder = None
 _keywords: list[str] = []
 _keyword_categories: dict[str, str] = {}
+_GENERIC_ASCII_TERMS = {
+    "a", "an", "and", "are", "as", "at", "be", "been", "being", "but",
+    "by", "can", "could", "do", "does", "for", "from", "has", "have",
+    "he", "her", "here", "him", "his", "how", "i", "if", "in", "into",
+    "is", "it", "its", "me", "my", "no", "not", "of", "on", "or", "our",
+    "please", "safe", "safety", "she", "should", "that", "the", "their",
+    "them", "then", "there", "these", "they", "this", "those", "to", "was",
+    "we", "were", "what", "when", "where", "which", "who", "why", "with",
+    "without", "would", "you", "your",
+}
+
+
+def _keyword_matches(text: str, keywords: list[str], *, limit: int = 10) -> list[str]:
+    """Match red-line terms without treating an English substring as a hit.
+
+    Chinese phrases are intentionally matched by substring because they do not
+    have whitespace-delimited word boundaries. Latin/ASCII terms use Unicode
+    word boundaries, preventing false positives such as ``safe`` in
+    ``safety`` or ``art`` in ``article``.
+    """
+    folded = text.casefold()
+    matched: list[str] = []
+    for keyword in keywords:
+        term = str(keyword or "").strip()
+        if not term:
+            continue
+        term_folded = term.casefold()
+        has_cjk = any("\u4e00" <= char <= "\u9fff" for char in term)
+        if not has_cjk and term_folded in _GENERIC_ASCII_TERMS:
+            continue
+        if has_cjk:
+            found = term_folded in folded
+        else:
+            found = re.search(rf"(?<!\w){re.escape(term_folded)}(?!\w)", folded, flags=re.IGNORECASE) is not None
+        if found:
+            matched.append(term)
+            if len(matched) >= limit:
+                break
+    return matched
 
 
 def _init():
@@ -97,7 +137,7 @@ def check_content(text: str) -> dict:
     global _collection
     _init()
 
-    matched = [kw for kw in _keywords if kw and kw.lower() in text.lower()][:10]
+    matched = _keyword_matches(text, _keywords)
     matches = [
         {
             "term": keyword,

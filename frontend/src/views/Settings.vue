@@ -74,6 +74,8 @@
       </div>
     </section>
 
+    <EvaluationEvidencePanel />
+
     <section class="card deployment-card">
       <div class="card-title">部署信息</div>
       <div class="info-rows">
@@ -159,6 +161,7 @@ import { Activity, Ban, Bot, CircleCheck, CircleX, Copy, Database, Eye, KeyRound
 import { ElMessageBox } from 'element-plus'
 import { toast } from 'vue3-toastify'
 import { useAuth } from '../composables/useAuth'
+import EvaluationEvidencePanel from '../components/settings/EvaluationEvidencePanel.vue'
 
 const info = reactive<any>({})
 const { user } = useAuth()

@@ -1,0 +1,17 @@
+{
+  "report_type": "heldout_detection_score_evaluation",
+  "generated_at": "2026-08-08T23:00:34.759256+00:00",
+  "input": "D:\\文件\\大学\\评测缓存\\mm-safetybench-pii-ocr-20260809\\pii-heldout.jsonl",
+  "record_count": 5,
+  "tasks": {
+    "content_safety:personal_data": {
+      "sample_count": 5,
+      "positive_count": 5,
+      "negative_count": 0,
+      "threshold": 0.5,
+      "status": "insufficient_samples",
+      "reason": "requires at least 30 samples and 5 samples per class"
+    }
+  },
+  "boundary": "Only independent, human-labelled held-out samples can support a calibration claim."
+}

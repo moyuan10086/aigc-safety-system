@@ -131,7 +131,17 @@ if dist.exists():
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str):
         index = dist / "index.html"
-        return FileResponse(str(index))
+        # The SPA entry points to hashed Vite assets. Do not cache this small
+        # manifest, otherwise a browser can keep loading an older dashboard
+        # bundle after a deployment even though the server has rebuilt it.
+        return FileResponse(
+            str(index),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
 if __name__ == "__main__":
     import uvicorn

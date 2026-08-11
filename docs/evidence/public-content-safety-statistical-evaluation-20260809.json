@@ -1,0 +1,271 @@
+{
+  "report_type": "heldout_detection_score_evaluation",
+  "generated_at": "2026-08-09T08:45:05.021032+00:00",
+  "input": "heldout.jsonl",
+  "input_sha256": "4028fdbab070057211e6cd12cf98ebb9a6c870cf4918e879083bc5a56b92240e",
+  "record_count": 225,
+  "protocol": {
+    "datasets": [
+      "public_content_safety_v1"
+    ],
+    "splits": [
+      "test"
+    ],
+    "model_versions": [
+      "gpt-5.6-sol"
+    ],
+    "label_authority": "held-out manifest labels; never inferred from model verdicts"
+  },
+  "tasks": {
+    "content_safety:adult_content": {
+      "sample_count": 75,
+      "positive_count": 15,
+      "negative_count": 60,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 0,
+        "tn": 60,
+        "fp": 0,
+        "fn": 15
+      },
+      "accuracy": 0.8,
+      "accuracy_95ci": [
+        0.6959,
+        0.8749
+      ],
+      "precision": 0.0,
+      "precision_95ci": [
+        0.0,
+        0.0
+      ],
+      "recall": 0.0,
+      "recall_95ci": [
+        0.0,
+        0.0
+      ],
+      "f1": 0.0,
+      "f1_95ci": [
+        0.0,
+        0.0
+      ],
+      "roc_auc": 0.5,
+      "roc_auc_95ci": [
+        0.5,
+        0.5
+      ],
+      "pr_auc": 0.2,
+      "pr_auc_95ci": [
+        0.1067,
+        0.3003
+      ],
+      "brier_score": 0.2,
+      "ece": 0.2,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 75,
+          "mean_score": 0.0,
+          "empirical_rate": 0.2
+        }
+      ]
+    },
+    "content_safety:violence": {
+      "sample_count": 75,
+      "positive_count": 15,
+      "negative_count": 60,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 8,
+        "tn": 51,
+        "fp": 9,
+        "fn": 7
+      },
+      "accuracy": 0.7867,
+      "accuracy_95ci": [
+        0.6812,
+        0.8642
+      ],
+      "precision": 0.4706,
+      "precision_95ci": [
+        0.2143,
+        0.7243
+      ],
+      "recall": 0.5333,
+      "recall_95ci": [
+        0.2727,
+        0.7857
+      ],
+      "f1": 0.5,
+      "f1_95ci": [
+        0.2552,
+        0.7059
+      ],
+      "roc_auc": 0.6606,
+      "roc_auc_95ci": [
+        0.5196,
+        0.7955
+      ],
+      "pr_auc": 0.2754,
+      "pr_auc_95ci": [
+        0.1552,
+        0.4923
+      ],
+      "brier_score": 0.206,
+      "ece": 0.2136,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 58,
+          "mean_score": 0.0,
+          "empirical_rate": 0.1207
+        },
+        {
+          "range": [
+            0.5,
+            0.6
+          ],
+          "count": 1,
+          "mean_score": 0.55,
+          "empirical_rate": 1.0
+        },
+        {
+          "range": [
+            0.6,
+            0.7
+          ],
+          "count": 3,
+          "mean_score": 0.6433,
+          "empirical_rate": 1.0
+        },
+        {
+          "range": [
+            0.7,
+            0.8
+          ],
+          "count": 3,
+          "mean_score": 0.72,
+          "empirical_rate": 0.6667
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "count": 2,
+          "mean_score": 0.84,
+          "empirical_rate": 0.5
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "count": 8,
+          "mean_score": 0.9575,
+          "empirical_rate": 0.125
+        }
+      ]
+    },
+    "content_safety:weapon_display": {
+      "sample_count": 75,
+      "positive_count": 15,
+      "negative_count": 60,
+      "threshold": 0.5,
+      "status": "ready",
+      "confusion_matrix": {
+        "tp": 15,
+        "tn": 49,
+        "fp": 11,
+        "fn": 0
+      },
+      "accuracy": 0.8533,
+      "accuracy_95ci": [
+        0.7562,
+        0.9161
+      ],
+      "precision": 0.5769,
+      "precision_95ci": [
+        0.3913,
+        0.7826
+      ],
+      "recall": 1.0,
+      "recall_95ci": [
+        1.0,
+        1.0
+      ],
+      "f1": 0.7317,
+      "f1_95ci": [
+        0.5625,
+        0.878
+      ],
+      "roc_auc": 0.95,
+      "roc_auc_95ci": [
+        0.8923,
+        0.9923
+      ],
+      "pr_auc": 0.7149,
+      "pr_auc_95ci": [
+        0.5042,
+        0.9503
+      ],
+      "brier_score": 0.1021,
+      "ece": 0.116,
+      "calibration_bins": [
+        {
+          "range": [
+            0.0,
+            0.1
+          ],
+          "count": 49,
+          "mean_score": 0.0,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.5,
+            0.6
+          ],
+          "count": 1,
+          "mean_score": 0.58,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.6,
+            0.7
+          ],
+          "count": 1,
+          "mean_score": 0.62,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.7,
+            0.8
+          ],
+          "count": 4,
+          "mean_score": 0.745,
+          "empirical_rate": 0.0
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "count": 20,
+          "mean_score": 0.976,
+          "empirical_rate": 0.75
+        }
+      ]
+    }
+  },
+  "boundary": "Only independent, human-labelled held-out samples can support a calibration claim."
+}

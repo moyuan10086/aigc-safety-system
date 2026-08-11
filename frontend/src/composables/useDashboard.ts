@@ -85,6 +85,15 @@ export interface DashboardOverview {
   module_distribution: Array<{ name: string; value: number }>
   top_sources: Array<{ client_ip: string; events: number; alerts: number; blocked: number }>
   recent_alerts: Array<{ id: string; occurred_at: string; module: string; severity: string; outcome: string; risk_code?: string; risk_score?: number; client_ip?: string; summary: string }>
+  historical: {
+    window: { hours: number; bucket_hours: number; start: string; end: string }
+    summary: DashboardOverview['summary']
+    timeline: DashboardOverview['timeline']
+    risk_distribution: DashboardOverview['risk_distribution']
+    recent_alerts: DashboardOverview['recent_alerts']
+    top_sources: DashboardOverview['top_sources']
+  }
+  source_regions: Array<{ region: string; sources: number; events: number; alerts: number; blocked: number }>
   models: Array<{ id: string; label: string; model: string; status: string }>
   reports: { total: number; in_window: number; fake_count: number; risk_count: number; latest_at?: string }
   shadow_evaluation: ShadowEvaluationSummary
@@ -97,6 +106,8 @@ export interface DashboardOverview {
 export function useDashboard() {
   const data = ref<DashboardOverview | null>(null)
   const hours = ref(24)
+  const startDate = ref('')
+  const endDate = ref('')
   const loading = ref(false)
   const error = ref('')
   const authRequired = ref(false)
@@ -115,7 +126,14 @@ export function useDashboard() {
     loading.value = true
     error.value = ''
     try {
-      const response = await fetch(`/api/dashboard/overview?hours=${hours.value}`, {
+      const params = new URLSearchParams({ hours: String(hours.value) })
+      if (startDate.value && endDate.value) {
+        params.set('start', new Date(`${startDate.value}T00:00:00`).toISOString())
+        const inclusiveEnd = new Date(`${endDate.value}T00:00:00`)
+        inclusiveEnd.setDate(inclusiveEnd.getDate() + 1)
+        params.set('end', inclusiveEnd.toISOString())
+      }
+      const response = await fetch(`/api/dashboard/overview?${params.toString()}`, {
         credentials: 'same-origin', signal: active.signal,
       })
       const body = await response.json().catch(() => ({}))
@@ -176,7 +194,13 @@ export function useDashboard() {
   }
 
   function openLogin() { window.dispatchEvent(new CustomEvent('aigc:open-login')) }
-  watch(hours, refreshScheduler.schedule)
+  function setCustomRange(start: string, end: string) {
+    startDate.value = start
+    endDate.value = end
+    hours.value = Math.max(1, Math.ceil((new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 3600000) + 24)
+  }
+  function clearCustomRange() { startDate.value = ''; endDate.value = '' }
+  watch([hours, startDate, endDate], refreshScheduler.schedule)
   onMounted(() => {
     refresh(true)
     timer = setInterval(() => refresh(), 15_000)
@@ -186,5 +210,5 @@ export function useDashboard() {
     if (timer) clearInterval(timer)
     refreshScheduler.cancel()
   })
-  return { data, hours, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, openLogin }
+  return { data, hours, startDate, endDate, loading, error, authRequired, reviewingEventId, refresh, claimReview, resolveShadowReview, setCustomRange, clearCustomRange, openLogin }
 }

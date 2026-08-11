@@ -37,6 +37,7 @@ dependencies = [
     "loguru>=0.7.3",
     "filetype>=1.2.0",
     "opencv-python-headless>=4.13.0.92",
+    "nudenet==3.4.2",
     "paddleocr>=2.10.0",
     "pymupdf>=1.27.2.3",
 ]

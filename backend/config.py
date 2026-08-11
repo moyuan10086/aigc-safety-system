@@ -5,19 +5,32 @@ import socket
 
 load_dotenv(Path(__file__).parent / ".env")
 
-DEFAULT_GENERATION_MODEL = "gpt-5.6-sol"
-
 # MLLM API (OpenAI-compatible)
 MLLM_API_KEY = os.getenv("MLLM_API_KEY", "")
 MLLM_BASE_URL = os.getenv("MLLM_BASE_URL", "https://api.openai.com/v1")
-MLLM_MODEL = os.getenv("MLLM_MODEL", DEFAULT_GENERATION_MODEL)
+MLLM_MODEL = os.getenv("MLLM_MODEL", "gpt-4o")
 MLLM_TIMEOUT_SECONDS = float(os.getenv("MLLM_TIMEOUT_SECONDS", "90"))
+
+# Local adult-content specialist. It starts in shadow mode until thresholds are
+# calibrated on a representative, lawfully obtained evaluation set.
+NUDENET_ENABLED = os.getenv("NUDENET_ENABLED", "false").lower() in {"1", "true", "yes"}
+NUDENET_MODEL_PATH = os.getenv("NUDENET_MODEL_PATH", "").strip()
+NUDENET_SHADOW_ONLY = os.getenv("NUDENET_SHADOW_ONLY", "true").lower() in {"1", "true", "yes"}
+NUDENET_THRESHOLD = max(0.0, min(1.0, float(os.getenv("NUDENET_THRESHOLD", "0.6"))))
+
+# Optional official UnsafeBench/PerspectiveVision-compatible specialist. The
+# repository is an evaluation framework, so production stays disabled until a
+# separately deployed inference endpoint is configured.
+UNSAFE_BENCH_ENABLED = os.getenv("UNSAFE_BENCH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+UNSAFE_BENCH_ENDPOINT = os.getenv("UNSAFE_BENCH_ENDPOINT", "").strip()
+UNSAFE_BENCH_MODEL = os.getenv("UNSAFE_BENCH_MODEL", "multiheaded").strip()
+UNSAFE_BENCH_TIMEOUT_SECONDS = float(os.getenv("UNSAFE_BENCH_TIMEOUT_SECONDS", "30"))
 
 # Text generation model. It can point to a dedicated local vLLM service while
 # image analysis continues to use the MLLM settings above.
 CHAT_MODEL_API_KEY = os.getenv("CHAT_MODEL_API_KEY", MLLM_API_KEY)
 CHAT_MODEL_BASE_URL = os.getenv("CHAT_MODEL_BASE_URL", MLLM_BASE_URL)
-CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", DEFAULT_GENERATION_MODEL)
+CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", MLLM_MODEL)
 CHAT_MODEL_TIMEOUT_SECONDS = float(os.getenv("CHAT_MODEL_TIMEOUT_SECONDS", "60"))
 CHAT_MODEL_MAX_TOKENS = int(os.getenv("CHAT_MODEL_MAX_TOKENS", "700"))
 GUARDRAIL_CHAT_RATE_LIMIT = int(os.getenv("GUARDRAIL_CHAT_RATE_LIMIT", "10"))
@@ -131,19 +144,17 @@ GUARDRAIL_ENABLE_XGBOOST_SHADOW = os.getenv(
     "GUARDRAIL_ENABLE_XGBOOST_SHADOW", "false"
 ).lower() in {"1", "true", "yes", "on"}
 GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH", "../vendor/aigc-local-auditor"
+    "GUARDRAIL_XGBOOST_SHADOW_MODULE_PATH", ""
 )
 GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH",
-    "../vendor/aigc-local-auditor/security_audit_system/models/hybrid_safety_model_xgboost_color.json",
+    "GUARDRAIL_XGBOOST_SHADOW_MODEL_PATH", ""
 )
 GUARDRAIL_XGBOOST_SHADOW_SHA256 = os.getenv(
-    "GUARDRAIL_XGBOOST_SHADOW_SHA256",
-    "570bd09b358186af1f902ff3bc2b9a463da09a8921d22b72f04978248e5c8180",
+    "GUARDRAIL_XGBOOST_SHADOW_SHA256", ""
 ).lower()
 
-# Deepfake detector artifacts and decision policy. Both remote artifacts are
-# pinned and verified before they can be loaded by the runtime.
+# Deepfake detector artifacts and decision policy. Runtime artifacts are pinned
+# and verified before they can be loaded by the service.
 DEEPFAKE_MODEL_PATH = os.getenv(
     "DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt"
 )
@@ -157,7 +168,7 @@ DEEPFAKE_MODEL_FILENAME = os.getenv("DEEPFAKE_MODEL_FILENAME", "model.ckpt")
 DEEPFAKE_MODEL_SHA256 = os.getenv(
     "DEEPFAKE_MODEL_SHA256",
     "57a0d00f2f5b4046afd2c344ff9877a35e8889e075916cf816796c54816c9955",
-).lower()
+).strip().lower()
 DEEPFAKE_BACKBONE_REVISION = os.getenv(
     "DEEPFAKE_BACKBONE_REVISION", "32bd64288804d66eefd0ccbe215aa642df71cc41"
 )
@@ -174,7 +185,7 @@ DEEPFAKE_FACE_MODEL_URL = os.getenv(
 DEEPFAKE_FACE_MODEL_SHA256 = os.getenv(
     "DEEPFAKE_FACE_MODEL_SHA256",
     "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
-).lower()
+).strip().lower()
 DEEPFAKE_REAL_THRESHOLD = float(os.getenv("DEEPFAKE_REAL_THRESHOLD", "0.20"))
 DEEPFAKE_FAKE_THRESHOLD = float(os.getenv("DEEPFAKE_FAKE_THRESHOLD", "0.80"))
 DEEPFAKE_FACE_MARGIN = float(os.getenv("DEEPFAKE_FACE_MARGIN", "0.15"))

@@ -47,7 +47,7 @@
           <div class="about-row"><span>系统定位</span><b>多模态内容审核与大模型安全护栏</b></div>
           <div class="about-row"><span>核心能力</span><b>伪造检测 / 红线审核 / 输入输出防护</b></div>
           <div class="about-row"><span>检测模型</span><b>CLIP ViT-L/14 + MLLM</b></div>
-          <div class="about-row"><span>知识引擎</span><b>ChromaDB + SentenceTransformers</b></div>
+          <div class="about-row"><span>知识库检索 / 向量存储</span><b>RAG + ChromaDB + SentenceTransformers</b></div>
           <div class="about-row"><span>版本</span><b>Competition Demo 1.2</b></div>
         </div>
       </div>
@@ -80,7 +80,7 @@ const navItems = [
   { to: '/scan', icon: RadarIcon, label: '主动安全扫描' },
   { to: '/kb', icon: BookIcon, label: '红线知识库' },
   { to: '/rag', icon: BookIcon, label: '红线策略' },
-  { to: '/report', icon: ChartIcon, label: '审计与取证' },
+  { to: '/report', icon: ChartIcon, label: '检测报告与日志' },
   { to: '/settings', icon: SettingsIcon, label: '系统设置' },
 ]
 const PLATFORM_NAME = '面向 AIGC 伪造的跨域泛化检测与可解释性防御平台'

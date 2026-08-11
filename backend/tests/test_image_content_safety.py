@@ -7,6 +7,36 @@ from services import mllm_service
 
 
 class TestImageContentSafetyNormalization(unittest.TestCase):
+    def test_content_safety_includes_independent_nudenet_shadow_evidence(self):
+        scores = {code: 0.0 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        specialist = {
+            "provider": "nudenet",
+            "status": "detected",
+            "adult_score": 0.91,
+            "regions": [{"class": "BUTTOCKS_EXPOSED", "score": 0.91, "box": [1, 2, 3, 4]}],
+            "latency_ms": 12,
+            "model_version": "3.4.2/320n",
+            "shadow_only": True,
+            "error_code": None,
+        }
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with patch.object(
+                mllm_service,
+                "_request_content_safety",
+                return_value=(
+                    '{"verdict":"safe","risk_score":0.0,"category_scores":'
+                    + __import__("json").dumps(scores)
+                    + ',"categories":[],"summary":"no visible risk"}'
+                ),
+            ), patch.object(mllm_service.nudenet_service, "analyze", return_value=specialist):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        self.assertEqual(result["specialist_evidence"]["nudenet"], specialist)
+        self.assertEqual(result["verdict"], "safe")
+        self.assertEqual(result["category_scores"]["adult_content"], 0.0)
+
     def test_extracts_first_valid_json_object_from_mixed_model_output(self):
         payload = mllm_service._json_object(
             '审核结果如下：\n```json\n{"verdict":"review","risk_score":0.7,"categories":[]}\n```\n补充说明 {not-json}'
@@ -33,6 +63,21 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
         self.assertEqual(result["categories"][0]["label"], "疑似武器展示")
         self.assertEqual(result["model"], "test-model")
 
+    def test_normalizes_legacy_graphic_violence_code(self):
+        result = mllm_service.normalize_content_safety({
+            "verdict": "unsafe",
+            "risk_score": 0.8,
+            "categories": [{
+                "code": "graphic_violence",
+                "confidence": 0.82,
+                "severity": "high",
+            }],
+        }, model="test-model")
+
+        self.assertEqual(result["categories"][0]["code"], "violence")
+        self.assertEqual(result["categories"][0]["label"], "疑似暴力血腥")
+        self.assertEqual(result["categories"][0]["confidence"], 0.82)
+
     def test_unexplained_unsafe_result_is_sent_to_review(self):
         result = mllm_service.normalize_content_safety({
             "verdict": "unsafe",
@@ -55,6 +100,40 @@ class TestImageContentSafetyNormalization(unittest.TestCase):
 
         self.assertEqual(result["verdict"], "review")
         self.assertEqual(result["risk_score"], 0.62)
+
+    def test_preserves_explicit_scores_for_every_safety_category(self):
+        scores = {code: 0.05 for code in mllm_service.CONTENT_SAFETY_CATEGORIES}
+        scores["adult_content"] = 0.82
+        result = mllm_service.normalize_content_safety({
+            "verdict": "unsafe",
+            "risk_score": 0.82,
+            "category_scores": scores,
+            "categories": [{
+                "code": "adult_content",
+                "confidence": 0.82,
+                "severity": "high",
+                "evidence": "可见成人内容",
+            }],
+        })
+
+        self.assertEqual(result["category_scores"]["adult_content"], 0.82)
+        self.assertEqual(result["missing_category_scores"], [])
+        self.assertEqual(result["score_coverage"], 1.0)
+
+    def test_incomplete_category_scores_fail_closed(self):
+        with TemporaryDirectory() as directory:
+            sample = Path(directory) / "sample.jpg"
+            sample.write_bytes(b"synthetic-image-fixture")
+            with patch.object(mllm_service, "_request_content_safety", return_value=(
+                '{"verdict":"safe","risk_score":0.0,'
+                '"category_scores":{"violence":0.0},"categories":[],"summary":"未见风险"}'
+            )):
+                result = mllm_service.analyze_content_safety(str(sample))
+
+        self.assertEqual(result["verdict"], "review")
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["error_code"], "incomplete_category_scores")
+        self.assertLess(result["score_coverage"], 1.0)
 
     def test_model_failure_fails_closed_to_human_review(self):
         with TemporaryDirectory() as directory:
