@@ -88,6 +88,18 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert deepfake_test["evidence_artifact"] == "df40-statistical-evaluation-20260809.json"
     assert deepfake_test["model_version"] == "CLIP-ViT-L/14 deepfake checkpoint"
     assert len(deepfake_test["weights_sha256"]) == 64
+    multiheaded = next(item for item in status["tasks"] if item["task"] == "content_safety:multiheaded_q16")
+    assert multiheaded["sample_count"] == 75
+    assert multiheaded["positive_count"] == 45
+    assert multiheaded["negative_count"] == 30
+    assert multiheaded["confusion_matrix"] == {"tp": 27, "tn": 28, "fp": 2, "fn": 18}
+    assert multiheaded["metrics"]["recall"] == 0.6
+    perspective = next(item for item in status["tasks"] if item["task"] == "content_safety:perspectivevision")
+    assert perspective["sample_count"] == 75
+    assert perspective["confusion_matrix"] == {"tp": 31, "tn": 30, "fp": 0, "fn": 14}
+    assert perspective["metrics"]["f1"] == 0.8157894736842105
+    assert perspective["latency_ms"]["p95"] == 733.506599906832
+    assert status["latest_evidence"] == "perspectivevision-public75-20260811.json"
     assert next(item for item in status["tasks"] if item["task"] == "content_safety:unsafebench")["status"] == "pending_access"
     personal_data = next(item for item in status["tasks"] if item["task"] == "content_safety:personal_data")
     assert personal_data["status"] == "ready"

@@ -85,6 +85,36 @@ def evaluation_status() -> dict[str, Any]:
     task_statuses: list[dict[str, Any]] = []
     latest_evidence: str | None = None
 
+    cascade_artifacts = (
+        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-public75-20260811.json", "MultiHeaded+Q16 主审核"),
+        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-public75-20260811.json", "PerspectiveVision-LLaVA 二次复核"),
+    )
+    for task, artifact_path, model_version in cascade_artifacts:
+        if not artifact_path.exists():
+            continue
+        try:
+            payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+            metrics = payload.get("metrics") or {}
+            cm = {key: metrics.get(key, 0) for key in ("tp", "tn", "fp", "fn")}
+            task_statuses.append({
+                "task": task,
+                "evidence_artifact": artifact_path.name,
+                "dataset": "public_content_safety_v1",
+                "split": "frozen-75-same-input",
+                "model_version": model_version,
+                "status": "ready" if not payload.get("inconclusive") else "inconclusive",
+                "sample_count": payload.get("sample_count", metrics.get("evaluated", 0)),
+                "positive_count": cm["tp"] + cm["fn"],
+                "negative_count": cm["tn"] + cm["fp"],
+                "threshold": 0.5,
+                "confusion_matrix": cm,
+                "metrics": {key: metrics.get(key) for key in ("accuracy", "precision", "recall", "f1")},
+                "latency_ms": payload.get("latency_ms"),
+            })
+            latest_evidence = artifact_path.name
+        except (OSError, ValueError, TypeError):
+            task_statuses.append({"task": task, "status": "inconclusive", "evidence_artifact": artifact_path.name})
+
     statistical_path = evidence_dir / "df40-statistical-evaluation-20260809.json"
     if statistical_path.exists():
         try:
@@ -259,6 +289,10 @@ def evaluation_status() -> dict[str, Any]:
         quality_state, quality_summary = _quality_state(item)
         item["quality_state"] = quality_state
         item["quality_summary"] = quality_summary
+
+    newest_cascade_evidence = evidence_dir / "perspectivevision-public75-20260811.json"
+    if newest_cascade_evidence.exists():
+        latest_evidence = newest_cascade_evidence.name
 
     has_ready = any(item.get("status") == "ready" for item in task_statuses)
     has_evidence = bool(task_statuses)

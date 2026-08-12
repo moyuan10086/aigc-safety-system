@@ -69,6 +69,7 @@
             <span v-if="task.metrics?.pr_auc != null">PR-AUC <b>{{ decimal(task.metrics.pr_auc) }}</b></span>
             <span v-if="task.metrics?.ece != null">ECE <b>{{ decimal(task.metrics.ece) }}</b></span>
             <span v-if="task.threshold != null">阈值 <b>{{ Number(task.threshold).toFixed(2) }}</b></span>
+            <span v-if="task.latency_ms?.mean != null">平均耗时 <b>{{ Math.round(task.latency_ms.mean) }} ms</b></span>
           </div>
 
           <div v-if="task.confusion_matrix" class="confusion-row">
@@ -120,6 +121,8 @@ const evaluatedTasks = computed(() => (status.tasks || []).filter((task:Record<s
 const pendingTasks = computed(() => (status.tasks || []).filter((task:Record<string,any>) => task.status !== 'ready'))
 
 const labels: Record<string,string> = {
+  'content_safety:multiheaded_q16':'图片安全 · MultiHeaded+Q16 主审核（75张同集复评）',
+  'content_safety:perspectivevision':'图片安全 · PerspectiveVision 二次复核（75张同集复评）',
   'deepfake:test':'Deepfake · DF40 测试集', 'deepfake:validation':'Deepfake · DF40 验证集',
   'deepfake:faceforensics_blind':'Deepfake · FaceForensics 盲测',
   'content_safety:adult_content':'图片安全 · 成人内容', 'content_safety:marketing_violation':'图片安全 · 营销违规',
