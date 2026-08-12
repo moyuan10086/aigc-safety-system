@@ -83,7 +83,10 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert status["claim_level"].startswith("仅部分模块有足量独立标签")
     assert "无标签盲测只能报告模型分数分布" in status["boundary"]
     assert status["minimum_samples"] == {"total": 30, "per_class": 5}
-    assert status["showcase_thresholds"] == {"recall": 0.8, "precision": 0.8, "f1": 0.8}
+    assert status["showcase_thresholds"] == {
+        "strong": {"recall": 0.8, "precision": 0.8, "f1": 0.8},
+        "assist": {"recall": 0.6, "precision": 0.6, "f1": 0.6},
+    }
     platform_test = next(item for item in status["tasks"] if item["task"] == "deepfake:platform_test")
     assert platform_test["model_origin"] == "platform_finetuned"
     assert platform_test["sample_count"] == 3212
@@ -105,14 +108,16 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert multiheaded["confusion_matrix"] == {"tp": 27, "tn": 28, "fp": 2, "fn": 18}
     assert multiheaded["metrics"]["recall"] == 0.6
     assert multiheaded["evidence_artifact"] == "multiheaded-q16-public75-20260812.json"
-    assert multiheaded["showcase"] is False
+    assert multiheaded["showcase"] is True
+    assert multiheaded["showcase_tier"] == "assist"
     perspective = next(item for item in status["tasks"] if item["task"] == "content_safety:perspectivevision")
     assert perspective["sample_count"] == 75
     assert perspective["confusion_matrix"] == {"tp": 31, "tn": 30, "fp": 0, "fn": 14}
     assert perspective["metrics"]["f1"] == 0.8157894736842105
     assert perspective["latency_ms"]["p95"] == 833.5196021944284
     assert perspective["evidence_artifact"] == "perspectivevision-public75-20260812.json"
-    assert perspective["showcase"] is False
+    assert perspective["showcase"] is True
+    assert perspective["showcase_tier"] == "assist"
     singguard = next(item for item in status["tasks"] if item["task"] == "guardrail:singguard")
     assert singguard["sample_count"] == 10
     assert singguard["confusion_matrix"] == {"tp": 6, "tn": 3, "fp": 0, "fn": 1}
@@ -148,7 +153,9 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert weapon["metrics"]["f1"] == 0.7317
     assert weapon["metrics"]["pr_auc"] == 0.7149
     assert status["summary"]["blocked"] >= 1
-    assert status["summary"]["showcase"] == 2
+    assert status["summary"]["showcase"] == 4
+    assert status["summary"]["showcase_strong"] == 2
+    assert status["summary"]["showcase_assist"] == 2
     assert status["summary"]["pending"] >= 1
     assert all(item["status"] == "ready" for item in status["tasks"] if item["task"] in {"deepfake:validation", "deepfake:test"})
     assert next(item for item in status["tasks"] if item["task"] == "deepfake:faceforensics_blind")["status"] == "unlabeled"

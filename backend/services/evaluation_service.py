@@ -21,6 +21,9 @@ MIN_CLASS_SAMPLES = 5
 SHOWCASE_MIN_RECALL = 0.80
 SHOWCASE_MIN_PRECISION = 0.80
 SHOWCASE_MIN_F1 = 0.80
+SHOWCASE_ASSIST_MIN_RECALL = 0.60
+SHOWCASE_ASSIST_MIN_PRECISION = 0.60
+SHOWCASE_ASSIST_MIN_F1 = 0.60
 CONTENT_SAFETY_TASKS = (
     "content_safety:adult_content",
     "content_safety:weapon_display",
@@ -371,7 +374,7 @@ def evaluation_status() -> dict[str, Any]:
 
         metrics = item.get("metrics") or {}
         current = bool(item.get("current_deployment"))
-        meets_showcase_threshold = all(
+        meets_strong_threshold = all(
             metrics.get(metric) is not None and float(metrics[metric]) >= threshold
             for metric, threshold in (
                 ("recall", SHOWCASE_MIN_RECALL),
@@ -379,13 +382,32 @@ def evaluation_status() -> dict[str, Any]:
                 ("f1", SHOWCASE_MIN_F1),
             )
         )
-        item["publication"] = "showcase" if (
+        meets_assist_threshold = all(
+            metrics.get(metric) is not None and float(metrics[metric]) >= threshold
+            for metric, threshold in (
+                ("recall", SHOWCASE_ASSIST_MIN_RECALL),
+                ("precision", SHOWCASE_ASSIST_MIN_PRECISION),
+                ("f1", SHOWCASE_ASSIST_MIN_F1),
+            )
+        )
+        publishable = (
             current
             and item.get("status") == "ready"
             and int(item.get("sample_count") or 0) >= MIN_SAMPLES
-            and meets_showcase_threshold
-        ) else "archive"
-        item["showcase"] = item["publication"] == "showcase"
+        )
+        if publishable and meets_strong_threshold:
+            item["publication"] = "showcase_strong"
+            item["showcase_tier"] = "strong"
+            item["showcase_summary"] = "优势能力 · 可作为核心检测证据"
+        elif publishable and meets_assist_threshold:
+            item["publication"] = "showcase_assist"
+            item["showcase_tier"] = "assist"
+            item["showcase_summary"] = "辅助能力 · 建议结合复核链路"
+        else:
+            item["publication"] = "archive"
+            item["showcase_tier"] = None
+            item["showcase_summary"] = None
+        item["showcase"] = item["publication"].startswith("showcase_")
 
     if production_retest_path.exists():
         latest_evidence = production_retest_path.name
@@ -412,9 +434,8 @@ def evaluation_status() -> dict[str, Any]:
         "latest_evidence": latest_evidence,
         "minimum_samples": {"total": MIN_SAMPLES, "per_class": MIN_CLASS_SAMPLES},
         "showcase_thresholds": {
-            "recall": SHOWCASE_MIN_RECALL,
-            "precision": SHOWCASE_MIN_PRECISION,
-            "f1": SHOWCASE_MIN_F1,
+            "strong": {"recall": SHOWCASE_MIN_RECALL, "precision": SHOWCASE_MIN_PRECISION, "f1": SHOWCASE_MIN_F1},
+            "assist": {"recall": SHOWCASE_ASSIST_MIN_RECALL, "precision": SHOWCASE_ASSIST_MIN_PRECISION, "f1": SHOWCASE_ASSIST_MIN_F1},
         },
         "summary": {
             "evaluated": sum(item.get("status") == "ready" for item in task_statuses),
@@ -423,6 +444,8 @@ def evaluation_status() -> dict[str, Any]:
             "blocked": sum(item.get("quality_state") == "unsafe_for_automation" for item in task_statuses),
             "pending": sum(item.get("quality_state") == "evidence_pending" for item in task_statuses),
             "showcase": sum(bool(item.get("showcase")) for item in task_statuses),
+            "showcase_strong": sum(item.get("showcase_tier") == "strong" for item in task_statuses),
+            "showcase_assist": sum(item.get("showcase_tier") == "assist" for item in task_statuses),
             "archived": sum(not bool(item.get("showcase")) for item in task_statuses),
         },
         "boundary": "只有独立、人工标注且冻结版本的留出集才能支持统计校准；无标签盲测只能报告模型分数分布。",
