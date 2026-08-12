@@ -262,6 +262,34 @@ class GuardrailServiceTests(unittest.TestCase):
             scores, evidence, status = guardrail_service._run_mllm("prompt", "response")
         self.assertEqual((scores, evidence, status), ({}, [], "inconclusive"))
 
+    def test_mllm_prompt_requires_verdict_for_safe_content(self):
+        captured = {}
+
+        class FakeHTTPClient:
+            def __init__(self, **_kwargs): pass
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+
+        def create(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(
+                content='{"verdict":"safe","categories":[],"scores":{},"reason":"benign"}'
+            ))])
+
+        class FakeOpenAI:
+            def __init__(self, **_kwargs):
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
+
+        with patch.object(guardrail_service, "GUARDRAIL_ENABLE_MLLM", True), patch.object(
+            guardrail_service, "MLLM_API_KEY", "test-key"
+        ), patch.dict(sys.modules, {"httpx": SimpleNamespace(Client=FakeHTTPClient), "openai": SimpleNamespace(OpenAI=FakeOpenAI)}):
+            scores, evidence, status = guardrail_service._run_mllm("prompt", "response")
+
+        self.assertEqual((scores, evidence, status), ({}, [], "ok"))
+        system_prompt = captured["messages"][0]["content"]
+        self.assertIn("verdict", system_prompt)
+        self.assertIn("Always include verdict", system_prompt)
+
     def test_mllm_unsafe_verdict_with_unknown_categories_keeps_risk_signal(self):
         class FakeHTTPClient:
             def __init__(self, **_kwargs): pass
