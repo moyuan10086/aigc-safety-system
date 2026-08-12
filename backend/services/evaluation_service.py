@@ -28,9 +28,11 @@ CONTENT_SAFETY_TASKS = (
     "content_safety:adult_content",
     "content_safety:weapon_display",
     "content_safety:violence",
+)
+LEGACY_CONTENT_SAFETY_SUBTASKS = {
     "content_safety:political_sensitive",
     "content_safety:marketing_violation",
-)
+}
 
 PUBLISHED_METRICS = (
     "accuracy", "accuracy_95ci", "precision", "precision_95ci",
@@ -124,7 +126,7 @@ def evaluation_status() -> dict[str, Any]:
                     },
                     "latency_ms": {"total": round(float(result.get("elapsed_s", 0)) * 1000, 1)},
                     "evaluated_at": production_retest.get("generated_at"),
-                    "current_deployment": True,
+                    "current_deployment": split == "test",
                 })
         except (OSError, ValueError, TypeError):
             task_statuses.append({"task": "deepfake:platform", "status": "inconclusive"})
@@ -269,6 +271,8 @@ def evaluation_status() -> dict[str, Any]:
             if not latest_evidence:
                 latest_evidence = smoke_path.name
             for task, result in sorted((payload.get("tasks") or {}).items()):
+                if task in LEGACY_CONTENT_SAFETY_SUBTASKS:
+                    continue
                 if any(item.get("task") == task for item in task_statuses):
                     continue
                 task_statuses.append({
@@ -396,11 +400,63 @@ def evaluation_status() -> dict[str, Any]:
             task_statuses.append({
                 "task": "deepfake:faceforensics_blind",
                 "evidence_artifact": blind_path.name,
-                "status": "ready" if blind_labeled else "unlabeled",
+                "status": "ready" if blind_labeled else "archived_unlabeled",
+                "reason": "公开盲测包不含官方真值；保留推理分布，不作为准确率统计。" if not blind_labeled else None,
                 "sample_count": len(blind.get("predictions") or blind.get("results") or []),
             })
         except (OSError, ValueError, TypeError):
             task_statuses.append({"task": "deepfake:faceforensics_blind", "status": "inconclusive"})
+
+    # Generic AI-generated-image authenticity is a separate task from face
+    # manipulation. Prefer a real source-balanced MLLM evaluation when it is
+    # available; otherwise keep the task visibly pending rather than reusing a
+    # face Deepfake score as a generic claim.
+    generic_path = evidence_dir / "generic-authenticity-mllm-balanced60-20260812.json"
+    if generic_path.exists():
+        try:
+            payload = json.loads(generic_path.read_text(encoding="utf-8"))
+            metrics = payload.get("metrics") or {}
+            cm = payload.get("confusion_matrix") or {}
+            task_statuses.append({
+                "task": "authenticity:generic_aigc",
+                "evidence_artifact": generic_path.name,
+                "dataset": payload.get("dataset"),
+                "split": payload.get("split"),
+                "model_version": payload.get("model_version"),
+                "status": "ready",
+                "sample_count": payload.get("sample_count", 0),
+                "positive_count": payload.get("positive_count", 0),
+                "negative_count": payload.get("negative_count", 0),
+                "decided_count": payload.get("decided_count", 0),
+                "uncertain_count": payload.get("uncertain_count", 0),
+                "threshold": None,
+                "confusion_matrix": cm,
+                "metrics": {
+                    "accuracy": metrics.get("accuracy_on_decided"),
+                    "precision": metrics.get("precision"),
+                    "recall": metrics.get("recall"),
+                    "f1": metrics.get("f1"),
+                },
+                "latency_ms": payload.get("latency_ms"),
+                "current_deployment": True,
+                "presentation_cap": "assist",
+                "boundary": payload.get("boundary"),
+            })
+        except (OSError, ValueError, TypeError):
+            task_statuses.append({"task": "authenticity:generic_aigc", "status": "inconclusive"})
+    else:
+        task_statuses.append({
+            "task": "authenticity:generic_aigc",
+            "dataset": "GenImage / Synthbuster candidate",
+            "split": "pending-authorized-test",
+            "model_version": "待接入通用 AIGC 图像检测基线",
+            "status": "pending_access",
+            "sample_count": 0,
+            "positive_count": 0,
+            "negative_count": 0,
+            "reason": "当前已完成的是人脸 Deepfake，不代表通用 AI 生图检测；需先完成公开数据授权、模型接入和独立测试。",
+            "current_deployment": False,
+        })
 
     for item in task_statuses:
         quality_state, quality_summary = _quality_state(item)
@@ -430,7 +486,7 @@ def evaluation_status() -> dict[str, Any]:
             and item.get("status") == "ready"
             and int(item.get("sample_count") or 0) >= MIN_SAMPLES
         )
-        if publishable and meets_strong_threshold:
+        if publishable and meets_strong_threshold and item.get("presentation_cap") != "assist":
             item["publication"] = "showcase_strong"
             item["showcase_tier"] = "strong"
             item["showcase_summary"] = "优势能力 · 可作为核心检测证据"
@@ -473,7 +529,10 @@ def evaluation_status() -> dict[str, Any]:
             "assist": {"recall": SHOWCASE_ASSIST_MIN_RECALL, "precision": SHOWCASE_ASSIST_MIN_PRECISION, "f1": SHOWCASE_ASSIST_MIN_F1},
         },
         "summary": {
-            "evaluated": sum(item.get("status") == "ready" for item in task_statuses),
+            # The UI headline is about current publishable capabilities. The
+            # complete evidence inventory remains available in `tasks`.
+            "evaluated": sum(bool(item.get("showcase")) for item in task_statuses),
+            "completed_evaluations": sum(item.get("status") == "ready" for item in task_statuses),
             "validated": sum(item.get("quality_state") == "validated" for item in task_statuses),
             "limited": sum(item.get("quality_state") in {"limited", "limited_evidence"} for item in task_statuses),
             "blocked": sum(item.get("quality_state") == "unsafe_for_automation" for item in task_statuses),

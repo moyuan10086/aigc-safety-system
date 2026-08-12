@@ -95,7 +95,8 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert platform_test["metrics"]["f1"] == 0.8606680710201625
     assert platform_test["showcase"] is True
     platform_validation = next(item for item in status["tasks"] if item["task"] == "deepfake:platform_validation")
-    assert platform_validation["showcase"] is True
+    assert platform_validation["showcase"] is False
+    assert platform_validation["publication"] == "archive"
     assert {item["task"] for item in status["tasks"]} >= {"deepfake:validation", "deepfake:test"}
     deepfake_test = next(item for item in status["tasks"] if item["task"] == "deepfake:test")
     assert deepfake_test["evidence_artifact"] == "df40-statistical-evaluation-20260809.json"
@@ -157,8 +158,16 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert weapon["metrics"]["pr_auc"] == 0.7149
     assert status["summary"]["blocked"] >= 1
     assert status["summary"]["showcase"] == 4
-    assert status["summary"]["showcase_strong"] == 2
-    assert status["summary"]["showcase_assist"] == 2
+    assert status["summary"]["showcase_strong"] == 1
+    assert status["summary"]["showcase_assist"] == 3
+    assert status["summary"]["evaluated"] == 4
+    assert status["summary"]["completed_evaluations"] >= 10
     assert status["summary"]["pending"] >= 1
     assert all(item["status"] == "ready" for item in status["tasks"] if item["task"] in {"deepfake:validation", "deepfake:test"})
-    assert next(item for item in status["tasks"] if item["task"] == "deepfake:faceforensics_blind")["status"] == "unlabeled"
+    blind = next(item for item in status["tasks"] if item["task"] == "deepfake:faceforensics_blind")
+    assert blind["status"] == "archived_unlabeled"
+    generic = next(item for item in status["tasks"] if item["task"] == "authenticity:generic_aigc")
+    assert generic["status"] == "ready"
+    assert generic["sample_count"] == 60
+    assert generic["uncertain_count"] == 11
+    assert generic["showcase_tier"] == "assist"
