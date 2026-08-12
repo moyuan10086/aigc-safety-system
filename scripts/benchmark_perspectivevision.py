@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-revision", default="unknown")
     parser.add_argument("--base-revision", default="unknown")
     parser.add_argument("--endpoint", default="http://127.0.0.1:18300/infer")
+    parser.add_argument("--api-key")
+    parser.add_argument("--api-key-file", type=Path)
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--limit", type=int)
@@ -194,6 +196,11 @@ class HttpEngine:
         self.requests = requests
         self.endpoint = args.endpoint
         self.timeout = args.timeout
+        self.api_key = (
+            args.api_key_file.read_text(encoding="utf-8").strip()
+            if args.api_key_file
+            else args.api_key
+        )
 
     def infer(self, image_path: Path) -> dict[str, Any]:
         started = time.perf_counter()
@@ -201,9 +208,12 @@ class HttpEngine:
             response = self.requests.post(
                 self.endpoint,
                 files={"file": (image_path.name, handle, "application/octet-stream")},
+                headers={"X-API-Key": self.api_key} if self.api_key else None,
                 timeout=self.timeout,
             )
         latency_ms = (time.perf_counter() - started) * 1000
+        if response.status_code in {401, 403}:
+            raise PermissionError(f"image-safety provider rejected credentials: HTTP {response.status_code}")
         response.raise_for_status()
         payload = response.json()
         verdict = str(payload.get("verdict", "")).lower()
@@ -239,6 +249,8 @@ def main() -> None:
         try:
             inference = engine.infer(image_path)
             record.update(inference)
+        except PermissionError:
+            raise
         except Exception as exc:  # retain sample-level failures as evidence
             record.update({"status": "inconclusive", "error_type": type(exc).__name__, "error": str(exc)[:300]})
         records.append(record)

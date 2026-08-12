@@ -1,0 +1,46 @@
+{
+  "schema": "aigc.deepfake.production-retest.v1",
+  "generated_at": "2026-08-12T16:17:00+08:00",
+  "model": {
+    "name": "AIGC Safety DFDet Multi-Dataset PEFT",
+    "training_type": "platform_finetuned",
+    "initialization": "third-party CLIP-LN checkpoint",
+    "best_epoch": 6,
+    "training_epochs": 20,
+    "training_accelerators": "16 x Ascend 910C NPU",
+    "training_datasets": ["DF40 train", "OpenRL/DeepFakeFace train"],
+    "training_samples": 85696,
+    "checkpoint_sha256": "fd0b967e9ab6a19aa0127c5c2301b3883ff8013b1a5d7af282e29737132c1fb9"
+  },
+  "protocol": {
+    "dataset": "DF40 curated held-out",
+    "threshold": 0.5,
+    "selection": "maximum validation F1 during 20-epoch training",
+    "rerun_device": "Ascend 910C physical NPU 8",
+    "training_samples_excluded": true
+  },
+  "val": {
+    "count": 3212,
+    "accuracy": 0.8813823163138231,
+    "recall_fake": 0.9221668742216688,
+    "precision": 0.8526194588370755,
+    "f1": 0.8860305115166018,
+    "tp": 1481,
+    "tn": 1350,
+    "fp": 256,
+    "fn": 125,
+    "elapsed_s": 26.758
+  },
+  "test": {
+    "count": 3212,
+    "accuracy": 0.8558530510585305,
+    "recall_fake": 0.8904109589041096,
+    "precision": 0.8328479906814211,
+    "f1": 0.8606680710201625,
+    "tp": 1430,
+    "tn": 1319,
+    "fp": 287,
+    "fn": 176,
+    "elapsed_s": 32.73
+  }
+}

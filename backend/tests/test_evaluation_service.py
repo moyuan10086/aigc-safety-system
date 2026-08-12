@@ -83,6 +83,16 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert status["claim_level"].startswith("仅部分模块有足量独立标签")
     assert "无标签盲测只能报告模型分数分布" in status["boundary"]
     assert status["minimum_samples"] == {"total": 30, "per_class": 5}
+    assert status["showcase_thresholds"] == {"recall": 0.8, "precision": 0.8, "f1": 0.8}
+    platform_test = next(item for item in status["tasks"] if item["task"] == "deepfake:platform_test")
+    assert platform_test["model_origin"] == "platform_finetuned"
+    assert platform_test["sample_count"] == 3212
+    assert platform_test["confusion_matrix"] == {"tp": 1430, "tn": 1319, "fp": 287, "fn": 176}
+    assert platform_test["metrics"]["recall"] == 0.8904109589041096
+    assert platform_test["metrics"]["f1"] == 0.8606680710201625
+    assert platform_test["showcase"] is True
+    platform_validation = next(item for item in status["tasks"] if item["task"] == "deepfake:platform_validation")
+    assert platform_validation["showcase"] is True
     assert {item["task"] for item in status["tasks"]} >= {"deepfake:validation", "deepfake:test"}
     deepfake_test = next(item for item in status["tasks"] if item["task"] == "deepfake:test")
     assert deepfake_test["evidence_artifact"] == "df40-statistical-evaluation-20260809.json"
@@ -94,12 +104,21 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert multiheaded["negative_count"] == 30
     assert multiheaded["confusion_matrix"] == {"tp": 27, "tn": 28, "fp": 2, "fn": 18}
     assert multiheaded["metrics"]["recall"] == 0.6
+    assert multiheaded["evidence_artifact"] == "multiheaded-q16-public75-20260812.json"
+    assert multiheaded["showcase"] is False
     perspective = next(item for item in status["tasks"] if item["task"] == "content_safety:perspectivevision")
     assert perspective["sample_count"] == 75
     assert perspective["confusion_matrix"] == {"tp": 31, "tn": 30, "fp": 0, "fn": 14}
     assert perspective["metrics"]["f1"] == 0.8157894736842105
-    assert perspective["latency_ms"]["p95"] == 733.506599906832
-    assert status["latest_evidence"] == "perspectivevision-public75-20260811.json"
+    assert perspective["latency_ms"]["p95"] == 833.5196021944284
+    assert perspective["evidence_artifact"] == "perspectivevision-public75-20260812.json"
+    assert perspective["showcase"] is False
+    singguard = next(item for item in status["tasks"] if item["task"] == "guardrail:singguard")
+    assert singguard["sample_count"] == 10
+    assert singguard["confusion_matrix"] == {"tp": 6, "tn": 3, "fp": 0, "fn": 1}
+    assert singguard["metrics"]["accuracy"] == 0.9
+    assert singguard["showcase"] is False
+    assert status["latest_evidence"] == "deepfake-platform-epoch6-retest-20260812.json"
     assert next(item for item in status["tasks"] if item["task"] == "content_safety:unsafebench")["status"] == "pending_access"
     personal_data = next(item for item in status["tasks"] if item["task"] == "content_safety:personal_data")
     assert personal_data["status"] == "ready"
@@ -120,6 +139,7 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert adult["metrics"]["accuracy"] == 0.8
     assert adult["metrics"]["recall"] == 0.0
     assert adult["quality_state"] == "unsafe_for_automation"
+    assert adult["showcase"] is False
     assert adult["quality_summary"] == "召回率过低，不可自动放行"
     assert adult["threshold"] == 0.5
     assert adult["confusion_matrix"] == {"tp": 0, "tn": 60, "fp": 0, "fn": 15}
@@ -128,6 +148,7 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert weapon["metrics"]["f1"] == 0.7317
     assert weapon["metrics"]["pr_auc"] == 0.7149
     assert status["summary"]["blocked"] >= 1
+    assert status["summary"]["showcase"] == 2
     assert status["summary"]["pending"] >= 1
     assert all(item["status"] == "ready" for item in status["tasks"] if item["task"] in {"deepfake:validation", "deepfake:test"})
     assert next(item for item in status["tasks"] if item["task"] == "deepfake:faceforensics_blind")["status"] == "unlabeled"

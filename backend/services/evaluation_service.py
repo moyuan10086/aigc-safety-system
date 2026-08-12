@@ -18,6 +18,9 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 MIN_SAMPLES = 30
 MIN_CLASS_SAMPLES = 5
+SHOWCASE_MIN_RECALL = 0.80
+SHOWCASE_MIN_PRECISION = 0.80
+SHOWCASE_MIN_F1 = 0.80
 CONTENT_SAFETY_TASKS = (
     "content_safety:adult_content",
     "content_safety:weapon_display",
@@ -85,9 +88,47 @@ def evaluation_status() -> dict[str, Any]:
     task_statuses: list[dict[str, Any]] = []
     latest_evidence: str | None = None
 
+    production_retest_path = evidence_dir / "deepfake-platform-epoch6-retest-20260812.json"
+    if production_retest_path.exists():
+        try:
+            production_retest = json.loads(production_retest_path.read_text(encoding="utf-8"))
+            model = production_retest.get("model") or {}
+            protocol = production_retest.get("protocol") or {}
+            latest_evidence = production_retest_path.name
+            for split in ("val", "test"):
+                result = production_retest.get(split) or {}
+                if not result:
+                    continue
+                task_statuses.append({
+                    "task": f"deepfake:platform_{'validation' if split == 'val' else 'test'}",
+                    "evidence_artifact": production_retest_path.name,
+                    "dataset": protocol.get("dataset", "DF40 curated held-out"),
+                    "split": "validation" if split == "val" else "test",
+                    "model_version": f"{model.get('name', '平台多数据集微调模型')} · epoch {model.get('best_epoch', 6)}",
+                    "model_origin": "platform_finetuned",
+                    "weights_sha256": model.get("checkpoint_sha256"),
+                    "status": "ready",
+                    "sample_count": result.get("count", 0),
+                    "positive_count": result.get("tp", 0) + result.get("fn", 0),
+                    "negative_count": result.get("tn", 0) + result.get("fp", 0),
+                    "threshold": protocol.get("threshold", 0.5),
+                    "confusion_matrix": {key: result.get(key, 0) for key in ("tp", "tn", "fp", "fn")},
+                    "metrics": {
+                        "accuracy": result.get("accuracy"),
+                        "precision": result.get("precision"),
+                        "recall": result.get("recall_fake"),
+                        "f1": result.get("f1"),
+                    },
+                    "latency_ms": {"total": round(float(result.get("elapsed_s", 0)) * 1000, 1)},
+                    "evaluated_at": production_retest.get("generated_at"),
+                    "current_deployment": True,
+                })
+        except (OSError, ValueError, TypeError):
+            task_statuses.append({"task": "deepfake:platform", "status": "inconclusive"})
+
     cascade_artifacts = (
-        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-public75-20260811.json", "MultiHeaded+Q16 主审核"),
-        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-public75-20260811.json", "PerspectiveVision-LLaVA 二次复核"),
+        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-public75-20260812.json", "MultiHeaded+Q16 主审核"),
+        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-public75-20260812.json", "PerspectiveVision-LLaVA 二次复核"),
     )
     for task, artifact_path, model_version in cascade_artifacts:
         if not artifact_path.exists():
@@ -110,10 +151,48 @@ def evaluation_status() -> dict[str, Any]:
                 "confusion_matrix": cm,
                 "metrics": {key: metrics.get(key) for key in ("accuracy", "precision", "recall", "f1")},
                 "latency_ms": payload.get("latency_ms"),
+                "evaluated_at": "2026-08-12",
+                "current_deployment": True,
             })
             latest_evidence = artifact_path.name
         except (OSError, ValueError, TypeError):
             task_statuses.append({"task": task, "status": "inconclusive", "evidence_artifact": artifact_path.name})
+
+    singguard_path = evidence_dir / "singguard-benchmark-20260812.json"
+    if singguard_path.exists():
+        try:
+            payload = json.loads(singguard_path.read_text(encoding="utf-8"))
+            rows = payload.get("results") or []
+            tp = sum(bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
+            tn = sum(not bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
+            fp = sum(not bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
+            fn = sum(bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
+            precision = tp / (tp + fp) if tp + fp else 0.0
+            recall = tp / (tp + fn) if tp + fn else 0.0
+            task_statuses.append({
+                "task": "guardrail:singguard",
+                "evidence_artifact": singguard_path.name,
+                "dataset": "platform_guardrail_cases_v1",
+                "split": "frozen-10",
+                "model_version": "SingGuard-NSFA-0.8B",
+                "model_origin": "third_party_deployed",
+                "status": "ready",
+                "sample_count": len(rows),
+                "positive_count": tp + fn,
+                "negative_count": tn + fp,
+                "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
+                "metrics": {
+                    "accuracy": payload.get("accuracy"),
+                    "precision": precision,
+                    "recall": recall,
+                    "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+                },
+                "latency_ms": payload.get("latency_ms"),
+                "evaluated_at": "2026-08-12",
+                "current_deployment": True,
+            })
+        except (OSError, ValueError, TypeError):
+            task_statuses.append({"task": "guardrail:singguard", "status": "inconclusive"})
 
     statistical_path = evidence_dir / "df40-statistical-evaluation-20260809.json"
     if statistical_path.exists():
@@ -290,9 +369,26 @@ def evaluation_status() -> dict[str, Any]:
         item["quality_state"] = quality_state
         item["quality_summary"] = quality_summary
 
-    newest_cascade_evidence = evidence_dir / "perspectivevision-public75-20260811.json"
-    if newest_cascade_evidence.exists():
-        latest_evidence = newest_cascade_evidence.name
+        metrics = item.get("metrics") or {}
+        current = bool(item.get("current_deployment"))
+        meets_showcase_threshold = all(
+            metrics.get(metric) is not None and float(metrics[metric]) >= threshold
+            for metric, threshold in (
+                ("recall", SHOWCASE_MIN_RECALL),
+                ("precision", SHOWCASE_MIN_PRECISION),
+                ("f1", SHOWCASE_MIN_F1),
+            )
+        )
+        item["publication"] = "showcase" if (
+            current
+            and item.get("status") == "ready"
+            and int(item.get("sample_count") or 0) >= MIN_SAMPLES
+            and meets_showcase_threshold
+        ) else "archive"
+        item["showcase"] = item["publication"] == "showcase"
+
+    if production_retest_path.exists():
+        latest_evidence = production_retest_path.name
 
     has_ready = any(item.get("status") == "ready" for item in task_statuses)
     has_evidence = bool(task_statuses)
@@ -315,12 +411,19 @@ def evaluation_status() -> dict[str, Any]:
         "tasks": task_statuses,
         "latest_evidence": latest_evidence,
         "minimum_samples": {"total": MIN_SAMPLES, "per_class": MIN_CLASS_SAMPLES},
+        "showcase_thresholds": {
+            "recall": SHOWCASE_MIN_RECALL,
+            "precision": SHOWCASE_MIN_PRECISION,
+            "f1": SHOWCASE_MIN_F1,
+        },
         "summary": {
             "evaluated": sum(item.get("status") == "ready" for item in task_statuses),
             "validated": sum(item.get("quality_state") == "validated" for item in task_statuses),
             "limited": sum(item.get("quality_state") in {"limited", "limited_evidence"} for item in task_statuses),
             "blocked": sum(item.get("quality_state") == "unsafe_for_automation" for item in task_statuses),
             "pending": sum(item.get("quality_state") == "evidence_pending" for item in task_statuses),
+            "showcase": sum(bool(item.get("showcase")) for item in task_statuses),
+            "archived": sum(not bool(item.get("showcase")) for item in task_statuses),
         },
         "boundary": "只有独立、人工标注且冻结版本的留出集才能支持统计校准；无标签盲测只能报告模型分数分布。",
         "report": str((evaluation_dir / "master-evaluation-report-20260809.md").relative_to(project_root))

@@ -181,6 +181,10 @@ GUARDRAIL_XGBOOST_SHADOW_SHA256 = os.getenv(
 DEEPFAKE_MODEL_PATH = os.getenv(
     "DEEPFAKE_MODEL_PATH", "../deepfake-detection/weights/model.ckpt"
 )
+DEEPFAKE_MODEL_NAME = os.getenv("DEEPFAKE_MODEL_NAME", "DFDet CLIP ViT-L/14")
+DEEPFAKE_MODEL_ORIGIN = os.getenv(
+    "DEEPFAKE_MODEL_ORIGIN", "yermandy/deepfake-detection"
+)
 DEEPFAKE_MODEL_REPO = os.getenv(
     "DEEPFAKE_MODEL_REPO", "yermandy/deepfake-detection"
 )

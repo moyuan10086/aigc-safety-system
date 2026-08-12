@@ -1,4 +1,4 @@
-"""Pinned, face-aligned inference for the third-party DFDet checkpoint."""
+"""Pinned, face-aligned inference for a configured DFDet checkpoint."""
 
 from __future__ import annotations
 
@@ -34,7 +34,6 @@ from src.config import Config  # noqa: E402
 from src.model.dfdet import DeepfakeDetectionModel  # noqa: E402
 
 PREPROCESSING_VERSION = "deepfakebench-5point-align-v1"
-MODEL_ORIGIN = "yermandy/deepfake-detection"
 _device = "cuda" if torch.cuda.is_available() else "cpu"
 _model: Any | None = None
 _preprocess: Any | None = None
@@ -430,8 +429,8 @@ def _inconclusive(reason: str, *, latency_ms: float, error_code: str | None = No
         "error_code": error_code,
         "face_count": 0,
         "faces": [],
-        "model": "DFDet CLIP ViT-L/14",
-        "model_origin": MODEL_ORIGIN,
+        "model": config.DEEPFAKE_MODEL_NAME,
+        "model_origin": config.DEEPFAKE_MODEL_ORIGIN,
         "model_revision": config.DEEPFAKE_MODEL_REVISION,
         "preprocessing": PREPROCESSING_VERSION,
         "policy_version": "deepfake-triage-v1",
@@ -512,8 +511,8 @@ def detect(image_path: str, face_result: dict[str, Any] | None = None) -> dict[s
                 "threshold_source": "conservative_operational_default",
                 "policy_version": "deepfake-triage-v1",
                 "calibration_status": "production_benchmark_pending",
-                "model": "DFDet CLIP ViT-L/14",
-                "model_origin": MODEL_ORIGIN,
+                "model": config.DEEPFAKE_MODEL_NAME,
+                "model_origin": config.DEEPFAKE_MODEL_ORIGIN,
                 "model_revision": config.DEEPFAKE_MODEL_REVISION,
                 "preprocessing": PREPROCESSING_VERSION if all_aligned else "mixed_with_bbox_fallback",
                 "latency_ms": round((time.perf_counter() - started) * 1000, 1),

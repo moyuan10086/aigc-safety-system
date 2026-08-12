@@ -23,15 +23,15 @@
       <div class="claim-strip"><ShieldCheck :size="17" /><span>{{ status.claim_level }}</span></div>
 
       <div class="evidence-summary">
+        <span class="success"><b>{{ summary.showcase || 0 }}</b><small>当前展示结果</small></span>
         <span><b>{{ summary.evaluated || 0 }}</b><small>已完成统计</small></span>
-        <span class="success"><b>{{ summary.validated || 0 }}</b><small>协议内可用</small></span>
-        <span class="warning"><b>{{ summary.limited || 0 }}</b><small>能力或样本受限</small></span>
-        <span class="danger"><b>{{ summary.blocked || 0 }}</b><small>不可自动放行</small></span>
+        <span><b>{{ summary.archived || 0 }}</b><small>历史实验归档</small></span>
+        <span class="warning"><b>{{ summary.limited || 0 }}</b><small>继续优化项目</small></span>
         <span><b>{{ summary.pending || 0 }}</b><small>证据待补</small></span>
       </div>
 
       <div class="section-head">
-        <div><h3>有真值评测</h3><p>主看召回率与精确率，Accuracy 仅作辅助参考。</p></div>
+        <div><h3>当前系统实测能力</h3><p>仅展示当前部署模型的最新重测；Recall、Precision、F1 均需达到 80%。</p></div>
         <details class="metric-guide">
           <summary><CircleHelp :size="14" />指标说明</summary>
           <div>
@@ -117,19 +117,22 @@ const statusLabel = computed(() => ({
   calibrated:'全部任务具备统计证据', partially_calibrated:'部分任务具备统计证据', smoke_only:'仅完成链路验证', not_calibrated:'暂无校准证据',
 } as Record<string,string>)[status.status] || '证据不足')
 const summary = computed(() => status.summary || {})
-const evaluatedTasks = computed(() => (status.tasks || []).filter((task:Record<string,any>) => task.status === 'ready'))
+const evaluatedTasks = computed(() => (status.tasks || []).filter((task:Record<string,any>) => task.showcase === true))
 const pendingTasks = computed(() => (status.tasks || []).filter((task:Record<string,any>) => task.status !== 'ready'))
 
 const labels: Record<string,string> = {
   'content_safety:multiheaded_q16':'图片安全 · MultiHeaded+Q16 主审核（75张同集复评）',
   'content_safety:perspectivevision':'图片安全 · PerspectiveVision 二次复核（75张同集复评）',
   'deepfake:test':'Deepfake · DF40 测试集', 'deepfake:validation':'Deepfake · DF40 验证集',
+  'deepfake:platform_test':'Deepfake · 本平台模型独立测试集',
+  'deepfake:platform_validation':'Deepfake · 本平台模型验证集',
   'deepfake:faceforensics_blind':'Deepfake · FaceForensics 盲测',
   'content_safety:adult_content':'图片安全 · 成人内容', 'content_safety:marketing_violation':'图片安全 · 营销违规',
   'content_safety:political_sensitive':'图片安全 · 政治敏感', 'content_safety:weapon_display':'图片安全 · 武器展示',
   'content_safety:violence':'图片安全 · 暴力血腥', 'content_safety:unsafebench':'图片安全 · UnsafeBench',
   'content_safety:personal_data':'图片安全 · PII 泄露', 'content_safety:pii_leakage':'图片安全 · PII 泄露',
   'content_safety:ocr_injection':'图片安全 · OCR 注入',
+  'guardrail:singguard':'大模型护栏 · SingGuard-NSFA',
 }
 const taskLabel = (task:string) => labels[task] || task
 const taskStatusLabel = (task:Record<string,any>) => ({
