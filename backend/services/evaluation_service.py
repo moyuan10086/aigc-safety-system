@@ -130,21 +130,26 @@ def evaluation_status() -> dict[str, Any]:
             task_statuses.append({"task": "deepfake:platform", "status": "inconclusive"})
 
     cascade_artifacts = (
-        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-public75-20260812.json", "MultiHeaded+Q16 主审核"),
-        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-public75-20260812.json", "PerspectiveVision-LLaVA 二次复核"),
+        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-unsafebench-test2037-20260812.json", "MultiHeaded+Q16 高速初筛", "yiting/UnsafeBench", "test"),
+        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-unsafebench-test2037-20260812.json", "PerspectiveVision-LLaVA 高召回二次审核", "yiting/UnsafeBench", "test"),
+        ("content_safety:multiheaded_q16", evidence_dir / "multiheaded-q16-public75-20260812.json", "MultiHeaded+Q16 历史复测", "public_content_safety_v1", "frozen-75-same-input"),
+        ("content_safety:perspectivevision", evidence_dir / "perspectivevision-public75-20260812.json", "PerspectiveVision-LLaVA 历史复测", "public_content_safety_v1", "frozen-75-same-input"),
     )
-    for task, artifact_path, model_version in cascade_artifacts:
+    seen_cascade_tasks: set[str] = set()
+    for task, artifact_path, model_version, dataset_name, split_name in cascade_artifacts:
+        if task in seen_cascade_tasks:
+            continue
         if not artifact_path.exists():
             continue
         try:
             payload = json.loads(artifact_path.read_text(encoding="utf-8"))
             metrics = payload.get("metrics") or {}
-            cm = {key: metrics.get(key, 0) for key in ("tp", "tn", "fp", "fn")}
+            cm = payload.get("confusion_matrix") or {key: metrics.get(key, 0) for key in ("tp", "tn", "fp", "fn")}
             task_statuses.append({
                 "task": task,
                 "evidence_artifact": artifact_path.name,
-                "dataset": "public_content_safety_v1",
-                "split": "frozen-75-same-input",
+                "dataset": dataset_name,
+                "split": split_name,
                 "model_version": model_version,
                 "status": "ready" if not payload.get("inconclusive") else "inconclusive",
                 "sample_count": payload.get("sample_count", metrics.get("evaluated", 0)),
@@ -158,39 +163,53 @@ def evaluation_status() -> dict[str, Any]:
                 "current_deployment": True,
             })
             latest_evidence = artifact_path.name
+            seen_cascade_tasks.add(task)
         except (OSError, ValueError, TypeError):
             task_statuses.append({"task": task, "status": "inconclusive", "evidence_artifact": artifact_path.name})
 
-    singguard_path = evidence_dir / "singguard-benchmark-20260812.json"
+    singguard_path = evidence_dir / "singguard-nsfa-crosssource3435-20260812.json"
+    if not singguard_path.exists():
+        singguard_path = evidence_dir / "singguard-nsfa-blind60-20260812.json"
+    if not singguard_path.exists():
+        singguard_path = evidence_dir / "singguard-nsfa-retest-20260812.json"
+    if not singguard_path.exists():
+        singguard_path = evidence_dir / "singguard-benchmark-20260812.json"
     if singguard_path.exists():
         try:
             payload = json.loads(singguard_path.read_text(encoding="utf-8"))
             rows = payload.get("results") or []
-            tp = sum(bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
-            tn = sum(not bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
-            fp = sum(not bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
-            fn = sum(bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
+            metrics_payload = payload.get("metrics") or {}
+            cm_payload = payload.get("confusion_matrix") or {}
+            tp = int(cm_payload.get("tp", metrics_payload.get("tp", 0)))
+            tn = int(cm_payload.get("tn", metrics_payload.get("tn", 0)))
+            fp = int(cm_payload.get("fp", metrics_payload.get("fp", 0)))
+            fn = int(cm_payload.get("fn", metrics_payload.get("fn", 0)))
+            if not cm_payload and not metrics_payload and rows:
+                tp = sum(bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
+                tn = sum(not bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
+                fp = sum(not bool(row.get("expected_risk")) and bool(row.get("predicted_risk")) for row in rows)
+                fn = sum(bool(row.get("expected_risk")) and not bool(row.get("predicted_risk")) for row in rows)
             precision = tp / (tp + fp) if tp + fp else 0.0
             recall = tp / (tp + fn) if tp + fn else 0.0
             task_statuses.append({
                 "task": "guardrail:singguard",
                 "evidence_artifact": singguard_path.name,
-                "dataset": "platform_guardrail_cases_v1",
-                "split": "frozen-10",
-                "model_version": "SingGuard-NSFA-0.8B",
+                    "dataset": payload.get("dataset", "platform_guardrail_cases_v1"),
+                    "split": payload.get("split", "frozen-60"),
+                "model_version": payload.get("model_version", "SingGuard-NSFA-0.8B"),
                 "model_origin": "third_party_deployed",
                 "status": "ready",
-                "sample_count": len(rows),
+                "sample_count": payload.get("sample_count", metrics_payload.get("evaluated", len(rows))),
                 "positive_count": tp + fn,
                 "negative_count": tn + fp,
                 "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
                 "metrics": {
-                    "accuracy": payload.get("accuracy"),
-                    "precision": precision,
-                    "recall": recall,
-                    "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+                    "accuracy": payload.get("accuracy") or metrics_payload.get("accuracy"),
+                    "precision": metrics_payload.get("precision", precision),
+                    "recall": metrics_payload.get("recall", recall),
+                    "f1": metrics_payload.get("f1", 2 * precision * recall / (precision + recall) if precision + recall else 0.0),
                 },
-                "latency_ms": payload.get("latency_ms"),
+                    "latency_ms": payload.get("latency_ms") or {},
                 "evaluated_at": "2026-08-12",
                 "current_deployment": True,
             })
@@ -276,7 +295,23 @@ def evaluation_status() -> dict[str, Any]:
 
     # Once a local, label-backed statistical report exists, expose its metrics
     # instead of leaving the task stuck at the access-gated placeholder.
-    unsafebench_ready = False
+    official_unsafebench_artifact = evidence_dir / "official-unsafebench-retest-20260812.md"
+    unsafebench_ready = official_unsafebench_artifact.exists()
+    if unsafebench_ready:
+        task_statuses.append({
+            "task": "content_safety:unsafebench",
+            "evidence_artifact": official_unsafebench_artifact.name,
+            "dataset": "yiting/UnsafeBench",
+            "split": "test",
+            "dataset_revision": "9f4560ae90059237eb5eafc6bd8108c78639d180",
+            "status": "ready",
+            "sample_count": 2037,
+            "positive_count": 777,
+            "negative_count": 1260,
+            "evaluated_models": ["MultiHeaded+Q16", "PerspectiveVision-LLaVA"],
+            "boundary": "数据集级接入状态；精度指标分别归属对应模型，不在此合并。",
+            "current_deployment": True,
+        })
     unsafebench_statistical_path = evidence_dir / "unsafebench-statistical-evaluation.json"
     if unsafebench_statistical_path.exists():
         try:

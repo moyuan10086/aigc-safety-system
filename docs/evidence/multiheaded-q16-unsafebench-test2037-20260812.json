@@ -1,0 +1,16 @@
+{
+  "schema": "aigc.official-unsafebench.http-evaluation.v1",
+  "dataset": "yiting/UnsafeBench",
+  "dataset_revision": "9f4560ae90059237eb5eafc6bd8108c78639d180",
+  "split": "test",
+  "sample_count": 2037,
+  "completed": 2037,
+  "errors": 0,
+  "model_version": "MultiHeaded+Q16-production-20260812",
+  "confusion_matrix": {"tp": 418, "tn": 1048, "fp": 212, "fn": 359},
+  "metrics": {"accuracy": 0.7196858125, "precision": 0.6634920635, "recall": 0.5379665380, "f1": 0.5941719972},
+  "latency_ms": {"mean": 35.0654, "p50": 27.597, "p95": 81.364},
+  "role": "fast_primary_screening",
+  "boundary": "Five specialist heads; binary Safe/Unsafe evaluation only, not an 11-class category accuracy claim.",
+  "privacy": {"images_retained_in_evidence": false}
+}

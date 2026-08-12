@@ -102,29 +102,32 @@ def test_evaluation_status_promotes_only_label_backed_evidence() -> None:
     assert deepfake_test["model_version"] == "CLIP-ViT-L/14 deepfake checkpoint"
     assert len(deepfake_test["weights_sha256"]) == 64
     multiheaded = next(item for item in status["tasks"] if item["task"] == "content_safety:multiheaded_q16")
-    assert multiheaded["sample_count"] == 75
-    assert multiheaded["positive_count"] == 45
-    assert multiheaded["negative_count"] == 30
-    assert multiheaded["confusion_matrix"] == {"tp": 27, "tn": 28, "fp": 2, "fn": 18}
-    assert multiheaded["metrics"]["recall"] == 0.6
-    assert multiheaded["evidence_artifact"] == "multiheaded-q16-public75-20260812.json"
-    assert multiheaded["showcase"] is True
-    assert multiheaded["showcase_tier"] == "assist"
+    assert multiheaded["sample_count"] == 2037
+    assert multiheaded["positive_count"] == 777
+    assert multiheaded["negative_count"] == 1260
+    assert multiheaded["confusion_matrix"] == {"tp": 418, "tn": 1048, "fp": 212, "fn": 359}
+    assert multiheaded["metrics"]["recall"] == 0.537966538
+    assert multiheaded["evidence_artifact"] == "multiheaded-q16-unsafebench-test2037-20260812.json"
+    assert multiheaded["showcase"] is False
     perspective = next(item for item in status["tasks"] if item["task"] == "content_safety:perspectivevision")
-    assert perspective["sample_count"] == 75
-    assert perspective["confusion_matrix"] == {"tp": 31, "tn": 30, "fp": 0, "fn": 14}
-    assert perspective["metrics"]["f1"] == 0.8157894736842105
-    assert perspective["latency_ms"]["p95"] == 833.5196021944284
-    assert perspective["evidence_artifact"] == "perspectivevision-public75-20260812.json"
+    assert perspective["sample_count"] == 2037
+    assert perspective["confusion_matrix"] == {"tp": 716, "tn": 1059, "fp": 201, "fn": 61}
+    assert perspective["metrics"]["f1"] == 0.8453364817
+    assert perspective["latency_ms"]["p95"] == 1004.844
+    assert perspective["evidence_artifact"] == "perspectivevision-unsafebench-test2037-20260812.json"
     assert perspective["showcase"] is True
     assert perspective["showcase_tier"] == "assist"
     singguard = next(item for item in status["tasks"] if item["task"] == "guardrail:singguard")
-    assert singguard["sample_count"] == 10
-    assert singguard["confusion_matrix"] == {"tp": 6, "tn": 3, "fp": 0, "fn": 1}
-    assert singguard["metrics"]["accuracy"] == 0.9
-    assert singguard["showcase"] is False
+    assert singguard["sample_count"] == 3435
+    assert singguard["confusion_matrix"] == {"tp": 2265, "tn": 551, "fp": 569, "fn": 50}
+    assert singguard["metrics"]["accuracy"] == 0.8197962154294032
+    assert singguard["showcase"] is True
+    assert singguard["showcase_tier"] == "assist"
     assert status["latest_evidence"] == "deepfake-platform-epoch6-retest-20260812.json"
-    assert next(item for item in status["tasks"] if item["task"] == "content_safety:unsafebench")["status"] == "pending_access"
+    unsafebench = next(item for item in status["tasks"] if item["task"] == "content_safety:unsafebench")
+    assert unsafebench["status"] == "ready"
+    assert unsafebench["sample_count"] == 2037
+    assert unsafebench["dataset"] == "yiting/UnsafeBench"
     personal_data = next(item for item in status["tasks"] if item["task"] == "content_safety:personal_data")
     assert personal_data["status"] == "ready"
     assert personal_data["sample_count"] == 30
