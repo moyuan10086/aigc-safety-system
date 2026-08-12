@@ -124,6 +124,9 @@ async def health_check():
 dist = Path(__file__).parent.parent / "frontend" / "dist"
 if dist.exists():
     app.mount("/assets", StaticFiles(directory=str(dist / "assets")), name="assets")
+    brand_assets = dist / "brand"
+    if brand_assets.exists():
+        app.mount("/brand", StaticFiles(directory=str(brand_assets)), name="brand")
     demo_samples = dist / "demo-samples"
     if demo_samples.exists():
         app.mount("/demo-samples", StaticFiles(directory=str(demo_samples)), name="demo-samples")

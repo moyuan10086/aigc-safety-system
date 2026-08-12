@@ -10,11 +10,12 @@ import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from PIL import Image, ImageOps
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from services import audit_log_service, audit_watermark_service, deepfake_service, face_service, invisible_watermark_service, mllm_service, provenance_service, rag_service, upload_service
+from services import audit_log_service, audit_watermark_service, auth_service, deepfake_service, face_service, invisible_watermark_service, mllm_service, provenance_service, rag_service, upload_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
@@ -89,7 +90,7 @@ async def inspect_face(image: UploadFile = File(...)):
 
 
 @router.post("/provenance")
-async def verify_provenance(image: UploadFile = File(...)):
+async def verify_provenance(image: UploadFile = File(...), save_report: bool = Form(False)):
     """Verify local/source provenance without retaining the uploaded image."""
     path = await _save_upload(image)
     try:
@@ -101,6 +102,14 @@ async def verify_provenance(image: UploadFile = File(...)):
             metadata={"overall_state": result["overall_state"], "format": result["metadata"].get("format"),
                       "marker_status": result["source_evidence"]["local_marker"]["status"]},
         )
+        if save_report:
+            report = await _finalize_report({
+                "filename": image.filename,
+                "requested_modules": ["provenance"],
+                "provenance": result,
+                "_thumbnail_source": path,
+            })
+            result = {**result, "report_id": report["id"]}
         return result
     except provenance_service.ProvenanceError as exc:
         from fastapi import HTTPException
@@ -126,6 +135,10 @@ async def embed_audit_watermark(image: UploadFile = File(...), payload: str = Fo
             with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
                 bundle.write(output, "audit-copy.png")
                 bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
+                for index, share in enumerate(artifact.get("shares", []), 1):
+                    bundle.writestr(f"key-share-{index}.txt", share)
+                if artifact.get("shares"):
+                    bundle.writestr("README.txt", "门限审计证据包（2-of-3）\n\n审计信息使用 AES-256-GCM 加密，密钥拆为 3 份，任意 2 份可恢复。\n请将 key-share 文件交由不同人员保管。核验时提供 audit-copy.png、audit-sidecar.json 和任意 2 份分片。\n单独图片、旁证或 1 份分片不能恢复审计信息。\n")
             audit_log_service.record_safe(
                 event_type="image.audit_watermark_embed", module="provenance", action="embed",
                 outcome="success", summary="生成可逆审计副本",
@@ -141,6 +154,34 @@ async def embed_audit_watermark(image: UploadFile = File(...), payload: str = Fo
     finally:
         if os.path.exists(path):
             os.unlink(path)
+
+
+@router.post("/audit-watermark/decode-archive")
+async def decode_audit_watermark_archive(archive: UploadFile = File(...)):
+    from fastapi import HTTPException
+
+    suffix = Path(archive.filename or "").suffix.lower()
+    if suffix != ".zip":
+        raise HTTPException(status_code=422, detail="audit_archive_zip_required")
+    raw = await archive.read(16 * 1024 * 1024 + 1)
+    if len(raw) > 16 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="audit_archive_too_large")
+    with tempfile.TemporaryDirectory() as directory:
+        package = Path(directory) / "audit-package.zip"
+        package.write_bytes(raw)
+        try:
+            result = await asyncio.to_thread(audit_watermark_service.decode_archive, package)
+        except audit_watermark_service.AuditWatermarkError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    audit_log_service.record_safe(
+        event_type="image.audit_watermark_decode",
+        module="provenance",
+        action="decode",
+        outcome="success",
+        summary="导入并核验可逆审计证据包",
+        metadata={"payload_integrity": result["payload_integrity"]},
+    )
+    return result
 
 
 @router.post("/invisible-watermark/embed")
@@ -183,7 +224,7 @@ async def embed_invisible_watermark(image: UploadFile = File(...), payload: str 
 async def full_audit(image: UploadFile = File(None), text: str = Form(None),
                      modules: str = Form("deepfake,mllm,rag")):
     """SSE 流式全量审计报告"""
-    mod_set = set(modules.split(","))
+    mod_set = {item.strip() for item in modules.split(",") if item.strip()}
 
     async def event_stream():
         path = None
@@ -191,11 +232,19 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
         try:
             if image:
                 path = await _save_upload(image)
-                face = await asyncio.to_thread(_inspect_faces, path)
-                report_results["face"] = face
-                has_face = face.get("face_detected") is not False
+                face = None
+                has_face = True
                 if "face" in mod_set or "deepfake" in mod_set:
+                    face = await asyncio.to_thread(_inspect_faces, path)
+                    report_results["face"] = face
+                    has_face = face.get("face_detected") is not False
                     yield _sse("face", face)
+
+                if "provenance" in mod_set:
+                    yield _sse("step", {"step": "provenance", "status": "running"})
+                    provenance = await asyncio.to_thread(provenance_service.verify, path)
+                    report_results["provenance"] = provenance
+                    yield _sse("provenance", provenance)
 
                 if "deepfake" in mod_set:
                     yield _sse("step", {"step": "deepfake", "status": "running"})
@@ -228,6 +277,8 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
             yield _sse("step", {"step": "report", "status": "running"})
             report = await _finalize_report({
                 **report_results,
+                "requested_modules": sorted(mod_set),
+                **({"_thumbnail_source": path} if path else {}),
                 **({"filename": image.filename} if image and image.filename else {}),
                 **({"text": text} if text else {}),
             })
@@ -245,6 +296,32 @@ def _sse(event: str, data: dict) -> str:
 
 REPORTS_DIR = Path("reports")
 REPORTS_DIR.mkdir(exist_ok=True)
+
+
+def _report_operator(request: Request) -> dict:
+    user = auth_service.verify_session(request.cookies.get("aigc_operator_session"))
+    if user is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="请先登录审核员账号")
+    return user
+
+
+def _report_thumbnails_dir() -> Path:
+    return REPORTS_DIR / "thumbnails"
+
+
+def _create_report_thumbnail(source_path: str, report_id: str) -> dict:
+    """Create a metadata-free review derivative; the original remains ephemeral."""
+    thumbnails_dir = _report_thumbnails_dir()
+    thumbnails_dir.mkdir(parents=True, exist_ok=True)
+    output = thumbnails_dir / f"{report_id}.webp"
+    with Image.open(source_path) as source:
+        image = ImageOps.exif_transpose(source).convert("RGB")
+        image.thumbnail((480, 480), Image.Resampling.LANCZOS)
+        image.save(output, format="WEBP", quality=78, method=6)
+        width, height = image.size
+    return {"url": f"/api/detect/report/{report_id}/thumbnail", "width": width, "height": height,
+            "media_type": "image/webp", "derivative_only": True, "metadata_removed": True}
 
 
 def _gen_summary(report: dict) -> str:
@@ -265,19 +342,44 @@ def _gen_summary(report: dict) -> str:
         return f"综合分析生成失败：{e}"
 
 
+def _report_modules(report: dict) -> list[str]:
+    requested = report.get("requested_modules")
+    if isinstance(requested, list) and requested:
+        return [str(item) for item in requested]
+    return [key for key in ("provenance", "face", "deepfake", "mllm", "content_safety", "rag") if report.get(key) is not None]
+
+
+def _report_title(report: dict) -> str:
+    modules = set(_report_modules(report))
+    if modules == {"provenance"}:
+        return "AI 来源与内容凭证验证报告"
+    if modules <= {"face", "deepfake", "mllm"}:
+        return "图像真实性检测报告"
+    if modules == {"content_safety"}:
+        return "视觉内容安全审核报告"
+    if modules == {"rag"}:
+        return "红线知识库审核报告"
+    return "多维图片安全审核报告"
+
+
 def _call_summary(client, model: str, report: dict) -> str:
-    prompt = f"""你是一个多模态真实性与内容安全审计专家。请根据以下检测结果生成一份综合分析报告（Markdown格式）：
+    modules = _report_modules(report)
+    title = _report_title(report)
+    evidence = {key: value for key, value in report.items() if key in set(modules) | {"filename", "created_at"}}
+    prompt = f"""你是图片安全审计报告撰写员。根据本次实际运行的检测结果生成 Markdown 报告。
+
+报告标题：{title}
+本次运行模块：{json.dumps(modules, ensure_ascii=False)}
 
 检测结果：
-{json.dumps(report, ensure_ascii=False, indent=2)}
+{json.dumps(evidence, ensure_ascii=False, indent=2)}
 
 要求：
-1. 用 Markdown 格式输出，包含标题、列表、加粗等
-2. 分为"检测概览"、"详细分析"、"风险评估"、"建议措施"四个部分
-3. 语言简洁专业，适合技术报告
-4. 将真实性与来源结论、内容安全结论分开说明，不把 AI 生成等同于内容违规
-5. 如果有 Deepfake/MLLM/C2PA 结果，分析真实性、篡改与来源证据
-6. 如果有 RAG 或 content_safety 结果，说明内容安全类别、风险分数和人工复核要求
+1. 第一行必须是“# {title}”。
+2. 只描述本次运行模块，严禁补写未运行的人脸、Deepfake、MLLM、RAG、内容安全或来源维度。
+3. 使用“任务结论”“证据说明”“处置建议”三个部分；没有证据时明确写证据不足。
+4. 来源凭证不存在不能解释为非 AI；来源凭证有效也不能解释为内容安全。
+5. 语言简洁专业，避免重复任务 ID、文件名和哈希，它们由报告页面单独展示。
 """
     resp = client.chat.completions.create(
         model=model,
@@ -294,6 +396,15 @@ async def _finalize_report(payload: dict) -> dict:
         "created_at": payload.get("created_at") or datetime.now().isoformat(),
         **{key: value for key, value in payload.items() if key not in {"id", "created_at", "summary"}},
     }
+    report["requested_modules"] = _report_modules(report)
+    report["report_title"] = _report_title(report)
+    thumbnail_source = payload.get("_thumbnail_source")
+    if thumbnail_source:
+        try:
+            report["thumbnail"] = await asyncio.to_thread(_create_report_thumbnail, str(thumbnail_source), report["id"])
+        except Exception:
+            report["thumbnail"] = {"status": "unavailable", "derivative_only": True}
+    report.pop("_thumbnail_source", None)
     report["summary"] = await asyncio.to_thread(_gen_summary, report)
     report_path = REPORTS_DIR / f"{report['id']}.json"
     await asyncio.to_thread(
@@ -367,6 +478,8 @@ async def get_history():
                 "id": r["id"],
                 "created_at": r.get("created_at"),
                 "filename": r.get("filename"),
+                "report_title": r.get("report_title") or _report_title(r),
+                "requested_modules": _report_modules(r),
                 "face_count": r.get("face", {}).get("face_count"),
                 "deepfake_label": r.get("deepfake", {}).get("label"),
                 "deepfake_score": r.get("deepfake", {}).get("score"),
@@ -419,6 +532,43 @@ async def get_report(report_id: str):
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+@router.get("/report/{report_id}/thumbnail")
+async def get_report_thumbnail(report_id: str):
+    try:
+        uuid.UUID(report_id)
+    except (ValueError, AttributeError) as exc:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Thumbnail not found") from exc
+    path = _report_thumbnails_dir() / f"{report_id}.webp"
+    if not path.is_file():
+        from fastapi import HTTPException
+        raise HTTPException(404, "Thumbnail not found")
+    return FileResponse(str(path), media_type="image/webp", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.delete("/report/{report_id}")
+async def delete_report(report_id: str, request: Request):
+    operator = _report_operator(request)
+    try:
+        uuid.UUID(report_id)
+    except (ValueError, AttributeError) as exc:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Report not found") from exc
+    report_path = REPORTS_DIR / f"{report_id}.json"
+    if not report_path.is_file():
+        from fastapi import HTTPException
+        raise HTTPException(404, "Report not found")
+    thumbnail_path = _report_thumbnails_dir() / f"{report_id}.webp"
+    await asyncio.to_thread(report_path.unlink)
+    if thumbnail_path.is_file():
+        await asyncio.to_thread(thumbnail_path.unlink)
+    audit_log_service.record_safe(
+        event_type="report.delete", module="detect", action="delete_report", outcome="success",
+        summary="审核员删除检测报告", metadata={"report_id": report_id, "operator": operator["username"]},
+    )
+    return {"deleted": True, "report_id": report_id}
+
+
 @router.get("/report/{report_id}/download/md")
 async def download_report_md(report_id: str):
     p = REPORTS_DIR / f"{report_id}.json"
@@ -429,12 +579,20 @@ async def download_report_md(report_id: str):
     summary = report.get("summary", "")
     # 生成完整 Markdown 文档
     lines = [
-        "# 多模态内容安全与真实性审计报告\n",
+        f"# {report.get('report_title') or _report_title(report)}\n",
         f"**报告ID**: {report_id}  \n",
         f"**生成时间**: {report.get('created_at','')}\n\n---\n",
     ]
     if report.get("filename"):
         lines.append(f"**检测文件**: {report['filename']}\n\n")
+    lines.append(f"**检测范围**: {', '.join(_report_modules(report)) or '未记录'}\n\n")
+    if report.get("provenance"):
+        provenance = report["provenance"]
+        lines.append(
+            "## AI 来源与内容凭证\n"
+            f"- 来源状态: **{provenance.get('overall_state')}**\n"
+            f"- 内容哈希: `{provenance.get('content_hash', '')}`\n\n"
+        )
     if report.get("deepfake"):
         df = report["deepfake"]
         lines.append(f"## 真实性与来源\n### Deepfake 检测\n- 结果: **{df.get('label')}**\n- 伪造得分: {df.get('score')}\n- 置信度: {df.get('confidence')}\n\n")

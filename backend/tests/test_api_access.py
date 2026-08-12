@@ -280,6 +280,51 @@ class ApiAccessTests(unittest.TestCase):
         self.assertEqual(result["status"], "confirmed")
         self.assertEqual(result["payload"]["content_id"], "api-001")
 
+    def test_audit_watermark_decode_api_accepts_exported_zip_parts(self):
+        from PIL import Image
+        from services.audit_watermark_service import embed
+
+        source = Path(self.temp_dir.name) / "audit-source.png"
+        marked = Path(self.temp_dir.name) / "audit-copy.png"
+        Image.new("L", (128, 128), 180).save(source)
+        artifact = embed(source, marked, {"event_id": "api-zip", "sample_id": "sample-zip"})
+        issued = self._issue(scopes=["image:audit-watermark"])
+        response = self.client.post(
+            "/api/v1/images/audit-watermark/decode",
+            headers={"X-API-Key": issued["key"]},
+            files={
+                "image": (marked.name, marked.read_bytes(), "image/png"),
+                "sidecar": ("audit-sidecar.json", __import__("json").dumps(artifact["sidecar"]).encode(), "application/json"),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["data"]["recovered_matches_original"])
+
+    def test_audit_watermark_archive_api_accepts_exported_zip(self):
+        import io
+        import zipfile
+        from PIL import Image
+        from services.audit_watermark_service import embed
+
+        source = Path(self.temp_dir.name) / "archive-source.png"
+        marked = Path(self.temp_dir.name) / "archive-copy.png"
+        Image.new("L", (128, 128), 180).save(source)
+        artifact = embed(source, marked, {"event_id": "api-archive", "sample_id": "sample-archive"})
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.write(marked, "audit-copy.png")
+            bundle.writestr("audit-sidecar.json", __import__("json").dumps(artifact["sidecar"]))
+            for index, share in enumerate(artifact.get("shares", []), 1):
+                bundle.writestr(f"key-share-{index}.txt", share)
+        issued = self._issue(scopes=["image:audit-watermark"])
+        response = self.client.post(
+            "/api/v1/images/audit-watermark/decode-archive",
+            headers={"X-API-Key": issued["key"]},
+            files={"archive": ("audit-package.zip", archive.getvalue(), "application/zip")},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["data"]["recovered_matches_original"])
+
 
 if __name__ == "__main__":
     unittest.main()

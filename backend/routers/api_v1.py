@@ -133,6 +133,7 @@ async def catalog(request: Request):
                 {"method": "POST", "path": "/api/v1/images/provenance/verify", "scope": "image:provenance"},
                 {"method": "POST", "path": "/api/v1/images/audit-watermark/embed", "scope": "image:audit-watermark"},
                 {"method": "POST", "path": "/api/v1/images/audit-watermark/decode", "scope": "image:audit-watermark"},
+                {"method": "POST", "path": "/api/v1/images/audit-watermark/decode-archive", "scope": "image:audit-watermark"},
                 {"method": "POST", "path": "/api/v1/images/watermarks/check", "scope": "image:watermark"},
                 {"method": "POST", "path": "/api/v1/images/invisible-watermark/embed", "scope": "image:watermark"},
                 {"method": "POST", "path": "/api/v1/images/invisible-watermark/check", "scope": "image:watermark"},
@@ -338,6 +339,10 @@ async def image_audit_watermark_embed(
                 with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
                     bundle.write(output, "audit-copy.png")
                     bundle.writestr("audit-sidecar.json", json.dumps(artifact["sidecar"], ensure_ascii=False))
+                    for index, share in enumerate(artifact.get("shares", []), 1):
+                        bundle.writestr(f"key-share-{index}.txt", share)
+                    if artifact.get("shares"):
+                        bundle.writestr("README.txt", "门限审计证据包（2-of-3）\n\n审计信息使用 AES-256-GCM 加密，密钥拆为 3 份，任意 2 份可恢复。\n请将 key-share 文件交由不同人员保管。核验时提供 audit-copy.png、audit-sidecar.json 和任意 2 份分片。\n单独图片、旁证或 1 份分片不能恢复审计信息。\n")
                 audit_log_service.record_safe(
                     event_type="image.audit_watermark_embed", module="provenance", action="embed",
                     summary="生成可逆审计副本", metadata={"api": "v1", "event_id": artifact["payload"].get("event_id")},
@@ -378,6 +383,40 @@ async def image_audit_watermark_decode(
             Path(source).unlink(missing_ok=True)
 
     return await _metered(request, scope="image:audit-watermark", operation="image.audit_watermark_decode", run=run)
+
+
+@router.post("/images/audit-watermark/decode-archive")
+async def image_audit_watermark_decode_archive(
+    request: Request, archive: UploadFile = File(...),
+):
+    from services import audit_watermark_service
+
+    async def run():
+        if Path(archive.filename or "").suffix.lower() != ".zip":
+            raise HTTPException(status_code=422, detail="audit_archive_zip_required")
+        raw = await archive.read(16 * 1024 * 1024 + 1)
+        if len(raw) > 16 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="audit_archive_too_large")
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory) / "audit-package.zip"
+            package.write_bytes(raw)
+            try:
+                result = await asyncio.to_thread(audit_watermark_service.decode_archive, package)
+            except audit_watermark_service.AuditWatermarkError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+        audit_log_service.record_safe(
+            event_type="image.audit_watermark_decode", module="provenance", action="decode",
+            summary="导入并核验可逆审计证据包",
+            metadata={"api": "v1", "payload_integrity": result["payload_integrity"]},
+        )
+        return result
+
+    return await _metered(
+        request,
+        scope="image:audit-watermark",
+        operation="image.audit_watermark_decode_archive",
+        run=run,
+    )
 
 
 @router.post("/images/watermarks/check")

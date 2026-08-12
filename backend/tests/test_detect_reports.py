@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from routers import detect
+from PIL import Image
 
 
 class DetectReportTests(unittest.TestCase):
@@ -54,7 +55,49 @@ class DetectReportTests(unittest.TestCase):
         done = json.loads(done_line.removeprefix("data:").strip())
         report = json.loads((self.reports_dir / f"{done['report_id']}.json").read_text(encoding="utf-8"))
         self.assertEqual(report["rag"], rag_result)
+        self.assertEqual(report["requested_modules"], ["rag"])
+        self.assertEqual(report["report_title"], "红线知识库审核报告")
         self.assertEqual(report["summary"], "# 综合分析\n\n需要人工复核。")
+
+    def test_provenance_only_report_does_not_claim_unrun_dimensions(self):
+        report = {
+            "filename": "source.png",
+            "requested_modules": ["provenance"],
+            "provenance": {"overall_state": "not_found", "content_hash": "abc"},
+        }
+        self.assertEqual(detect._report_modules(report), ["provenance"])
+        self.assertEqual(detect._report_title(report), "AI 来源与内容凭证验证报告")
+        self.assertNotIn("deepfake", report)
+        self.assertNotIn("content_safety", report)
+
+    def test_report_thumbnail_is_a_small_metadata_free_derivative(self):
+        source = self.reports_dir / "source.jpg"
+        image = Image.new("RGB", (1200, 800), "navy")
+        image.save(source, exif=Image.Exif())
+        thumbnail = detect._create_report_thumbnail(str(source), "00000000-0000-0000-0000-000000000001")
+        output = self.reports_dir / "thumbnails" / "00000000-0000-0000-0000-000000000001.webp"
+        self.assertTrue(output.is_file())
+        self.assertLessEqual(max(thumbnail["width"], thumbnail["height"]), 480)
+        self.assertTrue(thumbnail["derivative_only"])
+        with Image.open(output) as generated:
+            self.assertFalse(generated.getexif())
+
+    def test_report_delete_requires_operator_and_removes_thumbnail(self):
+        report_id = "00000000-0000-0000-0000-000000000002"
+        self._write_report(report_id, {"requested_modules": ["provenance"]})
+        thumbnail_dir = self.reports_dir / "thumbnails"
+        thumbnail_dir.mkdir()
+        (thumbnail_dir / f"{report_id}.webp").write_bytes(b"thumbnail")
+        self.assertEqual(self.client.delete(f"/api/detect/report/{report_id}").status_code, 401)
+        user = {"username": "operator", "display_name": "审核员", "role": "operator"}
+        with patch.object(detect.auth_service, "verify_session", return_value=user), patch.object(
+            detect.audit_log_service, "record_safe"
+        ) as audit:
+            response = self.client.delete(f"/api/detect/report/{report_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse((self.reports_dir / f"{report_id}.json").exists())
+        self.assertFalse((thumbnail_dir / f"{report_id}.webp").exists())
+        audit.assert_called_once()
 
     def test_history_keeps_authenticity_and_content_risk_independent(self):
         self._write_report(
@@ -111,7 +154,7 @@ class DetectReportTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         text = response.content.decode("utf-8")
-        self.assertIn("多模态内容安全与真实性审计报告", text)
+        self.assertIn("多维图片安全审核报告", text)
         self.assertIn("真实性与来源", text)
         self.assertIn("视觉内容安全", text)
         self.assertIn("个人敏感信息: 0.94 (high)", text)

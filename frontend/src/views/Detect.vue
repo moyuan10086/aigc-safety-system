@@ -84,13 +84,18 @@
           <label class="module-option"><input type="checkbox" v-model="modules" value="rag" /><span>红线知识库审核（RAG）</span><small>规则与语义证据</small></label>
           <label class="module-option"><input type="checkbox" v-model="modules" value="content_safety" /><span>图片内容安全</span><small>敏感类别识别</small></label>
         </div>
+        <label class="audit-note-field"><span>审计备注（可选）</span><textarea v-model="auditEvidenceNote" maxlength="500" rows="2" placeholder="例如：比赛现场人工复核样本"></textarea><small>{{ auditEvidenceNote.length }}/500 · 请勿填写密码或密钥</small></label>
         <div class="module-actions">
         <button class="source-btn" :disabled="!file || provenanceLoading" @click="runProvenance">
           {{ provenanceLoading ? '验证中...' : '验证 AI 来源' }}
         </button>
         <button class="source-btn" :disabled="!file || watermarkLoading" @click="generateAuditWatermark">
-          {{ watermarkLoading ? '生成中...' : '生成审计副本' }}
+          {{ watermarkLoading ? '生成中...' : '生成门限审计包' }}
         </button>
+        <button class="source-btn" :disabled="auditPackageLoading" @click="selectAuditPackage">
+          {{ auditPackageLoading ? '核验中...' : '导入门限审计包' }}
+        </button>
+        <input ref="auditPackageInput" class="visually-hidden" type="file" accept=".zip,application/zip" @change="verifyAuditPackage" />
         <button class="source-btn" :disabled="!file || invisibleWatermarkLoading" @click="generateInvisibleWatermark">
           {{ invisibleWatermarkLoading ? '嵌入中...' : '生成隐形标识图' }}
         </button>
@@ -101,6 +106,21 @@
         </div>
       </div>
     </div>
+
+    <section v-if="auditPackageResult" class="audit-package-result" :class="{ invalid: auditPackageResult.tamper_suspected || !auditPackageResult.payload_integrity || !auditPackageResult.recovered_matches_original }" aria-live="polite">
+      <span><ShieldCheck :size="20" /></span>
+      <div><b>{{ auditPackageValid ? '审计证据包核验通过' : '审计证据包需要复核' }}</b><p>{{ auditPackageSummary }}</p></div>
+      <strong>{{ auditPackageValid ? '完整' : '异常' }}</strong>
+    </section>
+    <dl v-if="auditPackageResult?.payload" class="audit-payload-details">
+      <div><dt>报告 ID</dt><dd>{{ auditPackageResult.payload.report_id || '未关联' }}</dd></div>
+      <div><dt>Deepfake</dt><dd>{{ auditResultText(auditPackageResult.payload.deepfake) }}</dd></div>
+      <div><dt>AI 来源</dt><dd>{{ auditResultText(auditPackageResult.payload.provenance) }}</dd></div>
+      <div><dt>内容安全</dt><dd>{{ auditResultText(auditPackageResult.payload.content_safety) }}</dd></div>
+      <div><dt>知识库审核</dt><dd>{{ auditResultText(auditPackageResult.payload.rag) }}</dd></div>
+      <div><dt>人工复核</dt><dd>{{ auditPackageResult.payload.human_review?.status === 'pending' ? '待复核' : auditPackageResult.payload.human_review?.verdict || '未记录' }}</dd></div>
+      <div v-if="auditPackageResult.payload.custom_note" class="audit-note-detail"><dt>自定义备注</dt><dd>{{ auditPackageResult.payload.custom_note }}</dd></div>
+    </dl>
 
     <!-- RAG 文本输入 -->
     <div class="card" style="padding:12px 16px">
@@ -240,7 +260,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CircleCheckBig, Play, ScanSearch, SlidersHorizontal, Upload, UserCheck } from 'lucide-vue-next'
+import { CircleCheckBig, Play, ScanSearch, ShieldCheck, SlidersHorizontal, Upload, UserCheck } from 'lucide-vue-next'
 import FaceEvidencePanel from '../components/detect/FaceEvidencePanel.vue'
 import NudeNetEvidence from '../components/detect/NudeNetEvidence.vue'
 import UnsafeBenchEvidence from '../components/detect/UnsafeBenchEvidence.vue'
@@ -249,6 +269,8 @@ import { verifyC2paFile } from '../lib/c2paVerification'
 import { getProviderAttribution } from '../lib/providerAttribution'
 import { contentMetricTone, provenanceMetricTone } from '../lib/reviewSummary'
 import { getWatermarkPresentation } from '../lib/watermarkPresentation'
+import { buildAuditEvidencePayload } from '../lib/auditEvidencePayload'
+import { useAuth } from '../composables/useAuth'
 
 // Inline SVG icons
 const ImageIcon = { template: `<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`, props: ['size'] }
@@ -274,6 +296,12 @@ const currentStepLabel = computed(() => ({
 const provenanceLoading = ref(false)
 const watermarkLoading = ref(false)
 const invisibleWatermarkLoading = ref(false)
+const auditPackageLoading = ref(false)
+const auditPackageInput = ref<HTMLInputElement | null>(null)
+const auditPackageResult = ref<any>(null)
+const auditEvidenceNote = ref('')
+const latestReportId = ref('')
+const { user } = useAuth()
 let lastProvenanceRun = 0
 
 const generateAuditWatermark = async () => {
@@ -283,26 +311,72 @@ const generateAuditWatermark = async () => {
     const eventId = crypto.randomUUID()
     const fd = new FormData()
     fd.append('image', file.value)
-    fd.append('payload', JSON.stringify({
-      event_id: eventId,
-      sample_id: file.value.name.slice(0, 120),
-      platform_version: 'aigc-safety-system',
-    }))
+    fd.append('payload', JSON.stringify(buildAuditEvidencePayload({
+      eventId,
+      sampleName: file.value.name,
+      reportId: latestReportId.value || results.provenance?.report_id,
+      customNote: auditEvidenceNote.value,
+      operatorId: user.value?.username,
+      results,
+    })))
     const response = await fetch('/api/detect/audit-watermark/embed', { method: 'POST', body: fd })
     if (!response.ok) throw new Error((await response.json()).detail || '生成失败')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `audit-watermark-${eventId.slice(0, 8)}.zip`
+    link.download = `threshold-audit-${eventId.slice(0, 8)}.zip`
     link.click()
     URL.revokeObjectURL(url)
-    ElMessage.success('审计副本已生成，原图未被修改')
+    ElMessage.success('2-of-3 门限审计包已生成，请分开保管三个密钥分片')
   } catch (error:any) {
     ElMessage.error(error?.message || '审计副本生成失败')
   } finally {
     watermarkLoading.value = false
   }
+}
+
+const selectAuditPackage = () => auditPackageInput.value?.click()
+
+const verifyAuditPackage = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const archive = input.files?.[0]
+  input.value = ''
+  if (!archive || auditPackageLoading.value) return
+  auditPackageLoading.value = true
+  auditPackageResult.value = null
+  try {
+    const fd = new FormData()
+    fd.append('archive', archive)
+    const response = await fetch('/api/detect/audit-watermark/decode-archive', { method: 'POST', body: fd })
+    if (!response.ok) throw new Error((await response.json()).detail || '证据包核验失败')
+    auditPackageResult.value = await response.json()
+    if (auditPackageValid.value) ElMessage.success('审计证据包核验通过')
+    else ElMessage.warning('审计证据包存在异常，请人工复核')
+  } catch (error:any) {
+    ElMessage.error(error?.message || '无法读取该审计证据包')
+  } finally {
+    auditPackageLoading.value = false
+  }
+}
+
+const auditPackageValid = computed(() => !!auditPackageResult.value
+  && auditPackageResult.value.payload_integrity
+  && auditPackageResult.value.recovered_matches_original
+  && !auditPackageResult.value.tamper_suspected)
+const auditPackageSummary = computed(() => {
+  const result = auditPackageResult.value
+  if (!result) return ''
+  const eventId = result.payload?.event_id || '未提供'
+  return `事件 ${eventId} · 载荷${result.payload_integrity ? '完整' : '异常'} · 原始像素${result.recovered_matches_original ? '恢复一致' : '不一致'}`
+})
+const auditResultText = (item:any) => {
+  if (!item || item.status === 'not_run') return '未执行'
+  if (item.label) return `${item.label}${typeof item.score === 'number' ? ` · ${(item.score * 100).toFixed(1)}%` : ''}`
+  if (item.state) return `${item.state}${item.provider ? ` · ${item.provider}` : ''}`
+  if (item.verdict) return `${item.verdict}${typeof item.risk_score === 'number' ? ` · ${(item.risk_score * 100).toFixed(1)}%` : ''}`
+  if (typeof item.safe === 'boolean') return item.safe ? '安全' : `风险 · ${item.risk_level || '未分级'}`
+  return '已执行'
 }
 
 const generateInvisibleWatermark = async () => {
@@ -443,7 +517,7 @@ const runProvenance = async () => {
   lastProvenanceRun = now
   provenanceLoading.value = true
   try {
-    const fd = new FormData(); fd.append('image', file.value)
+    const fd = new FormData(); fd.append('image', file.value); fd.append('save_report', 'true')
     const [response, localResult] = await Promise.all([
       fetch('/api/detect/provenance', { method:'POST', body:fd }),
       verifyC2paFile(file.value).catch((error) => ({ error: error instanceof Error ? error.message : 'local_verify_failed' })),
@@ -459,6 +533,9 @@ const runProvenance = async () => {
       ElMessage.warning('来源声明验证失败或文件可能已被修改，请人工复核')
     } else {
       ElMessage.info('来源验证完成，请查看证据说明')
+    }
+    if (results.provenance.report_id) {
+      ElMessage.success(`来源验证报告已保存：${results.provenance.report_id.slice(0, 8)}`)
     }
   } catch { ElMessage.error('来源验证失败，请检查图片格式') }
   finally { provenanceLoading.value = false }
@@ -497,9 +574,11 @@ const runAudit = async () => {
       if (event === 'mllm') { results.mllm = payload; currentStep.value = '' }
       if (event === 'rag') { results.rag = payload; currentStep.value = '' }
       if (event === 'content_safety') { results.content_safety = payload; currentStep.value = '' }
+      if (event === 'provenance') { results.provenance = payload; currentStep.value = '' }
       if (event === 'done') {
         loading.value = false
         if (payload.report_id) {
+          latestReportId.value = payload.report_id
           const ids = new Set<string>(JSON.parse(localStorage.getItem('report_ids') || '[]'))
           ids.add(payload.report_id)
           localStorage.setItem('report_ids', JSON.stringify([...ids]))
@@ -539,6 +618,8 @@ const runAudit = async () => {
 .action-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:stretch}.upload-zone,.upload-zone :deep(.el-upload){display:flex;min-width:0}.upload-zone :deep(.el-upload){width:100%;flex:1}.upload-zone :deep(.el-upload-dragger){min-height:252px;height:auto;display:grid;place-items:center;flex:1;padding:18px!important}.upload-inner{gap:8px}.upload-text{font-size:14px}
 .control-panel{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-sm)}
 .module-heading{display:flex;align-items:baseline;justify-content:space-between;color:var(--text);font-size:13px;font-weight:700}.module-heading small{color:var(--faint);font-size:10px;font-weight:400}.module-group{display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px solid var(--line)}.module-group>b{margin-bottom:2px;color:var(--muted);font-size:10px;font-weight:700}.module-option{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:6px;min-height:27px;color:var(--text);font-size:11px;cursor:pointer}.module-option input{width:14px;height:14px;accent-color:var(--primary)}.module-option small{color:var(--faint);font-size:9px}.module-actions{display:flex;flex-direction:column;gap:7px;margin-top:auto;padding-top:5px}.module-actions .source-btn,.module-actions .detect-btn{width:100%;min-height:36px}.module-actions .source-btn{font-size:11px}.module-actions .detect-btn{font-size:12px}
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audit-package-result{display:flex;align-items:center;gap:10px;margin:10px 0;padding:12px 14px;border:1px solid #b9dcd5;border-radius:7px;background:#f3fbf9;color:#087c67}.audit-package-result>div{min-width:0;flex:1}.audit-package-result b{font-size:13px}.audit-package-result p{margin:3px 0 0;color:var(--muted);font-size:11px}.audit-package-result strong{font-size:11px}.audit-package-result.invalid{border-color:#edc4cb;background:#fff7f8;color:#bd3042}
+.audit-note-field{display:flex;flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid var(--line)}.audit-note-field span{color:var(--muted);font-size:10px;font-weight:700}.audit-note-field textarea{box-sizing:border-box;width:100%;resize:vertical;padding:7px 8px;border:1px solid var(--line);border-radius:5px;color:var(--text);background:#fff;font:inherit;font-size:10px;line-height:1.4}.audit-note-field small{color:var(--faint);font-size:9px}.audit-payload-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:0 0 12px;overflow:hidden;border:1px solid var(--line);border-radius:7px;background:var(--line)}.audit-payload-details div{min-width:0;padding:10px 12px;background:#fff}.audit-payload-details dt{color:var(--faint);font-size:10px}.audit-payload-details dd{overflow:hidden;margin:4px 0 0;color:var(--text);font-size:11px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}.audit-payload-details .audit-note-detail{grid-column:1/-1}.audit-payload-details .audit-note-detail dd{white-space:normal;line-height:1.5}@media(max-width:800px){.audit-payload-details{grid-template-columns:1fr 1fr}}
 .card[style*="padding:12px 16px"]{padding:16px!important}.card[style*="padding:12px 16px"]>div:first-child{margin-bottom:9px!important;color:var(--text)!important;font-size:12px!important;font-weight:700}.audit-textarea{min-height:76px}
 .results-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-card{min-height:146px}.result-card .card-title{display:flex;align-items:center;gap:8px}.result-card .card-title::before{content:'';width:3px;height:15px;background:var(--primary);border-radius:2px}.result-body{gap:10px}
 @media(max-width:1050px){.top-grid{grid-template-columns:1fr 1fr}.ring-card{grid-column:1/-1}.stats-row{grid-template-columns:repeat(3,minmax(0,1fr))}.action-row{grid-template-columns:minmax(0,1fr) 280px}}

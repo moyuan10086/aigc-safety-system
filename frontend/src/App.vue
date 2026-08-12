@@ -3,7 +3,7 @@
   <div v-else class="layout" :style="sidebarStyle">
     <aside class="sidebar" :class="{ collapsed: !sidebarOpen }">
       <div class="brand">
-        <div class="brand-mark"><ShieldIcon :size="20" /></div>
+        <img class="brand-mark" src="/brand/aigc-mark-transparent.png" alt="">
         <div v-show="sidebarOpen" class="brand-copy">
           <strong>{{ PLATFORM_NAME }}</strong>
         </div>
@@ -42,7 +42,7 @@
 
     <div v-if="showAbout" class="about-mask" @click.self="showAbout=false">
       <div class="about-dialog" role="dialog" aria-modal="true" aria-label="关于系统">
-        <div class="about-header"><ShieldIcon :size="20" /><strong>{{ PLATFORM_NAME }}</strong><button class="icon-command" title="关闭" @click="showAbout=false">×</button></div>
+        <div class="about-header"><img src="/brand/aigc-mark-transparent.png" alt=""><strong>{{ PLATFORM_NAME }}</strong><button class="icon-command" title="关闭" @click="showAbout=false">×</button></div>
         <div class="about-body">
           <div class="about-row"><span>系统定位</span><b>多模态内容审核与大模型安全护栏</b></div>
           <div class="about-row"><span>核心能力</span><b>伪造检测 / 红线审核 / 输入输出防护</b></div>
@@ -135,8 +135,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .layout { display:flex; min-height:100vh; background-color:var(--bg); background-image:linear-gradient(rgba(23,40,56,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(23,40,56,.026) 1px,transparent 1px); background-size:28px 28px; }
 .sidebar { width:var(--sidebar-w); min-width:var(--sidebar-w); height:100vh; position:sticky; top:0; z-index:50; display:flex; flex-direction:column; padding:14px 10px; background:var(--sidebar); border-right:1px solid var(--sidebar-line); box-shadow:8px 0 28px rgba(16,40,60,.08); transition:width .22s ease,min-width .22s ease; overflow:hidden; }
 .brand { min-height:104px; display:flex; align-items:center; gap:11px; padding:10px 8px 14px; border-bottom:1px solid var(--sidebar-line); }
-.brand-mark { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; color:#ffffff; background:var(--primary); border-radius:6px; box-shadow:0 8px 20px rgba(0,0,0,.16); }
-.brand-copy { min-width:0; width:179px; }
+.brand-mark { width:44px; height:44px; flex:0 0 44px; display:block; object-fit:contain; filter:drop-shadow(0 5px 12px rgba(0,116,255,.28)); }
+.brand-copy { min-width:0; width:173px; }
 .brand-copy strong { display:block; color:#f5f9fc; font-size:13px; line-height:1.5; font-weight:750; white-space:normal; overflow-wrap:anywhere; }
 .nav { flex:1; padding:14px 0; display:flex; flex-direction:column; gap:4px; overflow-y:auto; }
 .nav-item { min-height:42px; display:flex; align-items:center; gap:11px; padding:0 14px; border:1px solid transparent; border-radius:6px; color:#b5c6d2; text-decoration:none; font-size:13px; white-space:nowrap; transition:background .16s,color .16s,border-color .16s; }
@@ -165,7 +165,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .card-title::before { content:''; width:3px; height:14px; background:var(--primary); border-radius:1px; }
 .about-mask { position:fixed; inset:0; z-index:200; display:grid; place-items:center; padding:20px; background:rgba(16,40,60,.42); backdrop-filter:blur(5px); }
 .about-dialog { width:min(470px,100%); padding:22px; background:var(--surface); border:1px solid var(--line-bright); border-radius:8px; box-shadow:0 24px 80px rgba(16,40,60,.26); }
-.about-header { display:flex; align-items:center; gap:10px; padding-bottom:14px; border-bottom:1px solid var(--line); color:var(--primary); }.about-header .icon-command { margin-left:auto; }
+.about-header { display:flex; align-items:center; gap:10px; padding-bottom:14px; border-bottom:1px solid var(--line); color:var(--primary); }.about-header>img { width:34px; height:34px; object-fit:contain; }.about-header .icon-command { margin-left:auto; }
 .about-body { padding-top:8px; }.about-row { display:grid; grid-template-columns:100px 1fr; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); font-size:12px; }.about-row span { color:var(--muted); }.about-row b { font-weight:500; color:var(--text); }
 .mobile-mask { display:none; }
 
