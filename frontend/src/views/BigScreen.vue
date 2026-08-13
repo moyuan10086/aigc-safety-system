@@ -16,13 +16,14 @@
         <aside class="left-column">
           <CockpitPanel class="intro-panel" title="平台简介" code="PLATFORM PROFILE">
             <section class="platform-intro">
-              <p class="intro-slogan">平台不以“反 AI”为目标，让生成内容可验证、可追溯、可处置。</p>
-              <div class="intro-overview"><span class="intro-emblem"><ShieldCheck :size="26" /></span><p>AIGC 安全运营台面向图片、人脸与多模态内容，贯通生成、上传、传播和审核流程，提供可真实调用、可解释并支持 API 接入的安全审计能力。</p></div>
+              <p class="intro-slogan">不是“反 AI”，而是让 AI 内容可验证、可解释、可追溯、可处置。</p>
+              <div class="intro-overview"><span class="intro-emblem"><ShieldCheck :size="26" /></span><p>平台面向图片、人脸、文本与 Agent，识别真实性风险和内容安全风险，帮助审核员判断内容能否发布、是否需要复核，以及为什么触发策略。</p></div>
+              <p class="intro-future">从输入采集开始，经过多模型判定、红线知识检索和策略融合，最终输出“放行 / 复核 / 阻断”，全程保留可审计证据。</p>
               <ul class="intro-features">
-                <li><b>多模态检测</b><span>Deepfake 与图文联合判定</span></li>
-                <li><b>智能理解</b><span>MLLM 语义识别与隐性风险分析</span></li>
-                <li><b>知识增强</b><span>RAG 红线检索与可追溯依据</span></li>
-                <li><b>实时防护</b><span>分级拦截、人工复核与审计闭环</span></li>
+                <li><b>真实性鉴别</b><span>Deepfake、AI 生图与来源凭证</span></li>
+                <li><b>内容安全</b><span>成人、暴力、违法与隐私风险</span></li>
+                <li><b>模型护栏</b><span>输入输出、越狱与 Agent 操作</span></li>
+                <li><b>审计闭环</b><span>解释证据、人工复核与 API 接入</span></li>
               </ul>
               <dl><div><dt>公网来源</dt><dd>{{ sourceBreakdown.public }}</dd></div><div><dt>内部 / 测试</dt><dd>{{ sourceBreakdown.internal }}</dd></div><div><dt>原图公开</dt><dd>否</dd></div></dl>
             </section>
