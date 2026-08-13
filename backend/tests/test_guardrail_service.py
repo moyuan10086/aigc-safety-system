@@ -351,6 +351,83 @@ class GuardrailServiceTests(unittest.TestCase):
         self.assertIn("expert_stage", result["engine"]["timings_ms"])
         self.assertIn("total", result["engine"]["timings_ms"])
 
+    def test_fast_profile_skips_remote_experts_and_keeps_trace(self):
+        with patch.object(
+            guardrail_service, "_run_rag", side_effect=AssertionError("RAG should be skipped")
+        ), patch.object(
+            guardrail_service, "_run_mllm", side_effect=AssertionError("MLLM should be skipped")
+        ), patch.object(
+            guardrail_service, "_run_qwen_classifier", side_effect=AssertionError("Qwen should be skipped")
+        ), patch.object(
+            guardrail_service, "_run_singguard_classifier", side_effect=AssertionError("SingGuard should be skipped")
+        ), patch.object(
+            guardrail_service.xgboost_shadow_service, "evaluate", return_value={"status": "ok"}
+        ):
+            result = guardrail_service.check(prompt="normal text", profile="fast")
+
+        self.assertEqual(result["engine"]["profile"], "fast")
+        self.assertEqual(
+            result["engine"]["skipped_components"],
+            ["rag", "mllm", "qwen3guard", "singguard"],
+        )
+        self.assertEqual(result["engine"]["components"]["mllm"], "skipped")
+        self.assertEqual(result["route_trace"][0]["component"], "rules")
+        self.assertEqual(result["decision_flow"]["safety"], "safe")
+
+    def test_standard_profile_skips_mllm_but_runs_local_experts(self):
+        called = []
+
+        def expert(name):
+            def run(*_args):
+                called.append(name)
+                return {}, [], "ok"
+            return run
+
+        with patch.object(guardrail_service, "GUARDRAIL_PARALLEL_EXPERTS", False), patch.object(
+            guardrail_service, "_run_rag", expert("rag")
+        ), patch.object(
+            guardrail_service, "_run_mllm", side_effect=AssertionError("MLLM should be skipped")
+        ), patch.object(
+            guardrail_service, "_run_qwen_classifier", expert("qwen3guard")
+        ), patch.object(
+            guardrail_service, "_run_singguard_classifier", expert("singguard")
+        ), patch.object(
+            guardrail_service.xgboost_shadow_service, "evaluate", return_value={"status": "ok"}
+        ):
+            result = guardrail_service.check(prompt="normal text", profile="standard")
+
+        self.assertEqual(called, ["rag", "qwen3guard", "singguard"])
+        self.assertEqual(result["engine"]["components"]["mllm"], "skipped")
+
+    def test_strict_profile_runs_all_experts(self):
+        called = []
+
+        def expert(name):
+            def run(*_args):
+                called.append(name)
+                return {}, [], "ok"
+            return run
+
+        with patch.object(guardrail_service, "GUARDRAIL_PARALLEL_EXPERTS", False), patch.object(
+            guardrail_service, "_run_rag", expert("rag")
+        ), patch.object(
+            guardrail_service, "_run_mllm", expert("mllm")
+        ), patch.object(
+            guardrail_service, "_run_qwen_classifier", expert("qwen3guard")
+        ), patch.object(
+            guardrail_service, "_run_singguard_classifier", expert("singguard")
+        ), patch.object(
+            guardrail_service.xgboost_shadow_service, "evaluate", return_value={"status": "ok"}
+        ):
+            result = guardrail_service.check(prompt="normal text", profile="strict")
+
+        self.assertEqual(called, ["rag", "mllm", "qwen3guard", "singguard"])
+        self.assertEqual(result["engine"]["skipped_components"], [])
+
+    def test_invalid_profile_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "profile must be one of"):
+            guardrail_service.check(prompt="normal text", profile="unknown")
+
     @staticmethod
     def _fake_classifier_modules(content):
         class FakeHTTPClient:

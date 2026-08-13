@@ -30,6 +30,7 @@ class GuardrailCheckRequest(BaseModel):
     prompt: str = Field(default="", max_length=12_000)
     response: str = Field(default="", max_length=12_000)
     mode: str = Field(default="both", max_length=16)
+    profile: Literal["fast", "standard", "strict"] = "standard"
 
     @model_validator(mode="after")
     def validate_content(self):
@@ -53,12 +54,15 @@ class GuardrailCheckResponse(BaseModel):
     redline_answer: str
     scores: dict[str, float]
     shadow_evaluation: dict[str, Any]
+    decision_flow: dict[str, Any]
+    route_trace: list[dict[str, Any]]
     engine: dict[str, Any]
 
 
 class GuardedChatRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4_000)
     max_tokens: int | None = Field(default=None, ge=64, le=1_200)
+    profile: Literal["fast", "standard", "strict"] = "standard"
 
 
 class AgentActionBase(BaseModel):
@@ -210,13 +214,14 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
             body.prompt,
             body.response,
             body.mode,
+            body.profile,
         )
         actor, api_metadata = _actor_context(request)
         shadow_evaluation = result.get("shadow_evaluation", {})
         event_id = audit_log_service.record_safe(
             event_type="guardrail.check",
             module="guardrail",
-            action=f"check_{body.mode}",
+            action=f"check_{body.mode}_{body.profile}",
             severity={"safe": "info", "borderline": "warning", "unsafe": "high"}.get(result["verdict"], "info"),
             outcome={"safe": "allowed", "borderline": "review", "unsafe": "blocked"}.get(result["verdict"], "success"),
             actor=actor,
@@ -228,6 +233,7 @@ async def check_guardrail(body: GuardrailCheckRequest, request: Request):
             content_hash=audit_log_service.content_digest(f"{body.prompt}\n{body.response}"),
             metadata={
                 "mode": body.mode,
+                "profile": body.profile,
                 "categories": result.get("categories", []),
                 "content_length": len(body.prompt) + len(body.response),
                 "expert_parallel": (result.get("engine") or {}).get("expert_parallel"),
@@ -465,6 +471,7 @@ async def guarded_chat(body: GuardedChatRequest, request: Request):
                     body.prompt.strip(),
                     body.max_tokens,
                     evidence_capture,
+                    body.profile,
                 ),
                 timeout=config.CHAT_MODEL_TIMEOUT_SECONDS + 10,
             )

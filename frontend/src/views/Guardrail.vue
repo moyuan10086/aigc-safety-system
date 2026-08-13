@@ -40,6 +40,15 @@
           </button>
         </div>
 
+        <div v-if="mode !== 'agent'" class="profile-control" aria-label="护栏编排档位">
+          <span>编排档位</span>
+          <div role="radiogroup">
+            <button v-for="item in profileOptions" :key="item.value" :class="{ active: orchestrationProfile === item.value }" :title="item.hint" @click="orchestrationProfile = item.value">
+              {{ item.label }}<small>{{ item.hint }}</small>
+            </button>
+          </div>
+        </div>
+
         <template v-if="mode === 'agent'">
           <div class="agent-phase-tabs" role="tablist" aria-label="Agent 护栏阶段">
             <button :class="{ active: agentPhase === 'action' }" @click="switchAgentPhase('action')"><KeyRound :size="14" />执行前审批</button>
@@ -180,6 +189,21 @@
               <div><span>风险代码</span><b class="mono">{{ activeGuard.risk_code || 'GR-ALLOW' }}</b></div>
               <div><span>检查阶段</span><b>{{ evidenceStage }}</b></div>
             </div>
+            <div v-if="decisionFlow.length" class="decision-flow" aria-label="护栏决策链">
+              <div v-for="(step, index) in decisionFlow" :key="step.label">
+                <span>{{ String(index + 1).padStart(2, '0') }} · {{ step.label }}</span>
+                <b>{{ step.value }}</b>
+              </div>
+            </div>
+            <div v-if="routeTrace.length" class="route-trace">
+              <div class="route-trace-head"><span>专家路由轨迹</span><b>{{ profileLabel }}</b></div>
+              <div v-for="item in routeTrace" :key="item.component" class="route-trace-item">
+                <i :class="routeStatusTone(item.status)"></i>
+                <span>{{ componentLabel(item.component) }}</span>
+                <b :class="routeStatusTone(item.status)">{{ routeStatusLabel(item.status) }}</b>
+                <code>{{ item.latency_ms == null ? '—' : item.latency_ms + ' ms' }}</code>
+              </div>
+            </div>
             <div v-if="shadow" class="shadow-comparison" :class="{ disagreement: shadow.agreement === false }">
               <div>
                 <span>XGBoost 影子对照</span>
@@ -216,6 +240,7 @@ import { useAuth } from '../composables/useAuth'
 type Mode = 'chat' | 'manual' | 'agent'
 type EvidenceView = 'final' | 'input' | 'output'
 type AgentPhase = 'action' | 'result' | 'trajectory'
+type GuardrailProfile = 'fast' | 'standard' | 'strict'
 
 const modes = [
   { value:'chat' as Mode, label:'实际调用模型', hint:'推荐', icon:Sparkles },
@@ -227,7 +252,13 @@ const guardTabs = [
   { value:'input' as EvidenceView, label:'输入' },
   { value:'output' as EvidenceView, label:'输出' },
 ]
+const profileOptions = [
+  { value:'fast' as GuardrailProfile, label:'快速', hint:'规则 + 影子模型' },
+  { value:'standard' as GuardrailProfile, label:'标准', hint:'本地多专家' },
+  { value:'strict' as GuardrailProfile, label:'严格', hint:'含 MLLM 二审' },
+]
 const mode = ref<Mode>('chat')
+const orchestrationProfile = ref<GuardrailProfile>('standard')
 const evidenceView = ref<EvidenceView>('final')
 const inputText = ref('')
 const outputText = ref('')
@@ -300,6 +331,22 @@ const categoryText = computed(() => Array.isArray(activeGuard.value?.categories)
 const evidenceStage = computed(() => mode.value === 'agent' ? (agentPhase.value === 'action' ? 'Agent 执行前' : agentPhase.value === 'result' ? '工具结果回传' : '多步轨迹') : !workflow.value ? '手工双向' : evidenceView.value === 'input' ? '输入预检' : evidenceView.value === 'output' ? '输出复检' : '最终合并')
 const shadow = computed(() => activeGuard.value?.shadow_evaluation || null)
 const shadowStatusText = computed(() => ({ disabled:'未启用', warming:'模型预热中', unavailable:'模型不可用', skipped:'未执行', ok:'已完成，仅供对照' }[shadow.value?.status as string] || shadow.value?.status || '未知状态'))
+const routeTrace = computed<any[]>(() => Array.isArray(activeGuard.value?.route_trace) ? activeGuard.value.route_trace : [])
+const profileLabel = computed(() => {
+  const value = activeGuard.value?.engine?.profile || orchestrationProfile.value
+  return profileOptions.find(item => item.value === value)?.label || value
+})
+const decisionFlow = computed(() => {
+  const flow = activeGuard.value?.decision_flow
+  if (!flow) return []
+  const categories = Array.isArray(flow.categories) ? flow.categories.join(' / ') : flow.categories
+  return [
+    { label:'意图', value:flow.intent || '通用请求' },
+    { label:'类别', value:categories || '无风险类别' },
+    { label:'安全结论', value:decisionText(flow.safety || flow.verdict) },
+    { label:'处置动作', value:actionText(flow.action) },
+  ]
+})
 const runningLabel = computed(() => checking.value ? pipeline.value[Math.max(activeStep.value, 0)] + '中' : '')
 const canRun = computed(() => mode.value === 'agent'
   ? agentPhase.value === 'trajectory'
@@ -359,6 +406,28 @@ function trajectoryDecisionLabel(value: string) {
   return ({ safe:'放行', borderline:'复核', unsafe:'阻断' } as Record<string,string>)[value] || value
 }
 
+function decisionText(value: string) {
+  return ({ safe:'安全', allow:'安全', borderline:'边界内容', review:'人工复核', unsafe:'不安全', block:'不安全' } as Record<string,string>)[String(value || '').toLowerCase()] || value || '未判定'
+}
+
+function actionText(value: string) {
+  return ({ allow:'放行', review:'人工复核', block:'阻断', quarantine:'隔离' } as Record<string,string>)[String(value || '').toLowerCase()] || value || '未指定'
+}
+
+function componentLabel(value: string) {
+  return ({ rules:'确定性规则', rag:'RAG 红线库', mllm:'MLLM 二审', qwen3guard:'Qwen3Guard', singguard:'SingGuard', xgboost_shadow:'XGBoost 影子模型' } as Record<string,string>)[value] || value
+}
+
+function routeStatusLabel(value: string) {
+  return ({ ok:'已执行', skipped:'按档位跳过', disabled:'未配置', inconclusive:'结论不确定', unavailable:'当前不可用', error:'执行失败' } as Record<string,string>)[value] || value
+}
+
+function routeStatusTone(value: string) {
+  if (value === 'ok') return 'ok'
+  if (value === 'skipped' || value === 'disabled') return 'neutral'
+  return 'warning'
+}
+
 async function parseResponse(response: Response) {
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw new Error(payload?.detail?.message || payload?.detail || `HTTP ${response.status}`)
@@ -380,7 +449,7 @@ async function run() {
       const response = await fetch('/api/guardrail/chat', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ prompt:inputText.value.trim(), max_tokens:maxTokens.value }),
+        body:JSON.stringify({ prompt:inputText.value.trim(), max_tokens:maxTokens.value, profile:orchestrationProfile.value }),
       })
       workflow.value = await parseResponse(response)
       outputText.value = workflow.value.response || ''
@@ -412,7 +481,7 @@ async function run() {
       const response = await fetch('/api/guardrail/check', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ prompt:inputText.value.trim(), response:submittedOutput, mode:'both' }),
+        body:JSON.stringify({ prompt:inputText.value.trim(), response:submittedOutput, mode:'both', profile:orchestrationProfile.value }),
       })
       manualResult.value = await parseResponse(response)
     }
@@ -475,6 +544,8 @@ textarea:focus{box-shadow:0 0 0 3px rgba(8,126,174,.1)}
 .passed-state,.safe-answer{background:rgba(22,128,94,.055);border-color:rgba(22,128,94,.2)}
 .engine-row{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:13px 0 0;color:var(--faint);font-size:9px}.engine-chip{display:flex;align-items:center;gap:5px;padding:5px 8px;color:var(--faint);background:var(--surface-2);border:1px solid var(--line);border-radius:4px}.engine-chip.active{color:var(--success);background:rgba(22,128,94,.055);border-color:rgba(22,128,94,.2)}
 .mode-tabs{grid-template-columns:repeat(3,1fr)}
+.profile-control{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:-6px 0 16px;color:var(--faint);font-size:10px}.profile-control>div{display:flex;flex:1;max-width:470px;padding:3px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px}.profile-control button{min-width:0;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 8px;color:var(--muted);background:transparent;border:0;border-radius:4px;cursor:pointer}.profile-control button.active{color:var(--primary);background:#fff;box-shadow:0 1px 3px rgba(23,40,56,.08)}.profile-control small{color:var(--faint);font-size:8px}.profile-control button.active small{color:var(--primary)}
+.decision-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.decision-flow div{min-width:0;padding:0 9px;border-right:1px solid var(--line)}.decision-flow div:first-child{padding-left:0}.decision-flow div:last-child{padding-right:0;border-right:0}.decision-flow span{display:block;margin-bottom:5px;color:var(--faint);font-size:8px}.decision-flow b{display:block;overflow:hidden;color:var(--text);font-size:10px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}.route-trace{margin-top:12px}.route-trace-head{display:flex;justify-content:space-between;margin-bottom:7px;color:var(--faint);font-size:9px}.route-trace-head b{color:var(--primary);font-weight:600}.route-trace-item{display:grid;grid-template-columns:7px minmax(0,1fr) auto 52px;align-items:center;gap:7px;min-height:27px;border-bottom:1px solid var(--line)}.route-trace-item:last-child{border-bottom:0}.route-trace-item i{width:6px;height:6px;border-radius:50%;background:var(--faint)}.route-trace-item i.ok{background:var(--success)}.route-trace-item i.warning{background:var(--warning)}.route-trace-item span{overflow:hidden;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.route-trace-item b{color:var(--faint);font-size:8px;font-weight:500}.route-trace-item b.ok{color:var(--success)}.route-trace-item b.warning{color:var(--warning)}.route-trace-item code{color:var(--faint);font:8px ui-monospace,monospace;text-align:right}
 .agent-scope-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.agent-field{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:11px}.agent-field input{height:42px;padding:0 12px;color:var(--text);background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:inset 0 1px 2px rgba(23,40,56,.03)}.agent-field input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(8,126,174,.1)}
 .approval-strip{min-height:40px;display:flex;align-items:center;gap:8px;margin:10px 0 14px;padding:8px 10px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:5px;font-size:10px}.approval-strip span{flex:1}.approval-strip b{color:var(--faint);font:9px ui-monospace,monospace}.approval-strip.valid,.approval-strip.not_required{color:var(--success);border-color:rgba(22,128,94,.2);background:rgba(22,128,94,.055)}.approval-strip.mismatch,.approval-strip.expired,.approval-strip.replayed,.approval-strip.invalid{color:var(--danger);border-color:rgba(207,63,79,.2);background:rgba(207,63,79,.06)}
 .approval-btn{min-height:43px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;color:var(--warning);background:#fff;border:1px solid rgba(180,121,9,.3);border-radius:6px;font-weight:600;white-space:nowrap;cursor:pointer}.approval-btn:disabled{opacity:.45;cursor:not-allowed}
@@ -482,6 +553,7 @@ textarea:focus{box-shadow:0 0 0 3px rgba(8,126,174,.1)}
 .result-release-strip{min-height:40px;display:flex;align-items:center;gap:8px;margin:10px 0 14px;padding:8px 10px;color:var(--success);background:rgba(22,128,94,.055);border:1px solid rgba(22,128,94,.2);border-radius:5px;font-size:10px}.result-release-strip.blocked{color:var(--danger);background:rgba(207,63,79,.06);border-color:rgba(207,63,79,.2)}
 .trajectory-ledger{display:flex;flex-direction:column;gap:6px;margin:12px 0 14px}.trajectory-step{display:grid;grid-template-columns:28px 90px 58px minmax(0,1fr);align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--success);border-radius:5px}.trajectory-step.borderline{border-left-color:var(--warning)}.trajectory-step.unsafe{border-left-color:var(--danger)}.trajectory-step span,.trajectory-step code{color:var(--faint);font:9px ui-monospace,monospace}.trajectory-step b{font-size:10px}.trajectory-step em{color:var(--success);font-size:9px;font-style:normal}.trajectory-step.borderline em{color:var(--warning)}.trajectory-step.unsafe em{color:var(--danger)}.trajectory-step code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
 @media(max-width:700px){.mode-tabs,.agent-phase-tabs{grid-template-columns:1fr}.agent-scope-grid{grid-template-columns:1fr}.approval-btn{width:100%}}
+@media(max-width:700px){.profile-control{align-items:flex-start;flex-direction:column}.profile-control>div{width:100%;max-width:none}.profile-control button{flex-direction:column;gap:2px}.decision-flow{grid-template-columns:1fr 1fr;row-gap:10px}.decision-flow div:nth-child(2){border-right:0}.decision-flow div:nth-child(3){padding-left:0}}
 @media(max-width:520px){.trajectory-step{grid-template-columns:26px 72px 48px minmax(0,1fr)}}
 @media(max-width:520px){.shadow-comparison dl{grid-template-columns:1fr 1fr}}
 </style>

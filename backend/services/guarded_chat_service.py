@@ -126,9 +126,10 @@ def run(
     prompt: str,
     max_tokens: int | None = None,
     evidence_capture: dict[str, str] | None = None,
+    profile: str = "strict",
 ) -> dict[str, Any]:
     request_id = uuid.uuid4().hex
-    input_guard = guardrail_service.check(prompt=prompt, mode="prompt")
+    input_guard = guardrail_service.check(prompt=prompt, mode="prompt", profile=profile)
 
     if input_guard["verdict"] == "unsafe":
         final_guard = dict(input_guard)
@@ -150,7 +151,9 @@ def run(
     generation = _call_model(prompt, requested_tokens)
     if evidence_capture is not None:
         evidence_capture["model_output"] = generation["content"]
-    raw_output_guard = guardrail_service.check(response=generation["content"], mode="response")
+    raw_output_guard = guardrail_service.check(
+        response=generation["content"], mode="response", profile=profile
+    )
     final_guard = dict(input_guard if _severity(input_guard) >= _severity(raw_output_guard) else raw_output_guard)
     final_guard["risk_message"] = _risk_message(final_guard["verdict"], True)
 

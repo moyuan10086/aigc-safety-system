@@ -37,6 +37,11 @@ from services.model_output_normalizer import normalize_classifier_output
 RULE_VERSION = "2026.08.4"
 MAX_ANALYSIS_CHARS = 12_000
 _RAG_LOCK = threading.Lock()
+GUARDRAIL_PROFILES = {
+    "fast": (),
+    "standard": ("rag", "qwen3guard", "singguard"),
+    "strict": ("rag", "mllm", "qwen3guard", "singguard"),
+}
 
 # Large public lexicons contain many short, context-free words. Treat them as
 # retrieval noise unless they are explicit high-risk terms.
@@ -477,25 +482,37 @@ def _timed_component(function, *args) -> tuple[dict[str, float], list[dict[str, 
     return scores, evidence, status, round((time.perf_counter() - started) * 1000, 3)
 
 
-def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str, Any]:
+def check(
+    prompt: str = "",
+    response: str = "",
+    mode: str = "both",
+    profile: str = "strict",
+) -> dict[str, Any]:
     """Evaluate an input/output pair without requiring any external model."""
     check_started = time.perf_counter()
     fields = _selected_fields(prompt, response, mode)
     if not fields:
         raise ValueError("prompt or response must contain non-whitespace text for the selected mode")
+    selected_profile = (profile or "standard").strip().lower()
+    if selected_profile not in GUARDRAIL_PROFILES:
+        raise ValueError("profile must be one of: fast, standard, strict")
 
     rules_started = time.perf_counter()
     scores, evidence = _run_rules(fields)
     timings_ms = {"rules": round((time.perf_counter() - rules_started) * 1000, 3)}
     combined_text = "\n".join(text for _, text in fields)
-    expert_calls = {
+    available_expert_calls = {
         "rag": (_run_rag, (combined_text,)),
         "mllm": (_run_mllm, (prompt, response)),
         "qwen3guard": (_run_qwen_classifier, (prompt, response)),
         "singguard": (_run_singguard_classifier, (fields,)),
     }
+    expert_calls = {
+        name: available_expert_calls[name]
+        for name in GUARDRAIL_PROFILES[selected_profile]
+    }
     expert_started = time.perf_counter()
-    if GUARDRAIL_PARALLEL_EXPERTS:
+    if GUARDRAIL_PARALLEL_EXPERTS and expert_calls:
         with ThreadPoolExecutor(
             max_workers=min(GUARDRAIL_EXPERT_MAX_WORKERS, len(expert_calls)),
             thread_name_prefix="guardrail-expert",
@@ -512,7 +529,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         }
     timings_ms["expert_stage"] = round((time.perf_counter() - expert_started) * 1000, 3)
 
-    statuses = {}
+    statuses = {name: "skipped" for name in available_expert_calls}
     for name in expert_calls:
         component_scores, component_evidence, status, latency_ms = expert_results[name]
         _merge_scores(scores, component_scores)
@@ -521,7 +538,7 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         timings_ms[name] = latency_ms
 
     highest = max(scores.values(), default=0.0)
-    strict = (mode or "").strip().lower() == "strict"
+    strict = selected_profile == "strict"
     unsafe_threshold = 0.70 if strict else 0.75
     borderline_threshold = 0.30 if strict else 0.35
     verdict = "unsafe" if highest >= unsafe_threshold else ("borderline" if highest >= borderline_threshold else "safe")
@@ -563,6 +580,29 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
     shadow_evaluation = xgboost_shadow_service.evaluate(combined_text, verdict)
     timings_ms["xgboost_shadow"] = round((time.perf_counter() - shadow_started) * 1000, 3)
     timings_ms["total"] = round((time.perf_counter() - check_started) * 1000, 3)
+    route_trace = [
+        {
+            "component": "rules",
+            "status": "ok",
+            "latency_ms": timings_ms["rules"],
+            "stage": "deterministic",
+        },
+        *[
+            {
+                "component": name,
+                "status": statuses[name],
+                "latency_ms": timings_ms.get(name),
+                "stage": "expert",
+            }
+            for name in available_expert_calls
+        ],
+        {
+            "component": "xgboost_shadow",
+            "status": shadow_evaluation["status"],
+            "latency_ms": timings_ms["xgboost_shadow"],
+            "stage": "shadow",
+        },
+    ]
 
     return {
         "verdict": verdict,
@@ -579,9 +619,21 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
         "redline_answer": redline_answer,
         "scores": scores,
         "shadow_evaluation": shadow_evaluation,
+        "decision_flow": {
+            "intent": primary_category,
+            "categories": categories,
+            "safety": verdict,
+            "action": actions[0],
+        },
+        "route_trace": route_trace,
         "engine": {
             "name": "hybrid_guardrail",
             "version": RULE_VERSION,
+            "profile": selected_profile,
+            "executed_components": ["rules", *expert_calls, "xgboost_shadow"],
+            "skipped_components": [
+                name for name in available_expert_calls if name not in expert_calls
+            ],
             "expert_parallel": GUARDRAIL_PARALLEL_EXPERTS,
             "timings_ms": timings_ms,
             "components": {
@@ -593,7 +645,8 @@ def check(prompt: str = "", response: str = "", mode: str = "both") -> dict[str,
                 "xgboost_shadow": shadow_evaluation["status"],
             },
             "inconclusive_components": [
-                name for name, status in statuses.items() if status == "inconclusive"
+                name for name, status in statuses.items()
+                if status in {"inconclusive", "unavailable"}
             ],
         },
     }
