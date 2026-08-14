@@ -1,5 +1,8 @@
 import json
+import io
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -58,6 +61,164 @@ class DetectReportTests(unittest.TestCase):
         self.assertEqual(report["requested_modules"], ["rag"])
         self.assertEqual(report["report_title"], "红线知识库审核报告")
         self.assertEqual(report["summary"], "# 综合分析\n\n需要人工复核。")
+
+    def test_ocr_endpoint_returns_structured_result(self):
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+        ocr_result = {
+            "status": "completed", "text": "禁止泄露个人信息", "char_count": 8,
+            "latency_ms": 21, "error_code": None,
+        }
+        with patch.object(detect.ocr_service, "ocr_image_result", return_value=ocr_result):
+            response = self.client.post(
+                "/api/detect/ocr",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), ocr_result)
+
+    def test_full_audit_uses_corrected_ocr_text_and_persists_evidence(self):
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+        rag_result = {
+            "safe": False, "risk_level": "high", "matched_rules": ["RULE-PII"],
+            "matched_keywords": ["身份证"],
+        }
+        with (
+            patch.object(detect.ocr_service, "ocr_image_result") as ocr,
+            patch.object(detect.rag_service, "check_content", return_value=rag_result) as check,
+            patch.object(detect, "_gen_summary", return_value="# 红线审核"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+                data={
+                    "ocr_text": "身份证号码 110101199001011234",
+                    "ocr_status": "corrected",
+                    "modules": "rag",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        ocr.assert_not_called()
+        self.assertIn("[图片 OCR 文本]", check.call_args.args[0])
+        self.assertIn("身份证号码", check.call_args.args[0])
+        done = next(
+            json.loads(line.removeprefix("data:").strip())
+            for line in response.text.splitlines()
+            if line.startswith("data:") and "report_id" in line
+        )
+        report = json.loads((self.reports_dir / f"{done['report_id']}.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["ocr_text"], "身份证号码 110101199001011234")
+        self.assertEqual(report["ocr"]["status"], "corrected")
+        self.assertEqual(report["rag"], rag_result)
+
+    def test_full_audit_falls_back_to_backend_ocr(self):
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+        ocr_result = {
+            "status": "completed", "text": "图片中的风险文字", "char_count": 8,
+            "latency_ms": 18, "error_code": None,
+        }
+        with (
+            patch.object(detect.ocr_service, "ocr_image_result", return_value=ocr_result) as ocr,
+            patch.object(detect.rag_service, "check_content", return_value={"safe": True}) as check,
+            patch.object(detect, "_gen_summary", return_value="# 红线审核"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+                data={"modules": "rag"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        ocr.assert_called_once()
+        self.assertIn("图片中的风险文字", check.call_args.args[0])
+        self.assertIn("event: ocr", response.text)
+
+    def test_empty_or_unavailable_ocr_is_inconclusive_not_safe(self):
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+        with (
+            patch.object(detect.rag_service, "check_content") as check,
+            patch.object(detect, "_gen_summary", return_value="# 红线审核"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+                data={"ocr_text": "", "ocr_status": "unavailable", "modules": "rag"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        check.assert_not_called()
+        rag_data = next(
+            json.loads(line.removeprefix("data:").strip())
+            for line in response.text.splitlines()
+            if line.startswith("data:") and '"risk_level"' in line
+        )
+        self.assertFalse(rag_data["safe"])
+        self.assertEqual(rag_data["status"], "inconclusive")
+        self.assertEqual(rag_data["risk_level"], "unknown")
+
+    def test_full_audit_runs_independent_modules_in_parallel(self):
+        active = 0
+        max_active = 0
+        lock = threading.Lock()
+
+        def delayed(result):
+            def run(*_args):
+                nonlocal active, max_active
+                with lock:
+                    active += 1
+                    max_active = max(max_active, active)
+                time.sleep(0.05)
+                with lock:
+                    active -= 1
+                return result
+            return run
+
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "navy").save(image, format="PNG")
+        with (
+            patch.object(detect, "_inspect_faces", return_value={"face_detected": True}),
+            patch.object(detect.deepfake_service, "detect", delayed({"label": "real", "score": 0.1})),
+            patch.object(detect.mllm_service, "analyze", delayed({"verdict": "real"})),
+            patch.object(detect.mllm_service, "analyze_content_safety", delayed({
+                "status": "completed", "verdict": "safe", "risk_score": 0.1, "categories": [],
+            })),
+            patch.object(detect.rag_service, "check_content", delayed({"safe": True})),
+            patch.object(detect, "_record_content_safety"),
+            patch.object(detect, "_gen_summary", return_value="# 综合分析"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+                data={"text": "安全文本", "modules": "deepfake,mllm,content_safety,rag"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(max_active, 2)
+        self.assertIn('"step": "parallel_analysis"', response.text)
+        self.assertIn("event: done", response.text)
+
+    def test_full_audit_degrades_failed_module_and_still_finishes(self):
+        image = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(image, format="PNG")
+        with (
+            patch.object(detect.mllm_service, "analyze", side_effect=RuntimeError("provider down")),
+            patch.object(detect, "_gen_summary", return_value="# 综合分析"),
+        ):
+            response = self.client.post(
+                "/api/detect/full",
+                files={"image": ("sample.png", image.getvalue(), "image/png")},
+                data={"modules": "mllm"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: mllm", response.text)
+        self.assertIn('"status": "degraded"', response.text)
+        self.assertIn("event: done", response.text)
 
     def test_provenance_only_report_does_not_claim_unrun_dimensions(self):
         report = {
@@ -159,6 +320,31 @@ class DetectReportTests(unittest.TestCase):
         self.assertIn("视觉内容安全", text)
         self.assertIn("个人敏感信息: 0.94 (high)", text)
         self.assertIn("gpt-5.4-mini", text)
+
+    def test_markdown_export_contains_ocr_and_rag_evidence(self):
+        self._write_report(
+            "ocr-rag",
+            {
+                "filename": "poster.png",
+                "requested_modules": ["rag"],
+                "ocr_text": "这是校对后的图片文字",
+                "ocr": {"status": "corrected", "char_count": 11, "latency_ms": 20},
+                "rag": {
+                    "safe": False,
+                    "risk_level": "high",
+                    "matched_rules": ["RULE-RED-001"],
+                    "matched_keywords": ["违规关键词"],
+                },
+            },
+        )
+
+        response = self.client.get("/api/detect/report/ocr-rag/download/md")
+
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8")
+        self.assertIn("这是校对后的图片文字", text)
+        self.assertIn("RULE-RED-001", text)
+        self.assertIn("违规关键词", text)
 
 
 if __name__ == "__main__":

@@ -22,26 +22,26 @@
     <!-- 统计格子 -->
     <div v-if="file || loading || hasResults" class="stats-row">
       <div class="stat-box" v-if="modules.includes('deepfake')">
-        <div class="stat-num" :class="results.deepfake ? 'num-done' : currentStep==='deepfake' ? 'num-running' : 'num-idle'">
-          {{ results.deepfake ? '完成' : currentStep==='deepfake' ? '运行中' : '—' }}
+        <div class="stat-num" :class="results.deepfake ? 'num-done' : moduleIsRunning('deepfake') ? 'num-running' : 'num-idle'">
+          {{ results.deepfake ? '完成' : moduleIsRunning('deepfake') ? '运行中' : '—' }}
         </div>
         <div class="stat-label">Deepfake</div>
       </div>
       <div class="stat-box" v-if="modules.includes('mllm')">
-        <div class="stat-num" :class="results.mllm ? 'num-done' : currentStep==='mllm' ? 'num-running' : 'num-idle'">
-          {{ results.mllm ? '完成' : currentStep==='mllm' ? '运行中' : '—' }}
+        <div class="stat-num" :class="results.mllm ? 'num-done' : moduleIsRunning('mllm') ? 'num-running' : 'num-idle'">
+          {{ results.mllm ? '完成' : moduleIsRunning('mllm') ? '运行中' : '—' }}
         </div>
         <div class="stat-label">MLLM分析</div>
       </div>
       <div class="stat-box" v-if="modules.includes('rag')">
-        <div class="stat-num" :class="results.rag ? 'num-done' : currentStep==='rag' ? 'num-running' : 'num-idle'">
-          {{ results.rag ? '完成' : currentStep==='rag' ? '运行中' : '—' }}
+        <div class="stat-num" :class="results.rag ? 'num-done' : moduleIsRunning('rag') ? 'num-running' : 'num-idle'">
+          {{ results.rag ? '完成' : moduleIsRunning('rag') ? '运行中' : '—' }}
         </div>
         <div class="stat-label">知识库审核</div>
       </div>
       <div class="stat-box" v-if="modules.includes('content_safety')">
-        <div class="stat-num" :class="results.content_safety ? 'num-done' : currentStep==='content_safety' ? 'num-running' : 'num-idle'">
-          {{ results.content_safety ? '完成' : currentStep==='content_safety' ? '运行中' : '—' }}
+        <div class="stat-num" :class="results.content_safety ? 'num-done' : moduleIsRunning('content_safety') ? 'num-running' : 'num-idle'">
+          {{ results.content_safety ? '完成' : moduleIsRunning('content_safety') ? '运行中' : '—' }}
         </div>
         <div class="stat-label">图片内容安全</div>
       </div>
@@ -52,6 +52,8 @@
       <div class="scan-box">
         <div class="scan-line"></div>
         <div class="scan-text">{{ currentStepLabel }}</div>
+        <div class="scan-meta">已用时 {{ loadingElapsed }} 秒 · 可继续等待或取消</div>
+        <button class="scan-cancel" type="button" @click="cancelAudit">取消检测</button>
       </div>
     </div>
 
@@ -99,13 +101,39 @@
         <button class="source-btn" :disabled="!file || invisibleWatermarkLoading" @click="generateInvisibleWatermark">
           {{ invisibleWatermarkLoading ? '嵌入中...' : '生成隐形标识图' }}
         </button>
-        <button class="detect-btn" :disabled="(!file && !auditText.trim()) || loading || modules.length===0" @click="runAudit">
+        <button class="detect-btn" :disabled="(!file && !auditText.trim()) || loading || modules.length===0 || (modules.includes('rag') && ocrLoading)" @click="runAudit">
           <span v-if="loading" class="btn-spin"><LoaderIcon :size="16" /></span>
           <span>{{ loading ? '检测中...' : '开始检测' }}</span>
         </button>
         </div>
       </div>
     </div>
+
+    <section v-if="file" class="ocr-review" aria-labelledby="ocr-review-title">
+      <header class="ocr-review-head">
+        <span>
+          <small>OCR · RAG INPUT</small>
+          <b id="ocr-review-title">图片文字识别与校对</b>
+        </span>
+        <em class="ocr-status" :class="`ocr-status-${ocrStatus}`">{{ ocrStatusLabel }}</em>
+      </header>
+      <textarea
+        v-model="ocrText"
+        class="ocr-textarea"
+        maxlength="12000"
+        rows="5"
+        :disabled="ocrLoading"
+        placeholder="图片中未识别到文字时，可在此手动补充；留空不会被判定为安全。"
+        @input="markOcrCorrected"
+      ></textarea>
+      <footer class="ocr-review-foot">
+        <span>勾选红线知识库审核后，将以此处校对后的文字作为 RAG 输入，并把文字与命中证据写入检测报告。</span>
+        <small>{{ ocrText.length }}/12000</small>
+        <button type="button" :disabled="ocrLoading" @click="runImageOcr">
+          {{ ocrLoading ? '识别中...' : '重新识别' }}
+        </button>
+      </footer>
+    </section>
 
     <section v-if="auditPackageResult" class="audit-package-result" :class="{ invalid: auditPackageResult.tamper_suspected || !auditPackageResult.payload_integrity || !auditPackageResult.recovered_matches_original }" aria-live="polite">
       <span><ShieldCheck :size="20" /></span>
@@ -144,7 +172,7 @@
         <div><small>REVIEW SUMMARY</small><h2>本次审核摘要</h2></div>
       </div>
       <div class="outcome-metrics">
-        <div class="outcome-metric"><span>真实性风险</span><b :class="results.deepfake?.label === 'fake' ? 'metric-danger' : ''">{{ results.deepfake ? (results.deepfake.label === 'fake' ? '疑似伪造' : results.deepfake.label === 'skipped' ? '不适用' : '倾向真实') : '未选择' }}</b><small>{{ results.deepfake ? `P(fake) ${(results.deepfake.score * 100).toFixed(0)}% · 非准确率` : '本次未运行 Deepfake' }}</small></div>
+        <div class="outcome-metric"><span>真实性结论</span><b :class="authenticityMetric.tone">{{ authenticityMetric.title }}</b><small :title="authenticityMetric.note">{{ authenticityMetric.note }}</small></div>
         <div class="outcome-metric"><span>AI 来源</span><b :class="provenanceMetricTone(sourceSummary.aiGenerated)">{{ sourceSummary.title }}</b><small>{{ sourceSummary.note }}</small></div>
         <div class="outcome-metric"><span>内容安全</span><b :class="contentMetricTone(results.content_safety?.verdict)">{{ results.content_safety ? contentVerdictLabel(results.content_safety.verdict) : '未选择' }}</b><small>{{ results.content_safety ? '按最高风险类别处置' : '本次未运行内容安全' }}</small></div>
         <div class="outcome-metric"><span>解释证据</span><b>{{ results.mllm ? '已生成' : '未选择' }}</b><small>{{ results.mllm ? '下方查看模型证据' : '本次未运行 MLLM' }}</small></div>
@@ -159,8 +187,8 @@
            v-motion :initial="{opacity:0,y:20}" :enter="{opacity:1,y:0,transition:{duration:400}}">
         <div class="card-title">Deepfake 检测</div>
         <div class="result-body">
-          <span class="badge" :class="results.deepfake.label === 'fake' ? 'badge-danger' : results.deepfake.label === 'skipped' ? 'badge-warn' : 'badge-success'">
-            {{ results.deepfake.label === 'fake' ? '伪造' : results.deepfake.label === 'skipped' ? '非人脸' : '真实' }}
+          <span class="badge" :class="results.deepfake.label === 'fake' ? 'badge-danger' : ['review', 'skipped'].includes(results.deepfake.label) ? 'badge-warn' : 'badge-success'">
+            {{ results.deepfake.label === 'fake' ? '伪造' : results.deepfake.label === 'review' ? '人工复核' : results.deepfake.label === 'skipped' ? '非人脸' : '真实' }}
           </span>
           <span class="result-meta">P(fake) {{ (results.deepfake.score * 100).toFixed(1) }}% · 模型置信度 {{ (results.deepfake.confidence * 100).toFixed(1) }}%</span>
           <p class="result-note">P(fake) 是当前模型分数，不是统计准确率；置信度尚未经过独立校准。</p>
@@ -267,7 +295,7 @@ import UnsafeBenchEvidence from '../components/detect/UnsafeBenchEvidence.vue'
 import ProvenanceEvidencePanel from '../components/detect/ProvenanceEvidencePanel.vue'
 import { verifyC2paFile } from '../lib/c2paVerification'
 import { getProviderAttribution } from '../lib/providerAttribution'
-import { contentMetricTone, provenanceMetricTone } from '../lib/reviewSummary'
+import { authenticitySummary, contentMetricTone, provenanceMetricTone } from '../lib/reviewSummary'
 import { getWatermarkPresentation } from '../lib/watermarkPresentation'
 import { buildAuditEvidencePayload } from '../lib/auditEvidencePayload'
 import { useAuth } from '../composables/useAuth'
@@ -284,15 +312,34 @@ const preview = ref('')
 const loading = ref(false)
 const results = reactive<Record<string, any>>({})
 const auditText = ref('')
+const ocrText = ref('')
+const ocrStatus = ref('idle')
+const ocrLoading = ref(false)
+let ocrController: AbortController | null = null
+let ocrRequestId = 0
 const modules = ref(['deepfake', 'mllm', 'rag', 'content_safety'])
 const currentStep = ref('')
+const loadingElapsed = ref(0)
+let auditController: AbortController | null = null
+let elapsedTimer: number | null = null
 const currentStepLabel = computed(() => ({
   deepfake: '正在进行 Deepfake 检测...',
   mllm: '正在进行多模态解释分析...',
+  ocr: '正在识别并审核图片文字...',
   rag: '正在进行知识库审核...',
   content_safety: '正在进行图片内容安全检测...',
+  parallel_analysis: '正在并行执行多模型检测...',
   report: '正在生成检测报告...',
 } as Record<string, string>)[currentStep.value] || '正在初始化检测...')
+const ocrStatusLabel = computed(() => ({
+  idle: '等待上传',
+  loading: '正在识别',
+  completed: '识别完成',
+  corrected: '已人工修正',
+  empty: '未识别到文字',
+  unavailable: 'OCR 未配置',
+  failed: '识别失败',
+} as Record<string, string>)[ocrStatus.value] || '状态未知')
 const provenanceLoading = ref(false)
 const watermarkLoading = ref(false)
 const invisibleWatermarkLoading = ref(false)
@@ -409,6 +456,7 @@ const generateInvisibleWatermark = async () => {
 }
 
 const hasResults = computed(() => Object.keys(results).length > 0)
+const authenticityMetric = computed(() => authenticitySummary(results.deepfake, results.mllm))
 const provenanceAttribution = computed(() => {
   const local = results.provenance?.local_c2pa || {}
   const valid = results.provenance?.source_evidence?.content_credentials?.status === 'valid' && local.verdict !== 'invalid'
@@ -486,6 +534,49 @@ const onFileChange = (f: any) => {
   file.value = f.raw
   preview.value = URL.createObjectURL(f.raw)
   delete results.provenance
+  ocrText.value = ''
+  ocrStatus.value = 'idle'
+  void runImageOcr()
+}
+
+const runImageOcr = async () => {
+  if (!file.value) return
+  ocrController?.abort()
+  const requestId = ++ocrRequestId
+  const controller = new AbortController()
+  ocrController = controller
+  ocrLoading.value = true
+  ocrStatus.value = 'loading'
+  const timeout = window.setTimeout(() => controller.abort(), 90_000)
+  try {
+    const form = new FormData()
+    form.append('image', file.value)
+    const response = await fetch('/api/detect/ocr', {
+      method: 'POST', body: form, signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`OCR 服务响应异常（HTTP ${response.status}）`)
+    const payload = await response.json()
+    if (requestId !== ocrRequestId) return
+    ocrText.value = String(payload.text || '').slice(0, 12_000)
+    ocrStatus.value = payload.status || (ocrText.value ? 'completed' : 'empty')
+    if (ocrStatus.value === 'unavailable') ElMessage.warning('OCR 服务未配置，可手动填写图片文字后继续审核')
+    else if (ocrStatus.value === 'failed') ElMessage.warning('图片文字识别失败，可重新识别或手动填写')
+  } catch (error:any) {
+    if (requestId !== ocrRequestId) return
+    ocrStatus.value = 'failed'
+    if (error?.name !== 'AbortError') ElMessage.error(error?.message || '图片文字识别失败')
+    else ElMessage.warning('图片文字识别超时，可重新识别或手动填写')
+  } finally {
+    window.clearTimeout(timeout)
+    if (requestId === ocrRequestId) {
+      ocrLoading.value = false
+      ocrController = null
+    }
+  }
+}
+
+const markOcrCorrected = () => {
+  if (!ocrLoading.value) ocrStatus.value = 'corrected'
 }
 
 const onTextInput = () => {
@@ -544,50 +635,93 @@ const runProvenance = async () => {
 const runAudit = async () => {
   if (!file.value && !auditText.value.trim()) { ElMessage.warning('请上传图像或输入文本'); return }
   loading.value = true
+  currentStep.value = 'initializing'
+  loadingElapsed.value = 0
   Object.keys(results).forEach(k => delete results[k])
 
   const form = new FormData()
   if (file.value) form.append('image', file.value)
   if (auditText.value.trim()) form.append('text', auditText.value.trim())
+  if (file.value && modules.value.includes('rag')) {
+    form.append('ocr_text', ocrText.value.trim())
+    form.append('ocr_status', ocrStatus.value)
+  }
   form.append('modules', modules.value.join(','))
 
-  const resp = await fetch('/api/detect/full', { method: 'POST', body: form })
-  const reader = resp.body!.getReader()
-  const decoder = new TextDecoder()
-  let buf = ''
+  auditController?.abort()
+  auditController = new AbortController()
+  let timedOut = false
+  const hardTimeout = window.setTimeout(() => {
+    timedOut = true
+    auditController?.abort()
+  }, 300_000)
+  elapsedTimer = window.setInterval(() => loadingElapsed.value++, 1000)
+  let completed = false
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    const parts = buf.split('\n\n')
-    buf = parts.pop() ?? ''
-    for (const part of parts) {
-      const lines = part.split('\n')
-      const event = lines.find(l => l.startsWith('event:'))?.slice(7).trim()
-      const data = lines.find(l => l.startsWith('data:'))?.slice(5).trim()
-      if (!event || !data) continue
-      const payload = JSON.parse(data)
-      if (event === 'step') currentStep.value = payload.step
-      if (event === 'face') { results.face = payload }
-      if (event === 'deepfake') { results.deepfake = payload; currentStep.value = '' }
-      if (event === 'mllm') { results.mllm = payload; currentStep.value = '' }
-      if (event === 'rag') { results.rag = payload; currentStep.value = '' }
-      if (event === 'content_safety') { results.content_safety = payload; currentStep.value = '' }
-      if (event === 'provenance') { results.provenance = payload; currentStep.value = '' }
-      if (event === 'done') {
-        loading.value = false
-        if (payload.report_id) {
-          latestReportId.value = payload.report_id
-          const ids = new Set<string>(JSON.parse(localStorage.getItem('report_ids') || '[]'))
-          ids.add(payload.report_id)
-          localStorage.setItem('report_ids', JSON.stringify([...ids]))
+  try {
+    const resp = await fetch('/api/detect/full', {
+      method: 'POST', body: form, signal: auditController.signal,
+    })
+    if (!resp.ok || !resp.body) throw new Error(`检测服务响应异常（HTTP ${resp.status}）`)
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const parts = buf.split('\n\n')
+      buf = parts.pop() ?? ''
+      for (const part of parts) {
+        const lines = part.split('\n')
+        const event = lines.find(l => l.startsWith('event:'))?.slice(7).trim()
+        const data = lines.find(l => l.startsWith('data:'))?.slice(5).trim()
+        if (!event || !data) continue
+        const payload = JSON.parse(data)
+        if (event === 'step') currentStep.value = payload.step
+        if (event === 'face') results.face = payload
+        if (event === 'deepfake') results.deepfake = payload
+        if (event === 'mllm') results.mllm = payload
+        if (event === 'ocr') {
+          if (ocrStatus.value !== 'corrected') ocrText.value = String(payload.text || '').slice(0, 12_000)
+          if (ocrStatus.value !== 'corrected') ocrStatus.value = payload.status || 'completed'
+        }
+        if (event === 'rag') results.rag = payload
+        if (event === 'content_safety') results.content_safety = payload
+        if (event === 'provenance') results.provenance = payload
+        if (event === 'done') {
+          completed = true
+          if (payload.report_id) {
+            latestReportId.value = payload.report_id
+            const ids = new Set<string>(JSON.parse(localStorage.getItem('report_ids') || '[]'))
+            ids.add(payload.report_id)
+            localStorage.setItem('report_ids', JSON.stringify([...ids]))
+          }
         }
       }
     }
+    if (!completed) throw new Error('检测连接提前结束，请重试')
+  } catch (error:any) {
+    if (error?.name === 'AbortError') {
+      ElMessage.warning(timedOut ? '检测超过 5 分钟，已自动停止' : '已取消本次检测')
+    } else {
+      ElMessage.error(error?.message || '检测连接异常，请重试')
+    }
+  } finally {
+    window.clearTimeout(hardTimeout)
+    if (elapsedTimer !== null) window.clearInterval(elapsedTimer)
+    elapsedTimer = null
+    auditController = null
+    loading.value = false
+    currentStep.value = ''
   }
-  loading.value = false
 }
+
+const cancelAudit = () => auditController?.abort()
+const moduleIsRunning = (name: string) => loading.value
+  && modules.value.includes(name)
+  && ['parallel_analysis', name].includes(currentStep.value)
 </script>
 
 <style scoped>
@@ -616,6 +750,7 @@ const runAudit = async () => {
 .ring-card{flex-direction:column;align-items:stretch!important;justify-content:flex-start!important}.ring-card .ring-wrap{margin:auto}.ring-wrap{gap:34px}.ring-svg{width:88px;height:88px}.ring-center{top:43px}
 .stats-row{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.stat-box{min-height:68px;padding:11px 9px}.stat-num{font-size:17px}.stat-label{font-size:10px}
 .action-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:stretch}.upload-zone,.upload-zone :deep(.el-upload){display:flex;min-width:0}.upload-zone :deep(.el-upload){width:100%;flex:1}.upload-zone :deep(.el-upload-dragger){min-height:252px;height:auto;display:grid;place-items:center;flex:1;padding:18px!important}.upload-inner{gap:8px}.upload-text{font-size:14px}
+.ocr-review{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-sm)}.ocr-review-head,.ocr-review-foot{display:flex;align-items:center;gap:12px}.ocr-review-head>span{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.ocr-review-head small{color:var(--primary);font-size:8px;font-weight:750}.ocr-review-head b{color:var(--text);font-size:13px}.ocr-status{padding:4px 8px;border:1px solid var(--line);border-radius:4px;color:var(--muted);background:var(--surface-2);font-size:10px;font-style:normal;font-weight:700}.ocr-status-completed,.ocr-status-corrected{color:var(--success);border-color:rgba(22,128,94,.25);background:rgba(22,128,94,.06)}.ocr-status-loading{color:var(--primary);border-color:rgba(8,126,174,.25);background:rgba(8,126,174,.06)}.ocr-status-empty,.ocr-status-unavailable,.ocr-status-failed{color:var(--warning);border-color:rgba(194,126,0,.28);background:rgba(194,126,0,.07)}.ocr-textarea{box-sizing:border-box;width:100%;min-height:108px;padding:10px 12px;resize:vertical;color:var(--text);background:#fff;border:1px solid var(--line);border-radius:6px;font:12px/1.65 var(--font-body, sans-serif);outline:none}.ocr-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(8,126,174,.1)}.ocr-textarea:disabled{opacity:.68}.ocr-review-foot>span{min-width:0;flex:1;color:var(--muted);font-size:10px;line-height:1.5}.ocr-review-foot>small{color:var(--faint);font-size:9px;white-space:nowrap}.ocr-review-foot>button{min-height:30px;padding:0 12px;color:var(--primary);background:var(--surface-2);border:1px solid var(--line-bright);border-radius:5px;font-size:10px;font-weight:700;cursor:pointer}.ocr-review-foot>button:disabled{cursor:not-allowed;opacity:.5}
 .control-panel{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-sm)}
 .module-heading{display:flex;align-items:baseline;justify-content:space-between;color:var(--text);font-size:13px;font-weight:700}.module-heading small{color:var(--faint);font-size:10px;font-weight:400}.module-group{display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px solid var(--line)}.module-group>b{margin-bottom:2px;color:var(--muted);font-size:10px;font-weight:700}.module-option{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:6px;min-height:27px;color:var(--text);font-size:11px;cursor:pointer}.module-option input{width:14px;height:14px;accent-color:var(--primary)}.module-option small{color:var(--faint);font-size:9px}.module-actions{display:flex;flex-direction:column;gap:7px;margin-top:auto;padding-top:5px}.module-actions .source-btn,.module-actions .detect-btn{width:100%;min-height:36px}.module-actions .source-btn{font-size:11px}.module-actions .detect-btn{font-size:12px}
 .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.audit-package-result{display:flex;align-items:center;gap:10px;margin:10px 0;padding:12px 14px;border:1px solid #b9dcd5;border-radius:7px;background:#f3fbf9;color:#087c67}.audit-package-result>div{min-width:0;flex:1}.audit-package-result b{font-size:13px}.audit-package-result p{margin:3px 0 0;color:var(--muted);font-size:11px}.audit-package-result strong{font-size:11px}.audit-package-result.invalid{border-color:#edc4cb;background:#fff7f8;color:#bd3042}
@@ -624,6 +759,7 @@ const runAudit = async () => {
 .results-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.result-card{min-height:146px}.result-card .card-title{display:flex;align-items:center;gap:8px}.result-card .card-title::before{content:'';width:3px;height:15px;background:var(--primary);border-radius:2px}.result-body{gap:10px}
 @media(max-width:1050px){.top-grid{grid-template-columns:1fr 1fr}.ring-card{grid-column:1/-1}.stats-row{grid-template-columns:repeat(3,minmax(0,1fr))}.action-row{grid-template-columns:minmax(0,1fr) 280px}}
 @media(max-width:700px){.top-grid,.results-grid{grid-template-columns:1fr}.ring-card{grid-column:auto}.action-row{grid-template-columns:1fr}.upload-zone :deep(.el-upload-dragger){height:220px}.control-panel{padding:13px}.module-option{font-size:12px}.module-option small{font-size:10px}}
+@media(max-width:700px){.ocr-review-head,.ocr-review-foot{align-items:flex-start;flex-wrap:wrap}.ocr-review-foot>span{flex-basis:100%}.ocr-review-foot>button{margin-left:auto}}
 .outcome-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:auto 0}.outcome-metric{display:flex;min-width:0;flex-direction:column;gap:5px;padding:10px 8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px}.outcome-metric span,.outcome-metric small{overflow:hidden;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.outcome-metric b{overflow:hidden;color:var(--text);font-size:14px;text-overflow:ellipsis;white-space:nowrap}.outcome-metric b.badge-success{color:var(--success)}.outcome-metric b.badge-danger,.outcome-metric b.metric-danger{color:var(--danger)}.outcome-metric b.badge-warn{color:var(--warning)}
 .score-guide{background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.score-guide summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;color:var(--text);cursor:pointer;font-size:12px;font-weight:700;list-style:none}.score-guide summary::-webkit-details-marker{display:none}.score-guide summary::after{order:-1;content:'+';display:grid;width:18px;height:18px;place-items:center;color:var(--primary);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;font-size:15px;font-weight:400}.score-guide[open] summary::after{content:'−'}.score-guide summary span{margin-right:auto}.score-guide summary small{color:var(--faint);font-size:10px;font-weight:400}.score-guide-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 14px 14px}.score-guide-grid article{padding:10px;background:var(--surface-2);border-left:3px solid var(--primary)}.score-guide-grid b{color:var(--text);font-size:11px}.score-guide-grid p{margin:6px 0 0;color:var(--muted);font-size:10px;line-height:1.6}
 .calibration-status{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow-sm)}.calibration-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.calibration-head h2{margin:3px 0 0;color:var(--text);font-size:14px}.calibration-badge{padding:4px 9px;border-radius:4px;font-size:10px;font-weight:700}.calibration-smoke_only{color:#9a6500;background:#fff7df;border:1px solid #ecd58c}.calibration-not_calibrated{color:var(--muted);background:var(--surface-2);border:1px solid var(--line)}.calibration-calibrated{color:#167e5e;background:#e8f7f0;border:1px solid #a9dfc9}.calibration-claim{margin:10px 0;color:var(--muted);font-size:11px;line-height:1.55}.calibration-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px}.calibration-task{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:9px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px}.calibration-task span{overflow:hidden;color:var(--text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}.calibration-task b{color:var(--warning);font-size:10px}.calibration-task small{grid-column:1/-1;color:var(--faint);font-size:9px}.calibration-task .task-protocol{overflow:hidden;color:var(--muted);text-overflow:ellipsis;white-space:nowrap}.calibration-boundary{display:block;margin-top:9px;color:var(--faint);font-size:10px;line-height:1.5}
@@ -638,5 +774,7 @@ const runAudit = async () => {
 @media(max-width:700px){.task-heading{min-width:0}.task-heading h1{font-size:18px}.workflow-steps{grid-template-columns:1fr 1fr}.workflow-step:nth-child(2){border-right:0}.workflow-step:nth-child(-n+2){border-bottom:1px solid var(--line)}.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}.result-overview{grid-template-columns:1fr}.result-overview-heading{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metrics{grid-template-columns:1fr}.result-overview .outcome-metric{border-right:0;border-bottom:1px solid var(--line)}.result-overview .outcome-metric:last-child{border-bottom:0}}
 .result-overview .outcome-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 .result-overview .outcome-metric b.metric-success{color:var(--success);background:transparent}.result-overview .outcome-metric b.metric-warn{color:var(--warning);background:transparent}.result-overview .outcome-metric b.metric-danger{color:var(--danger);background:transparent}
+.result-overview .outcome-metric small{display:-webkit-box;overflow:hidden;line-height:1.35;white-space:normal;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.scan-text{bottom:58px}.scan-meta{position:absolute;bottom:38px;width:100%;text-align:center;color:var(--faint);font-size:9px}.scan-cancel{position:absolute;bottom:10px;left:50%;min-height:24px;padding:0 11px;transform:translateX(-50%);color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;font-size:9px;cursor:pointer}.scan-cancel:hover{color:var(--danger);border-color:var(--danger)}
 @media(max-width:700px){.result-overview .outcome-metrics{grid-template-columns:1fr}}
 </style>

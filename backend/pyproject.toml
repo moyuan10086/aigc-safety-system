@@ -39,6 +39,7 @@ dependencies = [
     "opencv-python-headless>=4.13.0.92",
     "nudenet==3.4.2",
     "paddleocr>=2.10.0",
+    "paddlepaddle>=2.6,<4.0",
     "pymupdf>=1.27.2.3",
 ]
 

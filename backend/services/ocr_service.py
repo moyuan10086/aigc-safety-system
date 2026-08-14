@@ -3,6 +3,7 @@ OCR 服务 — pypdf 提取失败时 fallback 到 PaddleOCR，
 并可调用 MLLM 对图片页面做内容分析
 """
 import re
+import time
 
 _ocr = None
 
@@ -50,14 +51,36 @@ def ocr_pdf(pdf_path: str) -> str:
 
 def ocr_image(image_path: str) -> str:
     """用 PaddleOCR 识别图片中的文字"""
+    return ocr_image_result(image_path)["text"]
+
+
+def ocr_image_result(image_path: str) -> dict:
+    """Return OCR text with an explicit runtime status for UI and audit use."""
+    started = time.perf_counter()
     try:
         ocr = _get_ocr()
-    except (ImportError, ModuleNotFoundError):
-        return ""
-    result = ocr.ocr(image_path, cls=True)
-    if not result or not result[0]:
-        return ""
-    return " ".join(line[1][0] for line in result[0] if line[1])
+        result = ocr.ocr(image_path, cls=True)
+    except (ImportError, ModuleNotFoundError) as exc:
+        return {
+            "status": "unavailable", "text": "", "char_count": 0,
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+            "error_code": type(exc).__name__,
+        }
+    except Exception as exc:
+        return {
+            "status": "failed", "text": "", "char_count": 0,
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+            "error_code": type(exc).__name__,
+        }
+    lines = result[0] if result and result[0] else []
+    text = " ".join(str(line[1][0]).strip() for line in lines if line[1] and str(line[1][0]).strip())[:12_000]
+    return {
+        "status": "completed" if text else "empty",
+        "text": text,
+        "char_count": len(text),
+        "latency_ms": round((time.perf_counter() - started) * 1000),
+        "error_code": None,
+    }
 
 
 def analyze_image_content(image_path: str) -> dict:

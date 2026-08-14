@@ -15,11 +15,12 @@ from PIL import Image, ImageOps
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from services import audit_log_service, audit_watermark_service, auth_service, deepfake_service, face_service, invisible_watermark_service, mllm_service, provenance_service, rag_service, upload_service
+from services import audit_log_service, audit_watermark_service, auth_service, deepfake_service, face_service, invisible_watermark_service, mllm_service, ocr_service, provenance_service, rag_service, upload_service
 
 router = APIRouter(prefix="/api/detect")
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+_BACKGROUND_TASKS: set[asyncio.Task] = set()
 
 
 async def _save_upload(file: UploadFile) -> str:
@@ -73,6 +74,17 @@ async def detect_mllm(image: UploadFile = File(...)):
 async def check_content(text: str = Form(...)):
     result = await asyncio.to_thread(rag_service.check_content, text)
     return result
+
+
+@router.post("/ocr")
+async def recognize_image_text(image: UploadFile = File(...)):
+    """Extract editable text from an uploaded image without retaining it."""
+    path = await _save_upload(image)
+    try:
+        return await asyncio.to_thread(ocr_service.ocr_image_result, path)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
 
 
 def _inspect_faces(path: str) -> dict:
@@ -222,6 +234,8 @@ async def embed_invisible_watermark(image: UploadFile = File(...), payload: str 
 
 @router.post("/full")
 async def full_audit(image: UploadFile = File(None), text: str = Form(None),
+                     ocr_text: str = Form(None),
+                     ocr_status: str = Form(None),
                      modules: str = Form("deepfake,mllm,rag")):
     """SSE 流式全量审计报告"""
     mod_set = {item.strip() for item in modules.split(",") if item.strip()}
@@ -229,6 +243,63 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
     async def event_stream():
         path = None
         report_results: dict[str, object] = {}
+        tasks: list[asyncio.Task] = []
+
+        def degraded_result(name: str, exc: Exception) -> dict:
+            common = {
+                "status": "degraded",
+                "error_code": "module_unavailable",
+                "summary": f"{name} 检测暂时不可用，已保留其他模块结果",
+                "detail": type(exc).__name__,
+            }
+            if name == "deepfake":
+                return {**common, "label": "review", "score": 0.0, "confidence": 0.0}
+            if name == "mllm":
+                return {**common, "verdict": "uncertain", "confidence": 0.0, "evidence": []}
+            if name == "content_safety":
+                return {**common, "verdict": "review", "safe": False, "risk_score": 0.0,
+                        "categories": [], "requires_human_review": True}
+            if name == "rag":
+                return {**common, "safe": False, "risk_level": "unknown", "matched_rules": []}
+            if name == "provenance":
+                return {**common, "overall_state": "inconclusive"}
+            return common
+
+        async def run_module(name: str, function, *args):
+            try:
+                return name, await asyncio.to_thread(function, *args)
+            except Exception as exc:
+                return name, degraded_result(name, exc)
+
+        async def run_rag_with_ocr():
+            recognized = (ocr_text or "").strip()[:12_000]
+            client_ocr_completed = ocr_status in {"completed", "corrected", "empty", "unavailable", "failed"}
+            ocr_result = {
+                "status": (ocr_status if client_ocr_completed else ("corrected" if recognized else "not_run")),
+                "text": recognized,
+                "char_count": len(recognized),
+                "latency_ms": 0,
+                "error_code": None,
+            }
+            if path and not recognized and not client_ocr_completed:
+                ocr_result = await asyncio.to_thread(ocr_service.ocr_image_result, path)
+                recognized = str(ocr_result.get("text") or "").strip()[:12_000]
+            parts = []
+            if recognized:
+                parts.append(f"[图片 OCR 文本]\n{recognized}")
+            manual_text = (text or "").strip()[:12_000]
+            if manual_text:
+                parts.append(f"[人工输入文本]\n{manual_text}")
+            if not parts:
+                rag_result = {
+                    "status": "inconclusive", "safe": False, "risk_level": "unknown",
+                    "matched_rules": [], "matched_keywords": [],
+                    "summary": "图片中未识别到可供红线知识库审核的文字",
+                }
+            else:
+                rag_result = await asyncio.to_thread(rag_service.check_content, "\n\n".join(parts))
+            return "ocr_rag", {"ocr": ocr_result, "rag": rag_result}
+
         try:
             if image:
                 path = await _save_upload(image)
@@ -241,38 +312,46 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
                     yield _sse("face", face)
 
                 if "provenance" in mod_set:
-                    yield _sse("step", {"step": "provenance", "status": "running"})
-                    provenance = await asyncio.to_thread(provenance_service.verify, path)
-                    report_results["provenance"] = provenance
-                    yield _sse("provenance", provenance)
+                    tasks.append(asyncio.create_task(run_module("provenance", provenance_service.verify, path)))
 
                 if "deepfake" in mod_set:
-                    yield _sse("step", {"step": "deepfake", "status": "running"})
                     if has_face:
-                        df = await asyncio.to_thread(deepfake_service.detect, path)
+                        tasks.append(asyncio.create_task(run_module("deepfake", deepfake_service.detect, path)))
                     else:
                         df = {"score": 0, "label": "skipped", "confidence": 0, "reason": "no face detected"}
-                    report_results["deepfake"] = df
-                    yield _sse("deepfake", df)
+                        report_results["deepfake"] = df
+                        yield _sse("deepfake", df)
 
                 if "mllm" in mod_set:
-                    yield _sse("step", {"step": "mllm", "status": "running"})
-                    ml = await asyncio.to_thread(mllm_service.analyze, path)
-                    report_results["mllm"] = ml
-                    yield _sse("mllm", ml)
+                    tasks.append(asyncio.create_task(run_module("mllm", mllm_service.analyze, path)))
 
                 if "content_safety" in mod_set:
-                    yield _sse("step", {"step": "content_safety", "status": "running"})
-                    content_safety = await asyncio.to_thread(mllm_service.analyze_content_safety, path)
-                    _record_content_safety(content_safety)
-                    report_results["content_safety"] = content_safety
-                    yield _sse("content_safety", content_safety)
+                    tasks.append(asyncio.create_task(run_module(
+                        "content_safety", mllm_service.analyze_content_safety, path
+                    )))
 
-            if text and "rag" in mod_set:
-                yield _sse("step", {"step": "rag", "status": "running"})
-                rag = await asyncio.to_thread(rag_service.check_content, text)
-                report_results["rag"] = rag
-                yield _sse("rag", rag)
+            if "rag" in mod_set and (path or text or ocr_text):
+                tasks.append(asyncio.create_task(run_rag_with_ocr()))
+
+            if tasks:
+                yield _sse("step", {
+                    "step": "parallel_analysis", "status": "running", "count": len(tasks)
+                })
+                for completed in asyncio.as_completed(tasks):
+                    name, result = await completed
+                    if name == "ocr_rag":
+                        report_results["ocr_text"] = result["ocr"].get("text", "")
+                        report_results["ocr"] = {
+                            key: value for key, value in result["ocr"].items() if key != "text"
+                        }
+                        report_results["rag"] = result["rag"]
+                        yield _sse("ocr", result["ocr"])
+                        yield _sse("rag", result["rag"])
+                        continue
+                    if name == "content_safety":
+                        _record_content_safety(result)
+                    report_results[name] = result
+                    yield _sse(name, result)
 
             yield _sse("step", {"step": "report", "status": "running"})
             report = await _finalize_report({
@@ -284,6 +363,19 @@ async def full_audit(image: UploadFile = File(None), text: str = Form(None),
             })
             yield _sse("done", {"status": "completed", "report_id": report["id"]})
         finally:
+            pending = [task for task in tasks if not task.done()]
+            if pending:
+                cleanup_path = path
+
+                async def finish_and_cleanup():
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    if cleanup_path and os.path.exists(cleanup_path):
+                        os.unlink(cleanup_path)
+
+                background = asyncio.create_task(finish_and_cleanup())
+                _BACKGROUND_TASKS.add(background)
+                background.add_done_callback(_BACKGROUND_TASKS.discard)
+                path = None
             if path and os.path.exists(path):
                 os.unlink(path)
 
@@ -365,7 +457,10 @@ def _report_title(report: dict) -> str:
 def _call_summary(client, model: str, report: dict) -> str:
     modules = _report_modules(report)
     title = _report_title(report)
-    evidence = {key: value for key, value in report.items() if key in set(modules) | {"filename", "created_at"}}
+    evidence_keys = set(modules) | {"filename", "created_at"}
+    if "rag" in modules:
+        evidence_keys |= {"ocr", "ocr_text"}
+    evidence = {key: value for key, value in report.items() if key in evidence_keys}
     prompt = f"""你是图片安全审计报告撰写员。根据本次实际运行的检测结果生成 Markdown 报告。
 
 报告标题：{title}
@@ -616,7 +711,17 @@ async def download_report_md(report_id: str):
         lines.append("\n")
     if report.get("rag"):
         rag = report["rag"]
-        lines.append(f"## 文本与红线内容安全\n- 安全: **{'是' if rag.get('safe') else '否'}**\n- 风险等级: {rag.get('risk_level')}\n\n")
+        lines.append(f"## 文本与红线内容安全\n- 安全: **{'是' if rag.get('safe') else '否'}**\n- 风险等级: {rag.get('risk_level')}\n")
+        if report.get("ocr_text"):
+            safe_ocr_text = str(report["ocr_text"]).replace("```", "''' ")
+            lines.append(f"- OCR 状态: {report.get('ocr', {}).get('status', 'completed')}\n\n### 图片 OCR 文本\n```text\n{safe_ocr_text}\n```\n")
+        matched_rules = rag.get("matched_rules") or []
+        matched_keywords = rag.get("matched_keywords") or []
+        if matched_rules:
+            lines.append(f"- 命中规则: {', '.join(map(str, matched_rules))}\n")
+        if matched_keywords:
+            lines.append(f"- 命中关键词: {', '.join(map(str, matched_keywords))}\n")
+        lines.append("\n")
     if summary:
         lines.append(f"---\n\n{summary}\n")
     md_content = "".join(lines)
