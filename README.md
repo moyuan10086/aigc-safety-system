@@ -210,6 +210,93 @@ curl https://aigc.49.51.248.227.sslip.io/api/v1/reports/<report-id>/download -H 
 
 Agent 门禁接收工具名、JSON 参数和资源范围，融合确定性执行策略与 Qwen3Guard / SingGuard 语义专家。只读动作可直接放行；写入、外发、权限变更、凭证访问和命令执行会暂停并要求审批；整库、根目录等不可恢复动作强制阻断。登录审核员可在“实时安全护栏 → Agent 执行审批”中签发与当前动作摘要精确绑定、短时且一次性的凭证。凭证错配、过期或重放均失败关闭。轨迹审计只回放调用方提交的消息、动作和结果，不执行其中的工具，并拒绝轨迹中的 `approval_token`，避免误消费一次性审批凭证。原始工具参数与轨迹内容不进入普通日志，只保存 SHA-256 摘要和结构化风险账本；取证原文进入 AES-GCM 加密证据库。
 
+### 生产 API v1 完整调用清单（2026-08-14）
+
+正式地址：`https://aigc.49.51.248.227.sslip.io`。所有 v1 请求都需要租户 API Key；图片接口使用 `multipart/form-data`，JSON 接口使用 UTF-8 `application/json`。不要把真实 Key 写入 README、Shell 历史、截图或 Git。
+
+| 能力 | 接口 | Scope |
+|------|------|-------|
+| 能力目录 | `GET /api/v1/catalog` | `usage:read` |
+| 文本护栏 | `POST /api/v1/guardrail/check` | `guardrail:check` |
+| 真实模型对话 | `POST /api/v1/guardrail/chat` | `guardrail:chat` |
+| Agent 前置门禁 | `POST /api/v1/guardrail/agent/check` | `guardrail:agent` |
+| Agent 结果复检 | `POST /api/v1/guardrail/agent/result/check` | `guardrail:agent` |
+| Agent 轨迹审计 | `POST /api/v1/guardrail/agent/trajectory/check` | `guardrail:agent` |
+| 红线内容审核 | `POST /api/v1/content/check` | `content:check` |
+| 人脸检查 | `POST /api/v1/images/face` | `image:face` |
+| Deepfake 检测 | `POST /api/v1/images/deepfake` | `image:deepfake` |
+| MLLM 图片解释 | `POST /api/v1/images/mllm` | `image:mllm` |
+| 图片内容安全 | `POST /api/v1/images/content-safety` | `image:content-safety` |
+| C2PA 来源验证 | `POST /api/v1/images/provenance/verify` | `image:provenance` |
+| 审计水印生成 | `POST /api/v1/images/audit-watermark/embed` | `image:audit-watermark` |
+| 审计水印图片解码 | `POST /api/v1/images/audit-watermark/decode` | `image:audit-watermark` |
+| 审计水印 ZIP 解码 | `POST /api/v1/images/audit-watermark/decode-archive` | `image:audit-watermark` |
+| 第三方水印检查 | `POST /api/v1/images/watermarks/check` | `image:watermark` |
+| 平台隐形水印生成 | `POST /api/v1/images/invisible-watermark/embed` | `image:watermark` |
+| 平台隐形水印检查 | `POST /api/v1/images/invisible-watermark/check` | `image:watermark` |
+| 用量统计 | `GET /api/v1/usage` | `usage:read` |
+| 主动扫描 | `POST /api/v1/scans`、`GET /api/v1/scans`、`GET /api/v1/scans/{scan_id}` | `scan:run` / `scan:read` |
+| 检测报告 | `POST /api/v1/reports`、`GET /api/v1/reports`、`GET /api/v1/reports/{report_id}`、`GET /api/v1/reports/{report_id}/download` | `report:write` / `report:read` |
+
+### 彩色 RGB 审计水印命令
+
+Web 审计包使用彩色 RGB v3 图片、AES-256-GCM 和 2-of-3 密钥分片。下面的命令与 Web 端调用同一组后端接口：
+
+```bash
+export AIGC_API_KEY='重新签发的新 Key'
+export BASE_URL='https://aigc.49.51.248.227.sslip.io'
+export IMAGE='frontend/public/demo-samples/generated-portrait.png'
+mkdir -p .codex-temp/api-v1-all/audit
+
+# 生成彩色审计 ZIP
+curl --silent --show-error --request POST "$BASE_URL/api/v1/images/audit-watermark/embed" \
+  -H "Authorization: Bearer $AIGC_API_KEY" \
+  -F "image=@$IMAGE;type=image/png" \
+  -F 'payload={"event_id":"rgb-demo","sample_id":"generated-portrait"}' \
+  --output .codex-temp/api-v1-all/audit-package.zip \
+  --write-out 'HTTP %{http_code}\n'
+
+# 完整 ZIP 导入核验：应返回 200、payload_integrity=true
+curl --silent --show-error --request POST "$BASE_URL/api/v1/images/audit-watermark/decode-archive" \
+  -H "Authorization: Bearer $AIGC_API_KEY" \
+  -F 'archive=@.codex-temp/api-v1-all/audit-package.zip;type=application/zip'
+```
+
+不要把 `audit-copy.png` 和 `audit-sidecar.json` 单独当作 RGB 完整证据包核验。RGB 流程需要至少两份密钥分片；缺少分片时 `/decode` 返回 `422 threshold_not_met` 是预期的门限保护，不是生成失败。
+
+### 扫描与报告命令
+
+扫描创建是异步操作。必须轮询到 `status=completed` 后再创建报告：
+
+```bash
+# 创建扫描，预期 HTTP 202
+SCAN_JSON=$(curl --silent --show-error --request POST "$BASE_URL/api/v1/scans" \
+  -H "Authorization: Bearer $AIGC_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"preset":"quick"}')
+SCAN_ID=$(python -c 'import json,sys; print(json.loads(sys.argv[1])["data"]["scan_id"])' "$SCAN_JSON")
+
+# 查询状态，直到 data.status 为 completed
+curl "$BASE_URL/api/v1/scans/$SCAN_ID" -H "Authorization: Bearer $AIGC_API_KEY"
+
+# 扫描完成后生成报告，预期 HTTP 200
+REPORT_JSON=$(curl --silent --show-error --request POST "$BASE_URL/api/v1/reports" \
+  -H "Authorization: Bearer $AIGC_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d "{\"scan_id\":\"$SCAN_ID\",\"title\":\"API v1 smoke report\"}")
+REPORT_ID=$(python -c 'import json,sys; print(json.loads(sys.argv[1])["data"]["report_id"])' "$REPORT_JSON")
+
+curl "$BASE_URL/api/v1/reports/$REPORT_ID" -H "Authorization: Bearer $AIGC_API_KEY"
+curl "$BASE_URL/api/v1/reports/$REPORT_ID/download" \
+  -H "Authorization: Bearer $AIGC_API_KEY" -o report.json
+```
+
+### 生产验收结果
+
+2026-08-14 正式站全量冒烟结果：目录、护栏、Agent、图片审核、C2PA、隐形水印、用量、扫描和报告接口均可访问；正常链路返回 200/202。RGB 审计包完整 ZIP 解码返回 200，载荷完整且原始像素恢复一致。仅图片 + sidecar 解码返回预期的 `422 threshold_not_met`；扫描未完成时创建报告返回预期的 `409 SCAN_NOT_COMPLETED`，等待完成后报告创建、详情和下载均为 200。
+
+`/api/v1/content/check` 对测试短语“公开产品安全能力介绍”命中 `REDLINE_KEYWORD_001`，属于规则误报候选，不能把该条规则结果当作接口故障。此前在终端中暴露的 API Key 已撤销，后续测试必须使用重新签发的 Key。
+
 ### 维护、备份与密钥轮换
 
 维护命令只在服务器本地执行，不暴露为公网 API。在线备份会同时保存审计库和 API Key/租户账本，生成带 SHA-256 文件校验、事件数量、证据数量和哈希链状态的 `manifest.json`；默认只归档不删除生产证据。
