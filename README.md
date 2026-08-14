@@ -2,15 +2,20 @@
 
 面向比赛演示和受控 API 接入的安全运营平台，采用两条独立审核链：真实性与来源链负责 AI 生成、Deepfake、篡改和 C2PA；内容安全链负责成人、武器、暴力、政治、营销违规、违法活动、自伤、未成年人和个人数据风险。AI 生成不等于违规，真实图片也不等于安全。
 
-## 系统架构
+## 系统定位与架构
+
+系统面向比赛演示、人工复核和受控 API 接入，提供“真实性/来源”和“内容安全”两条可追溯审核链。二者的结论含义不同：AI 来源或伪造证据不等于内容违规，内容安全通过也不等于图片一定真实。所有模型结果都带有状态、耗时和降级信息，不能把模型不可用误读为安全或真实。
 
 ```
 aigc-safety-system/
 ├── backend/              # FastAPI 后端
-│   ├── services/         # 三大检测服务
-│   │   ├── deepfake_service.py    # CLIP Deepfake 检测
-│   │   ├── mllm_service.py        # MLLM 可解释性检测
-│   │   └── rag_service.py         # RAG 内容安全审核
+│   ├── services/         # 检测、来源、OCR、护栏和审计服务
+│   │   ├── deepfake_service.py    # 人脸局部伪造检测
+│   │   ├── mllm_service.py        # MLLM 真实性与视觉安全分析
+│   │   ├── ocr_service.py         # 图片/PDF OCR
+│   │   ├── rag_service.py         # 红线知识库审核
+│   │   ├── guardrail_service.py   # 规则、RAG、专家护栏融合
+│   │   └── provenance_service.py  # C2PA/本地来源证据
 │   ├── routers/          # API 路由
 │   ├── config.py         # 配置
 │   └── main.py           # 入口
@@ -23,36 +28,64 @@ aigc-safety-system/
     └── aigc-local-auditor/ # 固定版本的本地 XGBoost Shadow 审核器
 ```
 
-## 核心功能
+## 核心能力
 
-### 1. Deepfake 检测（第三章）
-- 基于 CLIP 视觉编码器 + LN-tuning
-- 使用第三方 `yermandy/deepfake-detection` 预训练权重；本项目负责固定版本、摘要校验、预处理与服务集成，不宣称自行训练该模型
-- 使用固定版本 YuNet 提取五点关键点，执行 DeepfakeBench 兼容的人脸对齐和逐脸批量推理，按最高伪造概率聚合
-- 返回 `real/review/fake/inconclusive`、逐脸证据、阈值版本、模型来源与运行耗时
-- 该模型面向人脸局部操纵，不是通用 AI 生图检测器；论文 AUC 不能直接作为本系统在全生成肖像或证件图上的效果指标
+### 1. 人脸局部伪造检测（论文第三章）
 
-### 2. MLLM 可解释性检测（第四章）
-- 通过 OpenAI 兼容接口调用多模态大模型
-- 模型、网关和超时统一读取主系统 `MLLM_*` 配置，并与纯文本 `CHAT_MODEL_*` 配置保持职责隔离
-- 返回：判断结果、证据列表、可疑区域、中文解释、实际模型名、调用状态、错误码与耗时
-- 网关失败或输出不可解析时保守返回 `uncertain` 并进入人工复核，不再中断完整审计流
+- 入口：`POST /api/detect/deepfake` 或 `POST /api/v1/images/deepfake`。
+- 使用第三方 `yermandy/deepfake-detection` 权重；本项目只负责固定修订版本、SHA-256 校验、预处理和服务集成，不宣称自行训练该模型。
+- YuNet 负责固定版本的人脸框和五点关键点。可对齐时按 DeepfakeBench 兼容方式逐脸批量推理，并以最高伪造概率聚合整图结论；对齐失败会保留降级标记。
+- 输出 `real`、`review`、`fake` 或 `inconclusive`，并包含逐脸分数、阈值、模型来源、校准状态、缓存标记和 `latency_ms`。
+- 适用范围是人脸局部操纵/换脸等 Deepfake，不是通用 AI 生图检测器；没有可执行人脸或模型不可用时必须人工复核。
 
-### 3. RAG 内容安全审核（第五章）
-- ChromaDB 向量数据库 + 敏感词库
-- 混合检索：关键词匹配 + 语义相似度
-- 返回：安全状态、命中关键词、违规规则、风险等级
+### 2. MLLM 真实性与视觉内容安全
 
-### 4. SSE 流式审计报告（第六章）
-- `/api/detect/full` 接口
-- 实时推送三个模块的检测进度和结果
-- 前端 EventSource 接收流式数据
+- 入口：`POST /api/detect/mllm`、`POST /api/detect/content`（文本）和 `POST /api/v1/images/mllm`、`POST /api/v1/images/content-safety`（图片）。
+- 通过 OpenAI 兼容网关调用多模态模型，图片真实性与视觉内容安全共用 `MLLM_API_KEY`、`MLLM_BASE_URL`、`MLLM_MODEL` 和超时配置；纯文本生成使用独立的 `CHAT_MODEL_*` 配置。
+- 真实性结果包含 `verdict`（`real/fake/uncertain`）、置信度、证据、可疑区域、中文解释、实际模型名、调用状态、错误码和耗时。
+- 内容安全结果包含 `safe/review/unsafe`、风险分数、类别分数、可见证据、覆盖率和人工复核标记。AI 痕迹本身不会被当作内容违规。
+- 网关异常、输出无法解析或类别分数不完整时返回保守的 `uncertain/review`，标记 `degraded` 并继续其余审计模块，不以失败冒充安全。
 
-### 5. 大模型与 Agent 双层安全护栏
-- Qwen3Guard：通用内容安全、中文风险与越狱分类
-- SingGuard-NSFA：危险工具调用、资源滥用、敏感信息和 Agent 操作风险
-- 输入预检、真实模型生成、输出复检与高风险隔离
-- 两个模型均为可选专家；不可用时保留规则/RAG 链路并在 `engine.components` 标记降级状态
+### 3. OCR 与红线知识库审核（论文第五章）
+
+- 独立 OCR：`POST /api/detect/ocr`；综合入口：`POST /api/detect/image-content`。
+- 图片审核页面可先自动识别文字，再允许人工修正。提交全量审计时，修正后的 OCR 文本优先于服务端重新识别，并与手工输入一起送入 RAG。
+- RAG 使用 ChromaDB 持久化知识库和敏感词库，执行关键词匹配与语义相似度检索，返回 `safe`、`risk_level`、命中关键词、命中规则和匹配证据。
+- OCR 状态（`completed/corrected/empty/unavailable/failed`）、识别文本和 RAG 命中证据会写入检测报告；没有可审核文本时明确返回 `inconclusive`，不展示伪造的“安全”。
+
+### 4. 全量并行审计与报告（论文第六章）
+
+- 入口：`POST /api/detect/full`，响应类型为 `text/event-stream`；前端使用 `fetch` 读取响应流并解析 SSE 事件，结束后打开报告。浏览器原生 `EventSource` 只支持 GET，因此这里不是 EventSource 直连。
+- 流程：图片上传后先做人脸预检；随后独立的来源验证、Deepfake、MLLM、视觉内容安全和 OCR+RAG 分支并行执行。任一分支异常会生成 `degraded` 结果，其他分支仍继续。
+- 事件包括 `face`、`step`（并行阶段/报告阶段）、`provenance`、`deepfake`、`mllm`、`content_safety`、`ocr`、`rag`、`done`。`done` 返回持久化 `report_id`。
+- 报告会汇总请求模块、各模块原始结论、OCR 文本、RAG 证据、来源证据、缩略图状态和生成时间；可通过报告接口下载 JSON/Markdown。
+
+### 5. 文本大模型与 Agent 安全护栏
+
+- `POST /api/guardrail/check` 执行输入、输出或双向文本审核；`POST /api/guardrail/chat` 执行“输入预检 → 真实模型生成 → 输出复检”。输出高风险内容会被隔离，边界内容进入人工复核。
+- 基础链路始终包含确定性规则和风险动作映射；RAG、MLLM、Qwen3Guard、SingGuard、XGBoost Shadow 都是独立组件，按 `fast/standard/strict` profile 选择，并可并行执行。
+- Qwen3Guard（通用中文安全/越狱分类）和 SingGuard-NSFA（工具调用、资源滥用、敏感信息及 Agent 操作风险）只有在对应 `GUARDRAIL_ENABLE_*`、网关、模型和密钥均配置时才会调用。未配置、超时或解析失败时状态为 `disabled/unavailable/inconclusive`，不会覆盖规则结论。
+- Agent 另提供工具执行前门禁、工具结果复检和多步轨迹审计；门禁只返回放行、复核或阻断决定，不替调用方执行工具。高风险动作需要短时一次性审批凭证。
+
+## 审计链路与能力边界
+
+一次图片全量审计可以概括为：
+
+```text
+上传图片/文本
+   └─ 人脸预检（Deepfake 前置条件）
+      ├─ 来源与 C2PA 验证
+      ├─ Deepfake 逐脸推理
+      ├─ MLLM 真实性解释
+      ├─ 视觉内容安全（UnsafeBench/MLLM/辅助专家）
+      └─ OCR → RAG 红线检索
+                    ↓
+             合并状态与证据
+                    ↓
+              检测报告（JSON/Markdown）
+```
+
+报告中的“真实/伪造”“AI 来源”“内容安全”“红线命中”是四个不同维度，不能相互替代。`review`、`uncertain`、`inconclusive` 和 `degraded` 都表示需要关注或人工复核；只有明确的 `safe`/`real` 才能作为对应维度的通过信号。模型论文指标、演示样本和线上生产结论分开记录，生产校准状态以接口返回的 `calibration_status` 为准。
 
 ## 快速开始
 
@@ -422,6 +455,19 @@ Response: {
 }
 ```
 
+**图片 OCR 与综合内容分析**
+```bash
+POST /api/detect/ocr
+Content-Type: multipart/form-data
+Body: image=<file>
+
+POST /api/detect/image-content
+Content-Type: multipart/form-data
+Body: image=<file>
+```
+
+`/api/detect/ocr` 只负责识别并返回 `status`、`text`、`char_count`、`latency_ms` 和 `error_code`；`/api/detect/image-content` 在此基础上继续执行 OCR 文本的 RAG 审核、MLLM 真实性分析和视觉内容安全分析。生产页面的全量审计会优先采用前端人工修正后的 OCR 文本。
+
 ### 全量审计接口（SSE）
 
 ```bash
@@ -430,27 +476,29 @@ Content-Type: multipart/form-data
 Body: image=<file>&text=<content>
 
 Response: text/event-stream
+event: face
+data: {"face_detected": true, "face_count": 1, ...}
+
 event: step
-data: {"step": "deepfake", "status": "running"}
+data: {"step": "parallel_analysis", "status": "running", "count": 4}
 
 event: deepfake
-data: {"score": 0.85, "label": "fake", "confidence": 0.70}
+data: {"score": 0.85, "label": "review", "confidence": 0.85, ...}
 
-event: step
-data: {"step": "mllm", "status": "running"}
-
-event: mllm
-data: {"verdict": "fake", "confidence": 0.9, ...}
-
-event: step
-data: {"step": "rag", "status": "running"}
+event: ocr
+data: {"status": "completed", "text": "图片中的文字", "char_count": 7, ...}
 
 event: rag
-data: {"safe": true, "risk_level": "low"}
+data: {"safe": true, "risk_level": "low", "matched_rules": [], ...}
+
+event: step
+data: {"step": "report", "status": "running"}
 
 event: done
-data: {"status": "completed"}
+data: {"status": "completed", "report_id": "..."}
 ```
+
+`face` 是可选的人脸预检事件；`provenance`、`mllm`、`content_safety`、`deepfake`、`ocr` 和 `rag` 事件按请求模块返回，完成顺序不固定。模块异常仍会发送带 `status=degraded` 和 `error_code` 的结果，最后仍发送 `done`（除上传或请求参数本身无效外）。
 
 ## 技术栈
 
@@ -460,12 +508,15 @@ data: {"status": "completed"}
 - OpenAI SDK — MLLM 调用
 - ChromaDB — 向量数据库
 - Sentence-Transformers — 文本嵌入
+- PaddleOCR — 图片/PDF 文字识别
+- C2PA/EXIF/本地标记解析 — 来源证据验证
+- SSE — 全量审计进度推送
 
 **前端:**
 - Vue 3 + TypeScript
 - Element Plus — UI 组件库
 - Vite — 构建工具
-- EventSource — SSE 客户端
+- Fetch Streams — SSE 客户端解析
 
 ## 论文对应关系
 
