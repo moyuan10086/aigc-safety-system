@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT.parent / "信安赛材料"
 OUTPUT_DIR = ROOT / "docs" / "competition-materials"
 FONT_PATH = Path(r"C:\Windows\Fonts\NotoSansSC-VF.ttf")
-WATERMARK = "第十九届全国大学生信息安全竞赛作品赛三等奖  |  仅供学习交流"
-FOOTER = "AIGC Safety System  |  Competition sharing copy"
+WATERMARK = "github.com/moyuan10086/aigc-safety-system  |  2572045628@qq.com"
+FOOTER = "github.com/moyuan10086/aigc-safety-system  |  2572045628@qq.com"
 
 
 def make_overlay(width: float, height: float, target: Path) -> PdfReader:

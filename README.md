@@ -4,14 +4,22 @@
 
 > **竞赛获奖**：本项目获得第十九届全国大学生信息安全竞赛（作品赛）暨第三届“长城杯”网数智安全大赛（作品赛）三等奖。
 
-## 竞赛材料
+## 项目展示
 
-带有获奖及“仅供学习交流”水印的演示文稿和作品报告位于 [`docs/competition-materials/`](docs/competition-materials/)。分享版本用于项目展示与技术交流，原始材料不随仓库发布。
+项目截图、演示视频、演示文稿和作品报告统一收录在 [`docs/competition-materials/`](docs/competition-materials/)，分享文件使用 GitHub 地址和项目联系方式作水印。
 
 | 材料 | 分享版本 |
 | --- | --- |
 | 项目演示文稿 | [`项目演示文稿-获奖分享版.pdf`](docs/competition-materials/项目演示文稿-获奖分享版.pdf) |
 | 项目作品报告 | [`项目作品报告-获奖分享版.pdf`](docs/competition-materials/项目作品报告-获奖分享版.pdf) |
+| 演示截图 | [`screenshots-20260814/`](docs/competition-materials/screenshots-20260814/) |
+| 演示视频（裁剪至 5 分 40 秒） | [`演示视频-获奖分享版.mp4`](docs/competition-materials/演示视频-获奖分享版.mp4) |
+
+### 系统界面
+
+| 图片审核 | 实时安全护栏 | 系统就绪状态 |
+| --- | --- | --- |
+| ![图片审核](docs/competition-materials/screenshots-20260814/01-detect-workspace-20260814.png) | ![实时安全护栏](docs/competition-materials/screenshots-20260814/04-guardrail-current-20260814.png) | ![系统设置](docs/competition-materials/screenshots-20260814/03-settings-readiness-current-20260814.png) |
 
 ## 功能概览
 
@@ -184,7 +192,7 @@ event: done       # 返回 report_id
 
 ## 对外 API v1
 
-正式地址：<https://aigc.49.51.248.227.sslip.io>
+线上演示地址不随仓库公开；项目截图、演示视频和水印材料请参见上方“项目展示”。
 
 所有 v1 请求需要 API Key：
 
