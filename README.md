@@ -1,25 +1,54 @@
+<div align="center">
+
 # AIGC 安全审核系统
 
-面向图片、文本和 Agent 调用的安全审核与审计平台。系统提供图片真实性分析、AI 来源验证、内容安全审核、OCR/RAG 检索、文本护栏、Agent 门禁和可下载检测报告，并支持本地运行、服务器部署和受控 API 接入。
+### 面向图片、文本与 Agent 的真实性检测、内容审核和安全审计平台
 
-> **竞赛获奖**：本项目获得第十九届全国大学生信息安全竞赛（作品赛）暨第三届“长城杯”网数智安全大赛（作品赛）三等奖。
+[![GitHub](https://img.shields.io/badge/GitHub-moyuan10086%2Faigc--safety--system-181717?logo=github)](https://github.com/moyuan10086/aigc-safety-system)
+[![Award](https://img.shields.io/badge/全国大学生信息安全竞赛-作品赛三等奖-cb3837)](#项目材料与成果)
+[![Backend](https://img.shields.io/badge/backend-FastAPI-009688)](#技术栈)
+[![Frontend](https://img.shields.io/badge/frontend-Vue%203-42b883)](#技术栈)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## 项目展示
+图片真实性分析 · AI 来源取证 · 内容安全审核 · RAG 红线知识库 · 大模型护栏 · Agent 门禁
 
-项目截图、演示视频、演示文稿和作品报告统一收录在 [`docs/competition-materials/`](docs/competition-materials/)，分享文件使用 GitHub 地址和项目联系方式作水印。
+</div>
 
-| 材料 | 分享版本 |
-| --- | --- |
-| 项目演示文稿 | [`项目演示文稿-获奖分享版.pdf`](docs/competition-materials/项目演示文稿-获奖分享版.pdf) |
-| 项目作品报告 | [`项目作品报告-获奖分享版.pdf`](docs/competition-materials/项目作品报告-获奖分享版.pdf) |
-| 演示截图 | [`screenshots-20260814/`](docs/competition-materials/screenshots-20260814/) |
-| 演示视频（裁剪至 5 分 40 秒） | [`演示视频-获奖分享版.mp4`](docs/competition-materials/演示视频-获奖分享版.mp4) |
+中文 | [English](README_EN.md)
 
-### 系统界面
+## 项目简介
+
+平台面向 AIGC 伪造和生成式应用安全场景，统一处理图片真实性、内容风险、来源证据、模型输出和 Agent 工具调用，并将检测结论、证据和审计记录沉淀为可复核的报告。
+
+## 系统界面
 
 | 图片审核 | 实时安全护栏 | 系统就绪状态 |
-| --- | --- | --- |
+| :---: | :---: | :---: |
 | ![图片审核](docs/competition-materials/screenshots-20260814/01-detect-workspace-20260814.png) | ![实时安全护栏](docs/competition-materials/screenshots-20260814/04-guardrail-current-20260814.png) | ![系统设置](docs/competition-materials/screenshots-20260814/03-settings-readiness-current-20260814.png) |
+
+<details>
+<summary><strong>项目材料</strong></summary>
+
+- [项目演示文稿（获奖分享版）](docs/competition-materials/项目演示文稿-获奖分享版.pdf)
+- [项目作品报告（获奖分享版）](docs/competition-materials/项目作品报告-获奖分享版.pdf)
+- [完整演示截图](docs/competition-materials/screenshots-20260814/)
+- [演示视频（5 分 40 秒）](docs/competition-materials/演示视频-获奖分享版.mp4)
+
+分享材料统一添加 GitHub 地址和项目联系方式水印。
+
+</details>
+
+## 目录
+
+- [功能概览](#功能概览)
+- [技术栈](#技术栈)
+- [目录结构](#目录结构)
+- [本地启动](#本地启动)
+- [审核链路](#审核链路)
+- [API](#对外-api-v1)
+- [部署与测试](#服务器部署)
+- [安全约定](#数据与安全约定)
+- [项目材料与成果](#项目材料与成果)
 
 ## 功能概览
 
@@ -294,9 +323,28 @@ git diff --check
 - 不把“AI 生成”“存在水印”“C2PA 签发者”和“内容违规”互相等同；报告中分别展示这些维度。
 - 生产环境不要开启开发热重载，不要把 `.env`、模型权重、证据库或真实测试图片提交到 Git。
 
+## 项目材料与成果
+
+本项目获得第十九届全国大学生信息安全竞赛（作品赛）暨第三届“长城杯”网数智安全大赛（作品赛）三等奖。
+
+竞赛演示文稿、作品报告、完整截图和 5 分 40 秒演示视频位于 [`docs/competition-materials/`](docs/competition-materials/)。分享材料统一添加 GitHub 地址和项目联系方式水印；线上演示地址不随仓库公开。
+
+- [项目演示文稿（获奖分享版）](docs/competition-materials/项目演示文稿-获奖分享版.pdf)
+- [项目作品报告（获奖分享版）](docs/competition-materials/项目作品报告-获奖分享版.pdf)
+- [完整演示截图](docs/competition-materials/screenshots-20260814/)
+- [演示视频（5 分 40 秒）](docs/competition-materials/演示视频-获奖分享版.mp4)
+
 ## 相关文档
 
 - `docs/open-api-manual.md`：对外 API 调用手册
 - `docs/operator-manual.md`：运维与审核员操作手册
 - `docs/provenance-api-quickstart.md`：来源验证快速开始
 - `docs/goal-acceptance-audit-20260804.md`：验收记录
+
+## 联系方式
+
+项目交流：`2572045628@qq.com`
+
+## 开源协议
+
+本项目采用 [MIT License](LICENSE) 开源。
