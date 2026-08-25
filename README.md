@@ -2,6 +2,17 @@
 
 面向图片、文本和 Agent 调用的安全审核与审计平台。系统提供图片真实性分析、AI 来源验证、内容安全审核、OCR/RAG 检索、文本护栏、Agent 门禁和可下载检测报告，并支持本地运行、服务器部署和受控 API 接入。
 
+> **竞赛获奖**：本项目获得第十九届全国大学生信息安全竞赛（作品赛）暨第三届“长城杯”网数智安全大赛（作品赛）三等奖。
+
+## 竞赛材料
+
+带有获奖及“仅供学习交流”水印的演示文稿和作品报告位于 [`docs/competition-materials/`](docs/competition-materials/)。分享版本用于项目展示与技术交流，原始材料不随仓库发布。
+
+| 材料 | 分享版本 |
+| --- | --- |
+| 项目演示文稿 | [`项目演示文稿-获奖分享版.pdf`](docs/competition-materials/项目演示文稿-获奖分享版.pdf) |
+| 项目作品报告 | [`项目作品报告-获奖分享版.pdf`](docs/competition-materials/项目作品报告-获奖分享版.pdf) |
+
 ## 功能概览
 
 ### 图片审核
@@ -281,4 +292,3 @@ git diff --check
 - `docs/operator-manual.md`：运维与审核员操作手册
 - `docs/provenance-api-quickstart.md`：来源验证快速开始
 - `docs/goal-acceptance-audit-20260804.md`：验收记录
-
