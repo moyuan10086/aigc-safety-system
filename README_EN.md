@@ -76,6 +76,8 @@ This repository publishes source code, configuration templates, and documentatio
 
 The application can still run without private weights, including the frontend, API, deterministic rules, audit, and review workflows. Weight-dependent capabilities report an explicit degraded state instead of fabricating a result. For Hugging Face or ModelScope hosting, use a private repository, access token, and pinned revision; download weights on the deployment host and point the relevant environment variable to the local path. Use only weights you are authorized to deploy and follow each model's license and service terms.
 
+Public model repositories: [Hugging Face](https://huggingface.co/moyuan10086/aigc-safety-models) · [ModelScope](https://modelscope.cn/models/moyuan10086/aigc-safety-models)
+
 ### Run locally
 
 ```bash

@@ -148,6 +148,8 @@ GUARDRAIL_ENABLE_XGBOOST_SHADOW=false
 
 没有私有权重时仍可启动前后端并使用规则、API、审计和界面功能；涉及权重的能力会明确返回降级状态，不会静默伪造检测结果。权重托管在 Hugging Face 或 ModelScope 时，建议使用私有仓库、访问令牌和版本固定（revision），并在部署机下载后通过环境变量指向本地路径。请仅使用你拥有分发和部署权利的权重，并遵守各模型的许可证及服务条款。
 
+当前公开模型仓库： [Hugging Face](https://huggingface.co/moyuan10086/aigc-safety-models) · [ModelScope](https://modelscope.cn/models/moyuan10086/aigc-safety-models)
+
 ### 启动命令
 
 Windows 可直接运行：
