@@ -354,6 +354,7 @@ git diff --check
 - `docs/open-api-manual.md`：对外 API 调用手册
 - `docs/operator-manual.md`：运维与审核员操作手册
 - `docs/provenance-api-quickstart.md`：来源验证快速开始
+- [`docs/model-catalog.md`](docs/model-catalog.md)：完整模型清单、来源与获取方式
 - `docs/goal-acceptance-audit-20260804.md`：验收记录
 
 ## 联系方式

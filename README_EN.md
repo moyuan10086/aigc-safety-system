@@ -136,6 +136,7 @@ The sharing copies carry the repository URL and project contact watermark. The l
 - [`docs/open-api-manual.md`](docs/open-api-manual.md): external API manual
 - [`docs/operator-manual.md`](docs/operator-manual.md): operator and review workflow
 - [`docs/provenance-api-quickstart.md`](docs/provenance-api-quickstart.md): provenance verification quick start
+- [`docs/model-catalog.md`](docs/model-catalog.md): complete model catalog, provenance, and provisioning notes
 - [`docs/goal-acceptance-audit-20260804.md`](docs/goal-acceptance-audit-20260804.md): acceptance record
 
 ## Contact
