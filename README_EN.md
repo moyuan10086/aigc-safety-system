@@ -53,7 +53,7 @@ The system keeps authenticity, content safety, and provenance as separate eviden
 - Python 3.11+
 - Node.js 20+
 - `uv` or an equivalent Python environment
-- Model weights and OCR dependencies listed in `backend/pyproject.toml`
+- Runtime libraries for vision, YuNet, and OCR listed in `backend/pyproject.toml`; model weights must be provisioned separately as described below
 
 ### Configuration
 
@@ -62,6 +62,19 @@ cp backend/.env.example backend/.env
 ```
 
 Keep API keys and model endpoints in the local `.env` file. Do not commit secrets, uploaded files, model weights, or evidence databases.
+
+### Model weights and private dependencies
+
+This repository publishes source code, configuration templates, and documentation only. It does not distribute model weights through Git. Some checkpoints are private project artifacts or are subject to third-party licenses and access controls. When distribution is authorized, host them in a private or gated Hugging Face / ModelScope repository, or in an internal artifact registry, rather than committing them to Git. The repository `.gitignore` excludes all `weights/` and cache directories.
+
+| Capability | Runtime dependency | Provisioning |
+| --- | --- | --- |
+| Deepfake detection | Project-trained CLIP ViT-L/14 checkpoint | Download an authorized checkpoint from Hugging Face, ModelScope, or an internal registry, then set `DEEPFAKE_MODEL_PATH`; set `DEEPFAKE_FACE_MODEL_PATH` for a custom face detector when needed |
+| Chinese semantic retrieval | Sentence-Transformers / MiniLM model | Download or mount it in the target environment through your organization's approved process; do not commit the cache |
+| Qwen3Guard and SingGuard | Separate inference services and their model weights | Configure `*_BASE_URL`, `*_MODEL`, and `*_API_KEY`; keep weights on the inference-service host |
+| XGBoost Shadow, NudeNet, and other optional modules | Local model files | Set the corresponding `*_MODEL_PATH`; an unconfigured module reports `unavailable` or `degraded` |
+
+The application can still run without private weights, including the frontend, API, deterministic rules, audit, and review workflows. Weight-dependent capabilities report an explicit degraded state instead of fabricating a result. For Hugging Face or ModelScope hosting, use a private repository, access token, and pinned revision; download weights on the deployment host and point the relevant environment variable to the local path. Use only weights you are authorized to deploy and follow each model's license and service terms.
 
 ### Run locally
 

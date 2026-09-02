@@ -108,7 +108,7 @@ aigc-safety-system/
 - Python 3.11+
 - Node.js 20+
 - `uv`（推荐）或等价 Python 虚拟环境
-- 图片模型、YuNet 和 OCR 依赖按 `backend/pyproject.toml` 安装
+- 图片模型运行库、YuNet 和 OCR 依赖按 `backend/pyproject.toml` 安装；模型权重需按下节单独准备
 
 ### 配置
 
@@ -134,6 +134,19 @@ GUARDRAIL_ENABLE_QWEN_CLASSIFIER=false
 GUARDRAIL_ENABLE_SINGGUARD_CLASSIFIER=false
 GUARDRAIL_ENABLE_XGBOOST_SHADOW=false
 ```
+
+### 模型权重与私有依赖
+
+本仓库只公开源代码、配置模板和文档，不在 Git 中分发模型权重。部分权重属于项目私有训练产物，或受第三方许可和访问控制约束；这类文件应通过 Hugging Face / ModelScope 的私有或受限仓库，或组织内部制品库进行托管，而不是直接提交到 Git。`.gitignore` 已排除所有 `weights/` 和缓存目录。
+
+| 能力 | 运行时依赖 | 配置方式 |
+| --- | --- | --- |
+| Deepfake 检测 | 项目训练的 CLIP ViT-L/14 checkpoint | 从获授权的 Hugging Face / ModelScope 仓库或内部制品库下载到本地，并设置 `DEEPFAKE_MODEL_PATH`（人脸检测模型可通过 `DEEPFAKE_FACE_MODEL_PATH` 指定） |
+| 中文语义检索 | Sentence-Transformers / MiniLM 模型 | 在目标环境按组织合规流程下载或挂载到本地缓存；不提交缓存文件 |
+| Qwen3Guard、SingGuard | 独立的内部推理服务及其模型权重 | 配置对应 `*_BASE_URL`、`*_MODEL` 和 `*_API_KEY`；权重保留在推理服务所在主机 |
+| XGBoost Shadow、NudeNet 等可选模块 | 本地模型文件 | 通过各自的 `*_MODEL_PATH` 配置；未配置时模块报告 `unavailable` 或 `degraded` |
+
+没有私有权重时仍可启动前后端并使用规则、API、审计和界面功能；涉及权重的能力会明确返回降级状态，不会静默伪造检测结果。权重托管在 Hugging Face 或 ModelScope 时，建议使用私有仓库、访问令牌和版本固定（revision），并在部署机下载后通过环境变量指向本地路径。请仅使用你拥有分发和部署权利的权重，并遵守各模型的许可证及服务条款。
 
 ### 启动命令
 
