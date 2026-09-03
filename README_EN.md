@@ -78,6 +78,17 @@ The application can still run without private weights, including the frontend, A
 
 Public model repositories: [Hugging Face](https://huggingface.co/moyuan10086/aigc-safety-models) · [ModelScope](https://modelscope.cn/models/moyuan10086/aigc-safety-models)
 
+### Clone (with submodules)
+
+```bash
+# Clone recursively to fetch detection model submodules
+git clone --recursive https://github.com/moyuan10086/aigc-safety-system.git
+cd aigc-safety-system
+
+# If already cloned without submodules:
+git submodule update --init --recursive
+```
+
 ### Run locally
 
 ```bash

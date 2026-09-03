@@ -1,1 +1,2 @@
 backend/Sensitive-lexicon/** whitespace=-trailing-space
+vendor/aigc-local-auditor/** linguist-vendored=false

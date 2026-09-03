@@ -110,6 +110,17 @@ aigc-safety-system/
 - `uv`（推荐）或等价 Python 虚拟环境
 - 图片模型运行库、YuNet 和 OCR 依赖按 `backend/pyproject.toml` 安装；模型权重需按下节单独准备
 
+### 克隆项目（包含子模块）
+
+```bash
+# 递归克隆主项目及检测模型子模块（推荐）
+git clone --recursive https://github.com/moyuan10086/aigc-safety-system.git
+cd aigc-safety-system
+
+# 若之前已通过普通 clone 下载，可执行以下命令拉取子模块：
+git submodule update --init --recursive
+```
+
 ### 配置
 
 ```bash
