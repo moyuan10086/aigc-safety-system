@@ -113,6 +113,9 @@ aigc-safety-system/
 ### 克隆项目（包含子模块）
 
 ```bash
+# （Windows 用户推荐）若克隆提示 Filename too long，需开启 Git 长路径支持：
+git config --global core.longpaths true
+
 # 递归克隆主项目及检测模型子模块（推荐）
 git clone --recursive https://github.com/moyuan10086/aigc-safety-system.git
 cd aigc-safety-system

@@ -81,6 +81,9 @@ Public model repositories: [Hugging Face](https://huggingface.co/moyuan10086/aig
 ### Clone (with submodules)
 
 ```bash
+# Recommended for Windows users to prevent "Filename too long" error:
+git config --global core.longpaths true
+
 # Clone recursively to fetch detection model submodules
 git clone --recursive https://github.com/moyuan10086/aigc-safety-system.git
 cd aigc-safety-system
